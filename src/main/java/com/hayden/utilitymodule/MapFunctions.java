@@ -3,6 +3,7 @@ package com.hayden.utilitymodule;
 import reactor.core.publisher.Flux;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.function.BiFunction;
@@ -90,6 +91,16 @@ public class MapFunctions {
                 .collect(Collectors.toList()));
     }
 
+    public static <V,K> BiFunction<K, List<V>, List<V>> remapCreateAddList(V toAdd){
+        return (keyVal, aList) -> {
+            if(aList == null){
+                aList = new ArrayList<>();
+            }
+            aList.add(toAdd);
+            return aList;
+        };
+    }
+
     private <T extends ConcurrentNavigableMap<Date,Collection<Collection<U>>>, U> List<Map<String, ConcurrentNavigableMap<Date,Collection<U>>>> Expand(Collection<Map<String, T>> values)
     {
 
@@ -153,7 +164,7 @@ public class MapFunctions {
         return CollectConcurrent(entryStream, new ConcurrentSkipListMap<>());
     }
 
-    public static <T,U, MAP extends ConcurrentNavigableMap<T,U>> MAP CollectConcurrent(
+    public static <T,U, MAP extends ConcurrentMap<T,U>> MAP CollectConcurrent(
             Stream<Map.Entry<T,U>> entryStream, MAP map
     )
     {
