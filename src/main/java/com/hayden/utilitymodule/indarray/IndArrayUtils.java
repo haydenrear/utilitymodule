@@ -1,5 +1,5 @@
 package com.hayden.utilitymodule.indarray;
 
-public class IndArrayUtils {
 
+public class IndArrayUtils {
 }

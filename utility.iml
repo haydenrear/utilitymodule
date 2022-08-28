@@ -22,7 +22,7 @@
       </configuration>
     </facet>
   </component>
-  <component name="NewModuleRootManager" LANGUAGE_LEVEL="JDK_17_PREVIEW">
+  <component name="NewModuleRootManager" LANGUAGE_LEVEL="JDK_18_PREVIEW">
     <output url="file://$MODULE_DIR$/target/classes" />
     <output-test url="file://$MODULE_DIR$/target/test-classes" />
     <content url="file://$MODULE_DIR$">
@@ -69,7 +69,7 @@
     <orderEntry type="library" name="Maven: io.projectreactor:reactor-tools:3.4.7" level="project" />
     <orderEntry type="library" name="Maven: io.projectreactor:reactor-core:3.4.7" level="project" />
     <orderEntry type="library" name="Maven: org.reactivestreams:reactive-streams:1.0.3" level="project" />
-    <orderEntry type="library" name="Maven: org.projectlombok:lombok:1.18.20" level="project" />
+    <orderEntry type="library" name="Maven: org.projectlombok:lombok:1.18.24" level="project" />
     <orderEntry type="library" name="Maven: org.nd4j:nd4j-api:1.0.0-M1.1" level="project" />
     <orderEntry type="library" name="Maven: com.jakewharton.byteunits:byteunits:0.9.1" level="project" />
     <orderEntry type="library" name="Maven: org.apache.commons:commons-collections4:4.1" level="project" />
@@ -363,37 +363,37 @@
     <orderEntry type="library" name="Maven: org.kie:kie-memory-compiler:7.59.0.Final" level="project" />
     <orderEntry type="library" name="Maven: org.drools:drools-core-dynamic:7.59.0.Final" level="project" />
     <orderEntry type="library" name="Maven: commons-codec:commons-codec:1.15" level="project" />
-    <orderEntry type="library" name="Maven: org.kie:kie-spring:7.59.0.Final" level="project" />
-    <orderEntry type="library" name="Maven: org.jbpm:jbpm-flow:7.59.0.Final" level="project" />
-    <orderEntry type="library" name="Maven: org.drools:drools-mvel:7.59.0.Final" level="project" />
-    <orderEntry type="library" name="Maven: org.drools:drools-serialization-protobuf:7.59.0.Final" level="project" />
-    <orderEntry type="library" name="Maven: org.kie.soup:kie-soup-commons:7.59.0.Final" level="project" />
-    <orderEntry type="library" name="Maven: org.kie.soup:kie-soup-project-datamodel-commons:7.59.0.Final" level="project" />
-    <orderEntry type="library" name="Maven: org.kie.soup:kie-soup-project-datamodel-api:7.59.0.Final" level="project" />
-    <orderEntry type="library" name="Maven: org.kie:kie-dmn-api:7.59.0.Final" level="project" />
-    <orderEntry type="library" name="Maven: org.kie:kie-dmn-feel:7.59.0.Final" level="project" />
-    <orderEntry type="library" name="Maven: org.kie:kie-dmn-model:7.59.0.Final" level="project" />
-    <orderEntry type="library" name="Maven: org.antlr:antlr4-runtime:4.8" level="project" />
-    <orderEntry type="library" name="Maven: com.github.javaparser:javaparser-core:3.13.10" level="project" />
-    <orderEntry type="library" name="Maven: org.drools:drools-mvel-parser:7.59.0.Final" level="project" />
+    <orderEntry type="library" name="Maven: org.kie:kie-spring:7.68.0.Final" level="project" />
+    <orderEntry type="library" name="Maven: org.jbpm:jbpm-flow:7.68.0.Final" level="project" />
+    <orderEntry type="library" name="Maven: org.drools:drools-mvel:7.68.0.Final" level="project" />
+    <orderEntry type="library" name="Maven: org.drools:drools-serialization-protobuf:7.68.0.Final" level="project" />
+    <orderEntry type="library" name="Maven: org.kie.soup:kie-soup-commons:7.68.0.Final" level="project" />
+    <orderEntry type="library" name="Maven: org.kie.soup:kie-soup-project-datamodel-commons:7.68.0.Final" level="project" />
+    <orderEntry type="library" name="Maven: org.kie.soup:kie-soup-project-datamodel-api:7.68.0.Final" level="project" />
+    <orderEntry type="library" name="Maven: org.kie:kie-dmn-api:7.68.0.Final" level="project" />
+    <orderEntry type="library" name="Maven: org.kie:kie-dmn-feel:7.68.0.Final" level="project" />
+    <orderEntry type="library" name="Maven: org.kie:kie-dmn-model:7.68.0.Final" level="project" />
+    <orderEntry type="library" name="Maven: org.antlr:antlr4-runtime:4.9.2" level="project" />
+    <orderEntry type="library" name="Maven: com.github.javaparser:javaparser-core:3.23.1" level="project" />
     <orderEntry type="library" name="Maven: ch.obermuhlner:big-math:2.0.1" level="project" />
-    <orderEntry type="library" name="Maven: org.kie:kie-dmn-core:7.59.0.Final" level="project" />
-    <orderEntry type="library" name="Maven: org.kie:kie-dmn-backend:7.59.0.Final" level="project" />
-    <orderEntry type="library" name="Maven: org.drools:drools-ruleunit:7.59.0.Final" level="project" />
-    <orderEntry type="library" name="Maven: org.drools:drools-canonical-model:7.59.0.Final" level="project" />
-    <orderEntry type="library" name="Maven: org.drools:drools-model-compiler:7.59.0.Final" level="project" />
-    <orderEntry type="library" name="Maven: org.drools:drools-mvel-compiler:7.59.0.Final" level="project" />
-    <orderEntry type="library" name="Maven: org.drools:drools-alphanetwork-compiler:7.59.0.Final" level="project" />
+    <orderEntry type="library" name="Maven: org.kie:kie-dmn-core:7.68.0.Final" level="project" />
+    <orderEntry type="library" name="Maven: org.kie:kie-dmn-backend:7.68.0.Final" level="project" />
+    <orderEntry type="library" name="Maven: org.drools:drools-ruleunit:7.68.0.Final" level="project" />
+    <orderEntry type="library" name="Maven: org.drools:drools-canonical-model:7.68.0.Final" level="project" />
+    <orderEntry type="library" name="Maven: org.drools:drools-model-compiler:7.68.0.Final" level="project" />
+    <orderEntry type="library" name="Maven: org.drools:drools-mvel-compiler:7.68.0.Final" level="project" />
+    <orderEntry type="library" name="Maven: org.drools:drools-mvel-parser:7.68.0.Final" level="project" />
+    <orderEntry type="library" name="Maven: org.drools:drools-alphanetwork-compiler:7.68.0.Final" level="project" />
     <orderEntry type="library" name="Maven: org.jpmml:pmml-model:1.5.1" level="project" />
     <orderEntry type="library" name="Maven: org.jpmml:pmml-agent:1.5.1" level="project" />
-    <orderEntry type="library" name="Maven: com.google.protobuf:protobuf-java:3.6.1" level="project" />
-    <orderEntry type="library" name="Maven: org.mvel:mvel2:2.4.12.Final" level="project" />
+    <orderEntry type="library" name="Maven: com.google.protobuf:protobuf-java:3.19.4" level="project" />
+    <orderEntry type="library" name="Maven: org.mvel:mvel2:2.4.14.Final" level="project" />
     <orderEntry type="library" name="Maven: org.springframework:spring-tx:5.3.10" level="project" />
-    <orderEntry type="library" name="Maven: org.drools:drools-compiler:7.59.0.Final" level="project" />
-    <orderEntry type="library" name="Maven: org.drools:drools-ecj:7.59.0.Final" level="project" />
+    <orderEntry type="library" name="Maven: org.drools:drools-compiler:7.68.0.Final" level="project" />
+    <orderEntry type="library" name="Maven: org.drools:drools-ecj:7.68.0.Final" level="project" />
     <orderEntry type="library" name="Maven: org.antlr:antlr-runtime:3.5.2" level="project" />
-    <orderEntry type="library" name="Maven: org.drools:drools-decisiontables:7.59.0.Final" level="project" />
-    <orderEntry type="library" name="Maven: org.drools:drools-templates:7.59.0.Final" level="project" />
+    <orderEntry type="library" name="Maven: org.drools:drools-decisiontables:7.68.0.Final" level="project" />
+    <orderEntry type="library" name="Maven: org.drools:drools-templates:7.68.0.Final" level="project" />
     <orderEntry type="library" name="Maven: org.apache.poi:poi-ooxml:4.1.2" level="project" />
     <orderEntry type="library" name="Maven: org.apache.poi:poi-ooxml-schemas:4.1.2" level="project" />
     <orderEntry type="library" name="Maven: org.apache.xmlbeans:xmlbeans:3.1.0" level="project" />

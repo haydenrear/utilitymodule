@@ -8,8 +8,7 @@ import java.util.stream.Stream;
 
 public class CollectionFunctions {
 
-
-    public static <T extends Collection<U>, U, V extends Collection, F extends Collection<U>> Collection<?> flattenCollection(V v){
+    public static <V extends Collection> Collection<?> flattenCollection(V v){
         List<Object> collect = (List<Object>) streamFromCollection(v)
                 .map(f -> {
                     if (f instanceof Collection c) {
@@ -20,8 +19,7 @@ public class CollectionFunctions {
         return collect;
     }
 
-    private static <T extends Collection<U>, U> Stream<U> streamFromCollection(T t)
-    {
+    private static <T extends Collection<U>, U> Stream<U> streamFromCollection(T t) {
         return t.stream();
     }
 
