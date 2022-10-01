@@ -178,6 +178,18 @@ public class MapFunctions {
         return entryStream.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
+    public static <T,U,MAP extends Map<T,U>> MAP CollectMap(
+            Stream<Map.Entry<T,U>> entryStream,
+            Supplier<MAP> map
+    )
+    {
+        MAP mapFound = map.get();
+        Map<T, U> mapCollected = entryStream.collect(
+                Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (v1, v2) -> v1));
+        mapFound.putAll(mapCollected);
+        return mapFound;
+    }
+
     public static <
             W,
             T extends Collection<? extends W>,
