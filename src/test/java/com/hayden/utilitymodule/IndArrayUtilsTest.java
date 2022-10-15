@@ -1,5 +1,7 @@
 package com.hayden.utilitymodule;
 
+import com.hayden.utilitymodule.scaling.VectorizedMap;
+import jdk.incubator.vector.*;
 import org.datavec.api.util.ndarray.RecordConverter;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -12,11 +14,16 @@ import org.nd4j.linalg.util.DataSetUtils;
 
 import java.util.List;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+
 
 class IndArrayUtilsTest {
+    static final VectorSpecies<Float> SPECIES = FloatVector.SPECIES_128;
+
 
     @Test
     public void testINDArrayIndex() {
+
         INDArray zeros = Nd4j.zeros(3,4,2,5);
         INDArrayIndex[] indArrayIndices = NDArrayIndex.indexesFor(0, 0, 0);
         INDArray indArray = zeros.get(indArrayIndices);
