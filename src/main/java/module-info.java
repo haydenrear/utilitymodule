@@ -4,6 +4,7 @@ module utility {
     requires nd4j.api;
     requires reactor.core;
     requires lombok;
+    requires org.slf4j;
     requires nd4j.common;
     opens com.hayden.utilitymodule.scaling to lombok;
     opens com.hayden.utilitymodule to lombok;

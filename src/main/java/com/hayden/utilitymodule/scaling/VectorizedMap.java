@@ -3,6 +3,7 @@ package com.hayden.utilitymodule.scaling;
 
 import com.hayden.utilitymodule.MapFunctions;
 import jdk.incubator.vector.*;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -14,6 +15,8 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 // current way of doing this is to keep the vectors in store at all times, but a different
 // way to do it would be to keep the data in groups of the vector length, and add to the vector
@@ -24,6 +27,7 @@ import java.util.stream.Collectors;
  * @param <K>
  * @param <V>
  */
+@Slf4j
 public class VectorizedMap<K,V extends Number>
 //        extends ConcurrentSkipListMap<K, V>
 {
@@ -127,7 +131,7 @@ public class VectorizedMap<K,V extends Number>
 
 //    @Override
     public V remove(Object key) {
-        return ThisVectorsRemoveStateMachine.getThisVectorsState(this)
+        return VectorMapRemoveStateMachine.getThisVectorsState(this)
                 .remove(this, (K) key);
     }
 
@@ -135,24 +139,67 @@ public class VectorizedMap<K,V extends Number>
 
         thisVectorsReadWriteLock.writeLock().lock();
 
-        ConcurrentSkipListMap<K, VectorIndex> toSmoosh = getLeftOverAfterRemove(keysToRemove);
+        int startingAllIndex = allVectorsIndex.get();
 
-        var indicesReplaced = toSmoosh.values().stream()
-                .map(vectorIndex -> vectorIndex.indexOfVector)
-                .sorted()
-                .collect(Collectors.toCollection(ArrayList::new));
-
-        if(indicesReplaced.contains(allVectorsIndex.get())) {
-            FloatVector currentVector = thisVector.getAndSet(null);
-            vectors.put(allVectorsIndex.get(), currentVector);
-        }
+        var squashed = getLeftOverAfterRemove(keysToRemove);
+        var toSmoosh = squashed.leftOver;
+        var indicesReplaced = squashed.indicesReplaced.stream().distinct().collect(Collectors.toCollection(ArrayList::new));
 
         int length = vectorSpecies.length();
-        int numIndicesRequired = toSmoosh.size() % length;
+        int numVectorsCreated = toSmoosh.size() / length;
 
-        Map<Integer,FloatVector> vectorsMap = new HashMap<>();
         List<K> keySet = new ArrayList<>(toSmoosh.keySet());
-        for (int i=0; i<numIndicesRequired - 1; ++i) {
+
+        var tempVectorsMap = putReplaceAllVectorsInternal(toSmoosh, indicesReplaced, numVectorsCreated, keySet);
+
+        // Take the starting index, subtract
+        int numIndicesDropped = indicesReplaced.size() - numVectorsCreated;
+        int newAllVectorsIndex = startingAllIndex - numIndicesDropped;
+
+        allVectorsIndex.set(newAllVectorsIndex);
+        FloatVector thisVectors = thisVector.getAndSet(
+                (FloatVector) vectorSpecies.fromArray(new float[vectorSpecies.length()], 0)
+        );
+
+        var toAddBack = keySet.subList(Math.min(length * numVectorsCreated, toSmoosh.size()), toSmoosh.size())
+                .stream()
+                .filter(k -> !keysToRemove.contains(k))
+                .map(k -> {
+                    VectorIndex vectorIndex = toSmoosh.get(k);
+                    float[] vector;
+                    if(vectorIndex.indexOfVector == startingAllIndex) {
+                        vector = thisVectors.toArray();
+                    } else {
+                        vector = vectors.get(vectorIndex.indexOfVector).toArray();
+                    }
+                    return Map.entry(k, from(vector[vectorIndex.indexWithinVector]));
+                })
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+        indicesReplaced.forEach(vectors::remove);
+
+        keysToRemove.forEach(indices::remove);
+
+        tempVectorsMap.keySet()
+                .forEach(vectors::remove);
+        vectors.putAll(tempVectorsMap);
+
+        assert toAddBack.size() < vectorSpecies.length();
+
+        putAllInternal(toAddBack);
+
+        thisVectorsReadWriteLock.writeLock().unlock();
+    }
+
+    private Map<Integer,FloatVector> putReplaceAllVectorsInternal(
+            Map<K, VectorIndex> toSmoosh,
+            ArrayList<Integer> indicesReplaced,
+            int numIndicesRequired,
+            List<K> keySet
+    ) {
+        int length = vectorSpecies.length();
+        Map<Integer,FloatVector> tempVectorsMap = new HashMap<>();
+        for (int i = 0; i < numIndicesRequired; ++i) {
 
             Integer newIndexOfVector = indicesReplaced.get(i);
             List<K> next = keySet.subList(i * length, i * length + length);
@@ -168,59 +215,58 @@ public class VectorizedMap<K,V extends Number>
             }
 
             FloatVector floatVector = (FloatVector) vectorSpecies.fromArray(newArray, 0);
-            vectorsMap.put(newIndexOfVector, floatVector);
+            tempVectorsMap.put(newIndexOfVector, floatVector);
         }
 
-        var toAddBack = keySet.subList(numIndicesRequired, toSmoosh.size())
-                .stream()
-                .filter(k -> !keysToRemove.contains(k))
-                .map(k -> Map.entry(k, from(vectors.get(toSmoosh.get(k).indexOfVector).toArray()[toSmoosh.get(k).indexWithinVector])))
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-
-        putAllInternal(toAddBack);
-
-        // now deal with the one's left over...
-        List<K> leftOver = keySet.subList(
-                numIndicesRequired * length,
-                (numIndicesRequired * length) + (keySet.size() % length)
-        );
-
-        if(thisVector.get() == null) {
-            float[] leftOverValues = new float[length];
-            for(int i=0; i<leftOver.size(); ++i) {
-                K key = leftOver.get(i);
-                VectorIndex value = toSmoosh.get(key);
-                indices.put(key, value);
-                leftOverValues[i] = vectorsMap.get(value.indexOfVector)
-                        .toArray()[value.indexWithinVector];
-            }
-            thisVector.set((FloatVector) vectorSpecies.fromArray(leftOverValues, 0));
-        } else {
-            var addRegularly = leftOver.stream()
-                    .map(k -> {
-                        VectorIndex vectorIndex = toSmoosh.get(k);
-                        return Map.entry(k, from(vectors.get(vectorIndex.indexOfVector)
-                                .toArray()[vectorIndex.indexWithinVector]));
-                    })
-                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-
-            putAllInternal(addRegularly);
-        }
-
-
-        indicesReplaced.forEach(vectors::remove);
-        keysToRemove.forEach(indices::remove);
-
-        vectors.putAll(vectorsMap);
-
-        thisVectorsReadWriteLock.writeLock().unlock();
+        return tempVectorsMap;
     }
 
-    ConcurrentSkipListMap<K, VectorIndex> getLeftOverAfterRemove(Collection<K> keysToRemove) {
+    private List<IndexVector<K>> createFloatVectors(
+            Map<K, V> toSmoosh,
+            ArrayList<Integer> indicesReplaced,
+            List<K> keySet
+    ) {
+        int length = vectorSpecies.length();
+        assert keySet.size() % length == 0;
+        int max = indicesReplaced.stream().max(Integer::compareTo)
+                .orElse(0);
+        assert keySet.size() == (max + 1) * length;
+
+        return indicesReplaced.stream()
+                .map(i -> createVector(
+                        keySet.subList(i * length, i * length + length),
+                        toSmoosh,
+                        i
+                ))
+                .toList();
+
+    }
+
+    record IndexVector<K>(Map<K,VectorIndex> vectorIndex, FloatVector vector) {}
+
+    public IndexVector<K> createVector(List<K> keyset, Map<K,V> values, int vectorIndex) {
+        assert keyset.size() == vectorSpecies.length();
+        float[] vector = new float[vectorSpecies.length()];
+        Map<K,VectorIndex> indices = new HashMap<>();
+
+        for(int i=0; i<vectorSpecies.length(); ++i) {
+            K key = keyset.get(i);
+            vector[i] = values.get(key).floatValue();
+            indices.put(key, new VectorIndex(vectorIndex, i));
+        }
+
+        return new IndexVector<>(indices, (FloatVector) vectorSpecies.fromArray(vector, 0));
+    }
+
+    public record Squashed<K>(
+            ConcurrentSkipListMap<K, VectorizedMap.VectorIndex> leftOver,
+            ArrayList<Integer> indicesReplaced
+    ) {}
+
+    Squashed<K> getLeftOverAfterRemove(Collection<K> keysToRemove) {
+        Stream<VectorIndex> build = getIndicesWithKeysInBlockToBeRemoved(keysToRemove);
         var toSmoosh = MapFunctions.CollectMap(
-                keysToRemove.stream()
-                        .map(indices::get)
-                        .filter(Objects::nonNull)
+                build
                         .flatMap(v -> {
                             //TODO: probably better to keep around reverseIndices...
                             return indices
@@ -230,7 +276,28 @@ public class VectorizedMap<K,V extends Number>
                         })
                         .map(v -> Map.entry(getByVectorIndex(v.getValue()), v.getValue())), ConcurrentSkipListMap::new
         );
-        return toSmoosh;
+
+        var indicesReplaced = toSmoosh.values().stream()
+                .map(vectorIndex -> vectorIndex.indexOfVector)
+                .sorted()
+                .collect(Collectors.toCollection(ArrayList::new));
+
+        return new Squashed<>(toSmoosh, indicesReplaced);
+    }
+
+    private Stream<VectorIndex> getIndicesWithKeysInBlockToBeRemoved(Collection<K> keysToRemove) {
+        Stream.Builder<VectorIndex> indicesToRemoveStreamBuilder = Stream.builder();
+        keysToRemove.stream()
+                .map(indices::get)
+                .filter(Objects::nonNull)
+                .forEach(indicesToRemoveStreamBuilder::add);
+        IntStream.range(0, thisVectorsIndex.get())
+                .boxed()
+                .map(i -> new VectorIndex(allVectorsIndex.get(), i))
+                .forEach(indicesToRemoveStreamBuilder::add);
+
+        Stream<VectorIndex> build = indicesToRemoveStreamBuilder.build();
+        return build;
     }
 
     K getByVectorIndex(VectorIndex vectorIndex) {
@@ -265,99 +332,82 @@ public class VectorizedMap<K,V extends Number>
             return;
         }
 
-        int toAdd = map.size();
-        int amountLeftForThisVector = vectorSpecies.length() - thisVectorsIndex.get();
-        int numFloatsForNewVectors = toAdd - amountLeftForThisVector;
+        int length = vectorSpecies.length();
+        int amountLeftForThisVector = length - thisVectorsIndex.get();
+        int amountLeft = map.size() % length;
+        int numVectors = map.size() / length;
 
-        int numVectorsToBeCreated = 0;
-        int amountLeft = 0;
+        ArrayList<K> keys = new ArrayList<>(map.keySet());
 
-        if (numFloatsForNewVectors > 0) {
-            numVectorsToBeCreated = Math.max(numFloatsForNewVectors / vectorSpecies.length(), 1);
-            amountLeft = numFloatsForNewVectors % vectorSpecies.length();
+        if(amountLeft != 0) {
+            addToThisVector(map, amountLeftForThisVector, keys.subList(map.size() - amountLeft, map.size()));
         }
 
-        List<K> keys = new ArrayList<>(map.keySet());
+        ArrayList<Integer> allVectorsIndicesFound = IntStream.range(this.allVectorsIndex.get(), numVectors)
+                .boxed()
+                .collect(Collectors.toCollection(ArrayList::new));
 
-        addAdditionalVectors(map, amountLeftForThisVector, numVectorsToBeCreated, keys);
-        addToThisVector(map, keys.subList(0, Math.min(amountLeftForThisVector, keys.size())));
+        List<K> keySet = keys.subList(0, map.size() - amountLeft);
+        List<IndexVector<K>> floatVectorsToAdd = createFloatVectors((Map<K, V>) map, allVectorsIndicesFound, keySet);
 
-        if (amountLeft >= amountLeftForThisVector) {
-            FloatVector replaceWith = getVectorToReplace(map, amountLeft, keys, thisVectorsIndex.get());
-            FloatVector value = thisVector.getAndSet(replaceWith);
-            vectors.put(allVectorsIndex.getAndIncrement(), value);
-        }
+        floatVectorsToAdd.stream()
+                .flatMap(floatVectorToAdd -> {
+                    floatVectorToAdd.vectorIndex.entrySet()
+                            .stream().findAny()
+                            .ifPresentOrElse(any -> vectors.put(any.getValue().indexOfVector, floatVectorToAdd.vector),
+                                             () -> log.error("There was not any vector present!"));
+                    return floatVectorToAdd.vectorIndex.entrySet().stream();
+                })
+                .forEach(v -> indices.put(v.getKey(), v.getValue()));
+
+        allVectorsIndex.set(numVectors);
+
     }
 
-    void addToThisVector(Map<? extends K, ? extends V> map, List<K> forThisVector) {
-        int counter;
-        float[] thisVectorToReplace = thisVector.get().toArray();
-
-        assert(thisVectorsIndex.get() + forThisVector.size() <= vectorSpecies.length());
-        counter = 0;
-        for(int i = thisVectorsIndex.get();
-            i < forThisVector.size() + thisVectorsIndex.get();
-            ++i
-        ) {
-            K thisKey = forThisVector.get(counter);
-            V value = map.get(thisKey);
-            setMinMax(value);
-            thisVectorToReplace[i] = value.floatValue();
-            VectorIndex vectorIndex = new VectorIndex(thisVectorsIndex.get(), i);
-            indices.put(thisKey, vectorIndex);
-            ++counter;
-        }
-        thisVector.set((FloatVector) vectorSpecies.fromArray(thisVectorToReplace, 0));
-        thisVectorsIndex.updateAndGet(v -> forThisVector.size() + v);
-        System.out.println();
-    }
-
-    FloatVector getVectorToReplace(
-            Map<? extends K, ? extends V> map,
-            int amountLeft,
-            List<K> keys,
-            int thisVectorsIndex
-    ) {
-        int fromIndex = keys.size() - amountLeft;
-        List<K> last = keys.subList(fromIndex, keys.size());
-        float[] toSetArray = new float[vectorSpecies.length()];
-
-        int counter = 0;
-        for (var k: last) {
-            V v = map.get(k);
-            setMinMax(v);
-            toSetArray[counter] = v.floatValue();
-            VectorIndex vectorIndex = new VectorIndex(thisVectorsIndex + 1, counter);
-            indices.put(k, vectorIndex);
-            ++counter;
-        }
-
-        FloatVector replaceWith = (FloatVector) vectorSpecies.fromArray(toSetArray, 0);
-        return replaceWith;
-    }
-
-    void addAdditionalVectors(Map<? extends K, ? extends V> map, int amountLeftForThisVector, int numVectorsToBeCreated,
-                                      List<K> keys) {
-        for (int i = amountLeftForThisVector;
-             i <= Math.min(map.size(), numVectorsToBeCreated * vectorSpecies.length() + vectorSpecies.length());
-             i = i + vectorSpecies.length()
-        ) {
-            List<K> next = keys.subList(i, Math.min(i + vectorSpecies.length(), keys.size()));
-            int nextVectorToInc = allVectorsIndex.getAndIncrement();
-            float[] nextArr = new float[vectorSpecies.length()];
-            for (int j = 0; j < next.size(); ++j) {
-                K key = next.get(j);
-                V value = map.get(key);
-                setMinMax(value);
-                float v = value.floatValue();
-                nextArr[j] = v;
-                VectorIndex thisVectorIndex = new VectorIndex(nextVectorToInc, j);
-                indices.put(key, thisVectorIndex);
+    void addToThisVector(Map<? extends K, ? extends V> map, int amountLeftForThisVector, List<K> ks) {
+        if (ks.size() == amountLeftForThisVector) {
+            replaceThisVector(map, ks);
+        } else if (ks.size() < amountLeftForThisVector){
+            float[] floats = this.thisVector.get().toArray();
+            for (var e : ks) {
+                int andIncrement = thisVectorsIndex.getAndIncrement();
+                floats[andIncrement] = map.get(e).floatValue();
+                indices.put(e, new VectorIndex(allVectorsIndex.get(), andIncrement));
             }
-            vectors.put(nextVectorToInc, (FloatVector) vectorSpecies.fromArray(nextArr, 0));
+            this.thisVector.set((FloatVector) vectorSpecies.fromArray(floats, 0));
+        } else {
+            replaceThisVector(map, ks.subList(0, amountLeftForThisVector));
+            var floats = thisVector.get().toArray();
+            int vectorIndex = allVectorsIndex.get();
+            for (int i=amountLeftForThisVector; i<ks.size(); ++i) {
+                int andIncremenet = thisVectorsIndex.getAndIncrement();
+                K key = ks.get(i);
+                floats[andIncremenet] = map.get(key).floatValue();
+                indices.put(key, new VectorIndex(vectorIndex, andIncremenet));
+            }
+            FloatVector newValue = (FloatVector) vectorSpecies.fromArray(floats, 0);
+            this.thisVector.set(newValue);
         }
     }
 
+    private void replaceThisVector(
+            Map<? extends K, ? extends V> map,
+            List<K> keys)
+    {
+        assert vectorSpecies.length() - thisVectorsIndex.get() == keys.size();
+        FloatVector thisVectorFound = this.thisVector.getAndSet(
+                (FloatVector) vectorSpecies.fromArray(new float[vectorSpecies.length()], 0)
+        );
+        float[] floats = thisVectorFound.toArray();
+        int i = thisVectorsIndex.get();
+        for (var e : keys) {
+            floats[i] = map.get(e).floatValue();
+            indices.put(e, new VectorIndex(allVectorsIndex.get(), i));
+            ++i;
+        }
+        vectors.put(allVectorsIndex.getAndIncrement(), (FloatVector) vectorSpecies.fromArray(floats, 0));
+        thisVectorsIndex.set(0);
+    }
 
     //    @Override
     public V get(Object key) {
