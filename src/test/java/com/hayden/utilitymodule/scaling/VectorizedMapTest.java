@@ -38,8 +38,8 @@ class VectorizedMapTest {
         VectorizedMap<String,Integer> vectorizedMap = new VectorizedMap<String, Integer>(Integer.class);
         vectorizedMap.put("hello1", 1);
         vectorizedMap.put("hello2", 2);
-        assertThat(vectorizedMap.getMinimum()).isEqualTo(1);
-        assertThat(vectorizedMap.getMaximum()).isEqualTo(2);
+        assertThat(vectorizedMap.minimum).isEqualTo(1);
+        assertThat(vectorizedMap.maximum).isEqualTo(2);
     }
 
     @Test
@@ -127,25 +127,6 @@ class VectorizedMapTest {
         }, testMapAssert);
     }
 
-    private void removeSome(Map<String, Integer> testMapAssert) {
-        IntStream.range(0,10).boxed()
-                 .map(String::valueOf)
-                .forEach(testMapAssert::remove);
-    }
-
-    private void removeSome(VectorizedMap<String, Integer> testMapAssert) {
-        IntStream.range(0,10).boxed()
-                .map(String::valueOf)
-                .forEach(testMapAssert::remove);
-    }
-
-    private void removeSomeRemoveAll(VectorizedMap<String, Integer> testMapAssert) {
-        List<String> toRemove = IntStream.range(0, 10).boxed()
-                .map(String::valueOf)
-                .toList();
-
-        testMapAssert.removeAll(toRemove);
-    }
 
     @Test
     public void testRemoveAll() {
@@ -175,6 +156,26 @@ class VectorizedMapTest {
             assertThat(map.containsValue(val)).isTrue();
         });
         assertThat(map.size()).isEqualTo(endingState.size());
+    }
+
+    private void removeSome(Map<String, Integer> testMapAssert) {
+        IntStream.range(0,10).boxed()
+                .map(String::valueOf)
+                .forEach(testMapAssert::remove);
+    }
+
+    private void removeSome(VectorizedMap<String, Integer> testMapAssert) {
+        IntStream.range(0,10).boxed()
+                .map(String::valueOf)
+                .forEach(testMapAssert::remove);
+    }
+
+    private void removeSomeRemoveAll(VectorizedMap<String, Integer> testMapAssert) {
+        List<String> toRemove = IntStream.range(0, 10).boxed()
+                .map(String::valueOf)
+                .toList();
+
+        testMapAssert.removeAll(toRemove);
     }
 
     public Map<String,Integer> getTestMap() {

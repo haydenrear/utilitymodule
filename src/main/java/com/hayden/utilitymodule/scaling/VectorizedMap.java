@@ -3,8 +3,6 @@ package com.hayden.utilitymodule.scaling;
 
 import com.hayden.utilitymodule.MapFunctions;
 import jdk.incubator.vector.*;
-import lombok.AccessLevel;
-import lombok.Getter;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,29 +28,29 @@ public class VectorizedMap<K,V extends Number>
 //        extends ConcurrentSkipListMap<K, V>
 {
 
-    private final VectorSpecies<Float> vectorSpecies;
+    final VectorSpecies<Float> vectorSpecies;
 
     Comparable<? super K> compareTo;
 
-    private static final ReadWriteLock minReadWriteLock = new ReentrantReadWriteLock();
-    private final Class<V> clzz;
-    @Getter(AccessLevel.MODULE)
-    private V minimum;
-    @Getter(AccessLevel.MODULE)
-    private V maximum;
+    static final ReadWriteLock minReadWriteLock = new ReentrantReadWriteLock();
+    final Class<V> clzz;
 
-    private static final ReadWriteLock maxReadWriteLock = new ReentrantReadWriteLock();
+
+    V minimum;
+    V maximum;
+
+    static final ReadWriteLock maxReadWriteLock = new ReentrantReadWriteLock();
 
     record VectorIndex(Integer indexOfVector, Integer indexWithinVector) {}
 
-    private final ConcurrentSkipListMap<K, VectorIndex> indices = new ConcurrentSkipListMap<>();
+    final ConcurrentSkipListMap<K, VectorIndex> indices = new ConcurrentSkipListMap<>();
     //TODO: could probably implement lock striping for each float vector.
-    private final ConcurrentHashMap<Integer, FloatVector> vectors = new ConcurrentHashMap<>();
-    private final AtomicInteger allVectorsIndex = new AtomicInteger(0);
-    private final AtomicReference<FloatVector> thisVector = new AtomicReference<>();
-    private final AtomicInteger thisVectorsIndex = new AtomicInteger(0);
+    final ConcurrentHashMap<Integer, FloatVector> vectors = new ConcurrentHashMap<>();
+    final AtomicInteger allVectorsIndex = new AtomicInteger(0);
+    final AtomicReference<FloatVector> thisVector = new AtomicReference<>();
+    final AtomicInteger thisVectorsIndex = new AtomicInteger(0);
 
-    private static final ReadWriteLock thisVectorsReadWriteLock = new ReentrantReadWriteLock();
+    static final ReadWriteLock thisVectorsReadWriteLock = new ReentrantReadWriteLock();
 
     public VectorizedMap<K,V> getScaledValueMap() {
         return new VectorizedMap<>(clzz);
@@ -66,114 +64,7 @@ public class VectorizedMap<K,V extends Number>
         return new VectorizedMap<>(clzz);
     }
 
-    private enum ThisVectorsStateMachine {
-
-        THIS_VECTOR_HAS_VALUE_HAS_ROOM {
-            @Override
-            public <K,V extends Number> V remove(VectorizedMap<K,V> removeFrom, K key) {
-
-                thisVectorsReadWriteLock.writeLock().lock();
-                VectorIndex index = removeFrom.indices.remove(key);
-
-                if(index == null)
-                    return null;
-
-                FloatVector thisVector = removeFrom.thisVector.get();
-                float toReplaceWith = thisVector.toArray()[removeFrom.thisVectorsIndex.decrementAndGet()];
-                float[] vectorToRemoveFrom = removeFrom.vectors.get(index.indexOfVector).toArray();
-                float valueToRemove = vectorToRemoveFrom[index.indexWithinVector];
-                vectorToRemoveFrom[index.indexWithinVector] = toReplaceWith;
-                removeFrom.vectors.put(index.indexOfVector, (FloatVector) removeFrom.vectorSpecies.fromArray(vectorToRemoveFrom, 0));
-
-                thisVectorsReadWriteLock.writeLock().unlock();
-
-                return removeFrom.from(valueToRemove);
-            }
-
-
-        },
-        THIS_VECTOR_NO_VALUE_NO_VECTORS_IN_MAP {
-            @Override
-            public <K,V extends Number> V remove(VectorizedMap<K,V> removeFrom, K key) {
-
-                thisVectorsReadWriteLock.writeLock().lock();
-                VectorIndex index = removeFrom.indices.remove(key);
-                float valueToRemove;
-
-                if(index == null)
-                    return null;
-
-                FloatVector floatVector = removeFrom.thisVector.get();
-                valueToRemove = floatVector.toArray()[index.indexWithinVector];
-
-                for (int i = removeFrom.vectorSpecies.length() - 1; i > index.indexWithinVector; --i) {
-                    K thisValue = removeFrom.getByVectorIndex(new VectorIndex(0, i));
-                    removeFrom.indices.put(thisValue, new VectorIndex(0, i - 1));
-                }
-
-                thisVectorsReadWriteLock.writeLock().unlock();
-
-                return removeFrom.from(valueToRemove);
-            }
-
-        },
-        THIS_VECTOR_NO_VALUE_VECTORS_IN_MAP {
-            @Override
-            public <K,V extends Number> V remove(VectorizedMap<K,V> removeFrom, K key) {
-
-                VectorSpecies<Float> thisVectorsSpecies = removeFrom.vectorSpecies;
-
-                thisVectorsReadWriteLock.writeLock().lock();
-                VectorIndex index = removeFrom.indices.remove(key);
-
-                if(index == null)
-                    return null;
-
-                FloatVector toReplaceWith = removeFrom.vectors.get(removeFrom.allVectorsIndex.decrementAndGet());
-                float value = toReplaceWith.toArray()[thisVectorsSpecies.length() - 1];
-                toReplaceWith.toArray()[thisVectorsSpecies.length() - 1] = 0;
-                FloatVector floatVectorWithReplacedValue = (FloatVector) thisVectorsSpecies.fromArray(toReplaceWith.toArray(), 0);
-                removeFrom.thisVector.set(floatVectorWithReplacedValue);
-                float[] floatVectorToRemoveFrom = removeFrom.vectors.get(index.indexOfVector).toArray();
-                float valueToRemove = floatVectorToRemoveFrom[index.indexWithinVector];
-                floatVectorToRemoveFrom[index.indexWithinVector] = value;
-                removeFrom.vectors.put(index.indexOfVector, (FloatVector) thisVectorsSpecies.fromArray(floatVectorToRemoveFrom, 0));
-
-                thisVectorsReadWriteLock.writeLock().unlock();
-                return removeFrom.from(valueToRemove);
-            }
-
-            @Override
-            public <K, V extends Number> V put(VectorizedMap<K, V> removeFrom, K key, V Value) {
-                return super.put(removeFrom, key, Value);
-            }
-        };
-
-        public <K,V extends Number> V remove(VectorizedMap<K, V> removeFrom, K key) {
-            throw new UnsupportedOperationException("Impossible!");
-        }
-
-        public <K,V extends Number> V put(VectorizedMap<K, V> removeFrom, K key, V Value) {
-            throw new UnsupportedOperationException("Impossible!");
-        }
-
-
-        public static <K,V extends Number> ThisVectorsStateMachine getThisVectorsState(VectorizedMap<K,V> vector) {
-            if (vector.thisVectorsIndex.get() == 0) {
-                if(vector.allVectorsIndex.get() == 0) {
-                    return THIS_VECTOR_NO_VALUE_NO_VECTORS_IN_MAP;
-                } else {
-                    return THIS_VECTOR_NO_VALUE_VECTORS_IN_MAP;
-                }
-            } else {
-                return THIS_VECTOR_HAS_VALUE_HAS_ROOM;
-            }
-        }
-
-
-    }
-
-//    @Override
+    //    @Override
     public int size() {
         return indices.size();
     }
@@ -236,7 +127,7 @@ public class VectorizedMap<K,V extends Number>
 
 //    @Override
     public V remove(Object key) {
-        return ThisVectorsStateMachine.getThisVectorsState(this)
+        return ThisVectorsRemoveStateMachine.getThisVectorsState(this)
                 .remove(this, (K) key);
     }
 
@@ -244,18 +135,7 @@ public class VectorizedMap<K,V extends Number>
 
         thisVectorsReadWriteLock.writeLock().lock();
 
-        var toSmoosh = MapFunctions.CollectMap(
-                keysToRemove.stream()
-                        .map(indices::get)
-                        .flatMap(v -> {
-                            //TODO: probably better to keep around reverseIndices...
-                            return indices
-                                    .entrySet()
-                                    .stream()
-                                    .filter(e -> Objects.equals(e.getValue().indexOfVector, v.indexOfVector));
-                        })
-                        .map(v -> Map.entry(getByVectorIndex(v.getValue()), v.getValue())), ConcurrentSkipListMap::new
-        );
+        ConcurrentSkipListMap<K, VectorIndex> toSmoosh = getLeftOverAfterRemove(keysToRemove);
 
         var indicesReplaced = toSmoosh.values().stream()
                 .map(vectorIndex -> vectorIndex.indexOfVector)
@@ -281,7 +161,7 @@ public class VectorizedMap<K,V extends Number>
             for(int j=0; j < next.size(); ++j) {
                 K k = next.get(j);
                 VectorIndex prevVectorIndex = toSmoosh.get(k);
-                float value = vectorsMap.get(prevVectorIndex.indexOfVector)
+                float value = vectors.get(prevVectorIndex.indexOfVector)
                         .toArray()[prevVectorIndex.indexWithinVector];
                 newArray[j] = value;
                 indices.put(k, new VectorIndex(newIndexOfVector, j));
@@ -290,6 +170,14 @@ public class VectorizedMap<K,V extends Number>
             FloatVector floatVector = (FloatVector) vectorSpecies.fromArray(newArray, 0);
             vectorsMap.put(newIndexOfVector, floatVector);
         }
+
+        var toAddBack = keySet.subList(numIndicesRequired, toSmoosh.size())
+                .stream()
+                .filter(k -> !keysToRemove.contains(k))
+                .map(k -> Map.entry(k, from(vectors.get(toSmoosh.get(k).indexOfVector).toArray()[toSmoosh.get(k).indexWithinVector])))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+        putAllInternal(toAddBack);
 
         // now deal with the one's left over...
         List<K> leftOver = keySet.subList(
@@ -319,6 +207,7 @@ public class VectorizedMap<K,V extends Number>
             putAllInternal(addRegularly);
         }
 
+
         indicesReplaced.forEach(vectors::remove);
         keysToRemove.forEach(indices::remove);
 
@@ -327,7 +216,24 @@ public class VectorizedMap<K,V extends Number>
         thisVectorsReadWriteLock.writeLock().unlock();
     }
 
-    private K getByVectorIndex(VectorIndex vectorIndex) {
+    ConcurrentSkipListMap<K, VectorIndex> getLeftOverAfterRemove(Collection<K> keysToRemove) {
+        var toSmoosh = MapFunctions.CollectMap(
+                keysToRemove.stream()
+                        .map(indices::get)
+                        .filter(Objects::nonNull)
+                        .flatMap(v -> {
+                            //TODO: probably better to keep around reverseIndices...
+                            return indices
+                                    .entrySet()
+                                    .stream()
+                                    .filter(e -> Objects.equals(e.getValue().indexOfVector, v.indexOfVector));
+                        })
+                        .map(v -> Map.entry(getByVectorIndex(v.getValue()), v.getValue())), ConcurrentSkipListMap::new
+        );
+        return toSmoosh;
+    }
+
+    K getByVectorIndex(VectorIndex vectorIndex) {
         //TODO: point of optimization
         return indices.entrySet()
                 .stream()
@@ -353,7 +259,7 @@ public class VectorizedMap<K,V extends Number>
      * Assumes that the lock is already held.
      * @param map
      */
-    private void putAllInternal(Map<? extends K, ? extends V> map) {
+    void putAllInternal(Map<? extends K, ? extends V> map) {
 
         if(map.size() == 0) {
             return;
@@ -367,7 +273,7 @@ public class VectorizedMap<K,V extends Number>
         int amountLeft = 0;
 
         if (numFloatsForNewVectors > 0) {
-            numVectorsToBeCreated = numFloatsForNewVectors / vectorSpecies.length();
+            numVectorsToBeCreated = Math.max(numFloatsForNewVectors / vectorSpecies.length(), 1);
             amountLeft = numFloatsForNewVectors % vectorSpecies.length();
         }
 
@@ -383,7 +289,7 @@ public class VectorizedMap<K,V extends Number>
         }
     }
 
-    private void addToThisVector(Map<? extends K, ? extends V> map, List<K> forThisVector) {
+    void addToThisVector(Map<? extends K, ? extends V> map, List<K> forThisVector) {
         int counter;
         float[] thisVectorToReplace = thisVector.get().toArray();
 
@@ -406,8 +312,13 @@ public class VectorizedMap<K,V extends Number>
         System.out.println();
     }
 
-    private FloatVector getVectorToReplace(Map<? extends K, ? extends V> map, int amountLeft, List<K> keys, int thisVectorsIndex) {
-        int fromIndex = keys.size() - amountLeft + thisVectorsIndex;
+    FloatVector getVectorToReplace(
+            Map<? extends K, ? extends V> map,
+            int amountLeft,
+            List<K> keys,
+            int thisVectorsIndex
+    ) {
+        int fromIndex = keys.size() - amountLeft;
         List<K> last = keys.subList(fromIndex, keys.size());
         float[] toSetArray = new float[vectorSpecies.length()];
 
@@ -425,16 +336,16 @@ public class VectorizedMap<K,V extends Number>
         return replaceWith;
     }
 
-    private void addAdditionalVectors(Map<? extends K, ? extends V> map, int amountLeftForThisVector, int numVectorsToBeCreated,
+    void addAdditionalVectors(Map<? extends K, ? extends V> map, int amountLeftForThisVector, int numVectorsToBeCreated,
                                       List<K> keys) {
         for (int i = amountLeftForThisVector;
-             i < numVectorsToBeCreated * vectorSpecies.length();
+             i <= Math.min(map.size(), numVectorsToBeCreated * vectorSpecies.length() + vectorSpecies.length());
              i = i + vectorSpecies.length()
         ) {
-            List<K> next = keys.subList(i, i + vectorSpecies.length());
+            List<K> next = keys.subList(i, Math.min(i + vectorSpecies.length(), keys.size()));
             int nextVectorToInc = allVectorsIndex.getAndIncrement();
             float[] nextArr = new float[vectorSpecies.length()];
-            for(int j=0; j<next.size(); ++j) {
+            for (int j = 0; j < next.size(); ++j) {
                 K key = next.get(j);
                 V value = map.get(key);
                 setMinMax(value);
@@ -473,7 +384,7 @@ public class VectorizedMap<K,V extends Number>
         return (V) ((Double) ((Float)from).doubleValue());
     }
 
-    private void setMax(V value) {
+    void setMax(V value) {
         Lock readLock = maxReadWriteLock.readLock();
         readLock.lock();
         if(maximum == null || value.doubleValue() > maximum.doubleValue()) {
@@ -487,7 +398,7 @@ public class VectorizedMap<K,V extends Number>
         }
     }
 
-    private void setMin(V value) {
+    void setMin(V value) {
         Lock readLock = minReadWriteLock.readLock();
         readLock.lock();
         if(minimum == null || value.doubleValue() < minimum.doubleValue()) {
@@ -512,7 +423,7 @@ public class VectorizedMap<K,V extends Number>
         thisVector.set((FloatVector) vectorSpecies.zero());
     }
 
-    private void setMinMax(V value) {
+    void setMinMax(V value) {
         setMin(value);
         setMax(value);
     }
