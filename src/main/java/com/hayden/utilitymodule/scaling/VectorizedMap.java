@@ -143,7 +143,13 @@ public class VectorizedMap<K,V extends Number>
 
         var squashed = getLeftOverAfterRemove(keysToRemove);
         var toSmoosh = squashed.leftOver;
-        var indicesReplaced = squashed.indicesReplaced.stream().distinct().collect(Collectors.toCollection(ArrayList::new));
+        var indicesReplaced = squashed.indicesReplaced.stream()
+                .distinct()
+                .collect(Collectors.toCollection(ArrayList::new));
+
+        var indicesRemoved = keysToRemove.stream()
+                .map(v -> indices.get(v).indexOfVector)
+                .distinct().toList();
 
         int length = vectorSpecies.length();
         int numVectorsCreated = toSmoosh.size() / length;
@@ -176,7 +182,7 @@ public class VectorizedMap<K,V extends Number>
                 })
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
-        indicesReplaced.forEach(vectors::remove);
+        indicesRemoved.forEach(vectors::remove);
 
         keysToRemove.forEach(indices::remove);
 
@@ -185,6 +191,8 @@ public class VectorizedMap<K,V extends Number>
         vectors.putAll(tempVectorsMap);
 
         assert toAddBack.size() < vectorSpecies.length();
+
+        thisVectorsIndex.set(0);
 
         putAllInternal(toAddBack);
 
@@ -205,11 +213,18 @@ public class VectorizedMap<K,V extends Number>
             List<K> next = keySet.subList(i * length, i * length + length);
             float[] newArray = new float[length];
 
+            float[] thisVectorArray = thisVector.get().toArray();
+
             for(int j=0; j < next.size(); ++j) {
                 K k = next.get(j);
                 VectorIndex prevVectorIndex = toSmoosh.get(k);
-                float value = vectors.get(prevVectorIndex.indexOfVector)
-                        .toArray()[prevVectorIndex.indexWithinVector];
+                float value;
+                if (prevVectorIndex.indexOfVector == allVectorsIndex.get()) {
+                    value = thisVectorArray[prevVectorIndex.indexWithinVector];
+                } else {
+                    value = vectors.get(prevVectorIndex.indexOfVector)
+                            .toArray()[prevVectorIndex.indexWithinVector];
+                }
                 newArray[j] = value;
                 indices.put(k, new VectorIndex(newIndexOfVector, j));
             }
@@ -272,7 +287,9 @@ public class VectorizedMap<K,V extends Number>
                             return indices
                                     .entrySet()
                                     .stream()
-                                    .filter(e -> Objects.equals(e.getValue().indexOfVector, v.indexOfVector));
+                                    .filter(e -> Objects.equals(e.getValue().indexOfVector, v.indexOfVector)
+                                            && !keysToRemove.contains(e.getKey())
+                                    );
                         })
                         .map(v -> Map.entry(getByVectorIndex(v.getValue()), v.getValue())), ConcurrentSkipListMap::new
         );
@@ -339,28 +356,33 @@ public class VectorizedMap<K,V extends Number>
 
         ArrayList<K> keys = new ArrayList<>(map.keySet());
 
+        if(numVectors != 0) {
+
+            ArrayList<Integer> allVectorsIndicesFound = IntStream.range(this.allVectorsIndex.get(), numVectors)
+                    .boxed()
+                    .collect(Collectors.toCollection(ArrayList::new));
+
+            List<K> keySet = keys.subList(0, map.size() - amountLeft);
+            List<IndexVector<K>> floatVectorsToAdd = createFloatVectors((Map<K, V>) map, allVectorsIndicesFound,
+                                                                        keySet);
+
+            floatVectorsToAdd.stream()
+                    .flatMap(floatVectorToAdd -> {
+                        floatVectorToAdd.vectorIndex.entrySet()
+                                .stream().findAny()
+                                .ifPresentOrElse(
+                                        any -> vectors.put(any.getValue().indexOfVector, floatVectorToAdd.vector),
+                                        () -> log.error("There was not any vector present!"));
+                        return floatVectorToAdd.vectorIndex.entrySet().stream();
+                    })
+                    .forEach(v -> indices.put(v.getKey(), v.getValue()));
+
+            allVectorsIndex.set(numVectors);
+        }
+
         if(amountLeft != 0) {
             addToThisVector(map, amountLeftForThisVector, keys.subList(map.size() - amountLeft, map.size()));
         }
-
-        ArrayList<Integer> allVectorsIndicesFound = IntStream.range(this.allVectorsIndex.get(), numVectors)
-                .boxed()
-                .collect(Collectors.toCollection(ArrayList::new));
-
-        List<K> keySet = keys.subList(0, map.size() - amountLeft);
-        List<IndexVector<K>> floatVectorsToAdd = createFloatVectors((Map<K, V>) map, allVectorsIndicesFound, keySet);
-
-        floatVectorsToAdd.stream()
-                .flatMap(floatVectorToAdd -> {
-                    floatVectorToAdd.vectorIndex.entrySet()
-                            .stream().findAny()
-                            .ifPresentOrElse(any -> vectors.put(any.getValue().indexOfVector, floatVectorToAdd.vector),
-                                             () -> log.error("There was not any vector present!"));
-                    return floatVectorToAdd.vectorIndex.entrySet().stream();
-                })
-                .forEach(v -> indices.put(v.getKey(), v.getValue()));
-
-        allVectorsIndex.set(numVectors);
 
     }
 
