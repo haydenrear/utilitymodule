@@ -193,9 +193,9 @@ public class MapFunctions {
     public static <
             W,
             T extends Collection<? extends W>,
-            M extends ConcurrentNavigableMap<K,T>,
+            M extends Map<K,T>,
             K extends Comparable<K>,
-            CN extends ConcurrentNavigableMap<K,? super W>,
+            CN extends Map<K,? super W>,
             EL extends List<CN>
             > EL ExpandMap(
             M starting,
