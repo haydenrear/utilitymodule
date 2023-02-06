@@ -3,7 +3,6 @@ package com.hayden.utilitymodule;
 import reactor.core.publisher.Flux;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.function.BiFunction;
@@ -121,7 +120,7 @@ public class MapFunctions {
 
     public static <T,U,V extends Map<T,Z>, Z> Map<T,U> transformValue(V mapToTransform, Function<Map.Entry<T,Z>,Map.Entry<T,U>> transformation)
     {
-        Map<T, U> tuConcurrentSkipListMap = CollectConcurrent(
+        Map<T, U> tuConcurrentSkipListMap = Collect(
                 mapToTransform.entrySet()
                         .stream()
                         .map(entry ->transformation.apply(entry))
@@ -148,7 +147,7 @@ public class MapFunctions {
     }
 
 
-    public static <T,U,KeyBefore,ValueBefore> ConcurrentSkipListMap<T,U> CollectConcurrent(
+    public static <T,U,KeyBefore,ValueBefore> ConcurrentSkipListMap<T,U> Collect(
             Stream<Map.Entry<KeyBefore,ValueBefore>> entryStream,
             Function<Map.Entry<KeyBefore, ValueBefore>,T> keyMapper,
             Function<Map.Entry<KeyBefore, ValueBefore>,U> valueMapper
@@ -157,18 +156,18 @@ public class MapFunctions {
         return entryStream.collect(Collectors.toConcurrentMap(keyMapper, valueMapper, (v1,v2) -> v1, ConcurrentSkipListMap::new));
     }
 
-    public static <T,U> ConcurrentSkipListMap<T,U> CollectConcurrent(
+    public static <T,U> ConcurrentSkipListMap<T,U> Collect(
             Stream<Map.Entry<T,U>> entryStream
     )
     {
-        return CollectConcurrent(entryStream, new ConcurrentSkipListMap<>());
+        return Collect(entryStream, new ConcurrentSkipListMap<>());
     }
 
-    public static <T,U, MAP extends ConcurrentMap<T,U>> MAP CollectConcurrent(
+    public static <T,U, MAP extends Map<T,U>> MAP Collect(
             Stream<Map.Entry<T,U>> entryStream, MAP map
     )
     {
-        return entryStream.collect(Collectors.toConcurrentMap(Map.Entry::getKey, Map.Entry::getValue, (v1,v2) -> v1, () -> map));
+        return entryStream.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (v1,v2) -> v1, () -> map));
     }
 
     public static <T,U> Map<T,U> CollectMap(
