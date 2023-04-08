@@ -7,7 +7,7 @@ target/
 **/build/**
 build/
 .gradle/
-
+*.hprof
 
 ### STS ###
 .apt_generated
