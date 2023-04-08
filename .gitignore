@@ -4,6 +4,11 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+**/build/**
+build/
+.gradle/
+
+
 ### STS ###
 .apt_generated
 .classpath
@@ -32,3 +37,5 @@ build/
 ### VS Code ###
 .vscode/
 /data/src/main/resources/data/
+.gradle
+*.hprof
