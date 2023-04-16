@@ -18,4 +18,5 @@ public class Either<T,V> {
     public static <T,V> Either<T,V> from(@Nullable T first, @Nullable V second) {
         return new Either<>(first, second);
     }
+
 }

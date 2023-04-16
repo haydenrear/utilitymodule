@@ -39,3 +39,4 @@ build/
 /data/src/main/resources/data/
 .gradle
 *.hprof
+out/
