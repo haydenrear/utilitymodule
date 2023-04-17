@@ -13,4 +13,10 @@ class ArrayUtilsTest {
         assertThat(doubles).isEqualTo(new double[][] {{1.0, 2.0}});
     }
 
+    @Test
+    void fromPrimitive() {
+        Double[][] doubles = Assertions.assertDoesNotThrow(() -> ArrayUtilUtilities.fromPrimitive(new double[][]{{1.0, 2.0}}));
+        assertThat(doubles).isEqualTo(new Double[][] {{1.0, 2.0}});
+    }
+
 }

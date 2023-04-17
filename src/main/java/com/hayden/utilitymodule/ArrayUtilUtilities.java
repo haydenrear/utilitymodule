@@ -28,4 +28,28 @@ public class ArrayUtilUtilities {
                 .toArray(float[][]::new);
     }
 
+    public static Double[][] fromPrimitive(double[][] arr) {
+        return Arrays.stream(arr)
+                .map(d -> Arrays.stream(d).boxed().toArray(Double[]::new))
+                .toArray(Double[][]::new);
+    }
+
+    public static Long[][] fromPrimitive(long[][] arr) {
+        return Arrays.stream(arr)
+                .map(d -> Arrays.stream(d).boxed().toArray(Long[]::new))
+                .toArray(Long[][]::new);
+    }
+
+    public static Float[][] fromPrimitive(float[][] arr) {
+        return Arrays.stream(arr)
+                .map(d -> {
+                    Float[] f = new Float[d.length];
+                    for (int i=0; i<d.length; ++i) {
+                        f[i] = d[i];
+                    }
+                    return f;
+                })
+                .toArray(Float[][]::new);
+    }
+
 }
