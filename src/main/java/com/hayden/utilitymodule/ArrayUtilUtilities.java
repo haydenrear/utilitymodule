@@ -4,7 +4,8 @@ import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.TypeSpec;
 import org.apache.commons.lang3.ArrayUtils;
 
-import java.util.Arrays;
+import java.util.*;
+import java.util.stream.Stream;
 
 public class ArrayUtilUtilities {
 
@@ -20,6 +21,16 @@ public class ArrayUtilUtilities {
         return Arrays.stream(arr)
                 .map(ArrayUtils::toPrimitive)
                 .toArray(long[][]::new);
+    }
+
+    public static double[][][][] fromDoubleCollection(List<List<double[][]>> lst) {
+        double[][][][] arr = new double[lst.size()][lst.stream().map(List::size).max(Integer::compareTo).orElse(0)][][];
+        for (int i=0; i<lst.size(); ++i) {
+            for (int j=0; j<lst.get(0).size(); ++j) {
+                arr[i][j] = lst.get(i).get(j);
+            }
+        }
+        return arr;
     }
 
     public static float[][] toPrimitive(Float[][] arr) {
