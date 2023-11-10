@@ -1,5 +1,4 @@
 plugins {
-
     id("com.hayden.kotlin")
     id("com.hayden.no-main-class")
 }
