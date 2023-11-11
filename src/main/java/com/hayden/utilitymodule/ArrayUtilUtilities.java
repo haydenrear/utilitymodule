@@ -18,6 +18,10 @@ public class ArrayUtilUtilities {
                 .toArray(double[][]::new);
     }
 
+    public static double[] toPrimitive(Double[] arr) {
+        return ArrayUtils.toPrimitive(arr);
+    }
+
     public static long[][] toPrimitive(Long[][] arr) {
         return Arrays.stream(arr)
                 .map(ArrayUtils::toPrimitive)
