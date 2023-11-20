@@ -13,6 +13,92 @@ import java.util.stream.Stream;
 
 public class MapFunctions {
 
+    /**
+     * Merges the multiValueMapTwo into multivalueMap and then returns multivalueMap.
+     * Note: does make changes to multiValueMap.
+     * @param multiValueMapMutable
+     * @param multiValueMapMergeFrom
+     * @param collectionFactory
+     * @return
+     * @param <MAP>
+     * @param <K>
+     * @param <C>
+     * @param <V>
+     */
+    public static <MAP extends Map<K, C>, K, C extends Collection<V>, V> MAP MergeMultivalue(
+            MAP multiValueMapMutable,
+            MAP multiValueMapMergeFrom,
+            Supplier<C> collectionFactory
+    ) {
+        return mergeMultivalueInner(multiValueMapMergeFrom, collectionFactory, multiValueMapMutable);
+    }
+
+    public static <MAP extends Map<K, Collection<V>>, K, V> MAP MergeMultivalue(
+            MAP multiValueMapMutable,
+            MAP multiValueMapMergeFrom
+    ) {
+        return mergeMultivalueInner(multiValueMapMergeFrom, ArrayList::new, multiValueMapMutable);
+    }
+
+    public static <MAP extends Map<K, C>, K, C extends Collection<V>, V> MAP MergeMultivalue(
+            MAP multivalueMap,
+            MAP multiValueMapTwo,
+            Supplier<Optional<MAP>> outMap,
+            Supplier<C> collectionFactory
+    ) {
+        var out = outMap.get();
+        MAP retrieved;
+        if (out.isPresent()) {
+            retrieved = out.get();
+            mergeMultivalueInner(multivalueMap, collectionFactory, retrieved);
+        } else {
+            retrieved = multivalueMap;
+        }
+        return mergeMultivalueInner(multiValueMapTwo, collectionFactory, retrieved);
+    }
+
+    private static <MAP extends Map<K, C>, K, C extends Collection<V>, V> MAP mergeMultivalueInner(MAP multiValueMapTwo, Supplier<C> collectionFactory, MAP retrieved) {
+        multiValueMapTwo.entrySet().stream()
+                .flatMap(e -> e.getValue().stream().map(c -> Map.entry(e.getKey(), c)))
+                .forEach(e -> AddToMultivalue(retrieved, e.getValue(), e.getKey(), collectionFactory));
+        return retrieved;
+    }
+
+    public static <MAP extends Map<K, Collection<V>>, K, V> void AddToMultivalue(
+            MAP multivalueMap,
+            V toAdd,
+            K key
+    ) {
+        multivalueMap.compute(key, (nextKey, prev) -> {
+            if (prev == null) {
+                prev = new ArrayList<>();
+            }
+            prev.add(toAdd);
+            return prev;
+        });
+    }
+
+    public static <MAP extends Map<K, C>, K, C extends Collection<V>, V> void AddToMultivalue(
+            MAP multivalueMap,
+            V toAdd,
+            K key,
+            Supplier<C> collectionFactory
+    ) {
+        multivalueMap.compute(key, (nextKey, prev) -> {
+            if (prev == null) {
+                prev = collectionFactory.get();
+            }
+            prev.add(toAdd);
+            return prev;
+        });
+    }
+
+    public static Properties CreateProperties(Map<String, String> props) {
+        Properties properties = new Properties();
+        props.forEach(properties::setProperty);
+        return properties;
+    }
+
     public static <
             W,
             T extends Collection<? extends W>,

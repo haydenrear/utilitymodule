@@ -1,6 +1,7 @@
 package com.hayden.utilitymodule;
 
 import lombok.Getter;
+import org.eclipse.collections.impl.map.primitive.LongKeysMap;
 import reactor.core.publisher.Flux;
 
 import java.time.temporal.ChronoUnit;
@@ -36,15 +37,15 @@ public enum TimeUnitEnum implements Comparable<TimeUnitEnum> {
         this.chronoUnit = chronoUnit;
     }
 
-    public static TimeUnitEnum getTimeUnit(NavigableSet<Date> dates) {
+    public static TimeUnitEnum getTimeUnit(NavigableSet<Long> dates) {
 
-        Date lastEntry = dates.last();
-        Date nextToLast = dates.lower(lastEntry);
+        Long lastEntry = dates.last();
+        Long nextToLast = dates.lower(lastEntry);
 
         if(lastEntry == null || nextToLast == null)
             return TimeUnitEnum.DAY;
 
-        double length = lastEntry.getTime() - nextToLast.getTime();
+        double length = lastEntry - nextToLast;
 
         return getTimeUnitEnum(length);
     }

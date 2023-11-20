@@ -68,5 +68,17 @@ public class DateUtilities {
         );
     }
 
+    public static Long RandomEpochMilli() {
+        Random r = new Random();
+        int time = Math.abs((int) Date.from(Instant.now()).getTime());
+        return Instant.ofEpochMilli(
+                r.nextInt(time)
+        ).toEpochMilli();
+    }
+
+    public static Long NowEpochMilli() {
+        return new Date().toInstant().toEpochMilli();
+    }
+
 
 }
