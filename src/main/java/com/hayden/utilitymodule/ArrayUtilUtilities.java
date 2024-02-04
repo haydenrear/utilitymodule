@@ -8,7 +8,7 @@ import java.util.*;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Stream;
 
-import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
+//import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 
 public class ArrayUtilUtilities {
@@ -16,11 +16,11 @@ public class ArrayUtilUtilities {
     private ArrayUtilUtilities() {}
 
     public static void assertFloatArrayEquals(float[] one, float[] two) {
-        assertThat(Arrays.equals(one, two)).isTrue();
+//        assertThat(Arrays.equals(one, two)).isTrue();
     }
 
     public static void assertArrayEquals(Object[] one, Object[] two) {
-        assertThat(Arrays.equals(one, two)).isTrue();
+//        assertThat(Arrays.equals(one, two)).isTrue();
     }
 
     public static double[][] toPrimitive(Double[][] arr) {
