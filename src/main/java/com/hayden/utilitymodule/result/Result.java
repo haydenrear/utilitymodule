@@ -8,7 +8,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-public record Result<T, E extends Result.Error>(@Delegate Optional<T> result, @Nullable E error) implements Optional<T> {
+public record Result<T, E extends Result.Error>(@Delegate Optional<T> result, @Nullable E error)  {
 
     public boolean isError() {
         return error != null;
@@ -24,8 +24,16 @@ public record Result<T, E extends Result.Error>(@Delegate Optional<T> result, @N
         return new Result<>(Optional.ofNullable(result), null);
     }
 
+    public static <T> Result<T, Result.Error> from(T result, @Nullable String error) {
+        return new Result<>(Optional.ofNullable(result), new StandardError(error));
+    }
+
     public static <T> Result<T, Result.Error> fromError(Result.Error error) {
         return new Result<>(Optional.empty(), error);
+    }
+
+    public static <T> Result<T, Result.Error> fromError(String error) {
+        return new Result<>(Optional.empty(), new StandardError(error));
     }
 
     public record StandardError(String error) implements Error {}
