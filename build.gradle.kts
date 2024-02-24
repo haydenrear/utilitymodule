@@ -10,5 +10,8 @@ java {
 
 dependencies {
     implementation("com.squareup:javapoet:1.13.0")
+    annotationProcessor(project(":tracing_apt")) {
+        exclude("org.junit")
+    }
+    api(project(":tracing_apt"))
 }
-
