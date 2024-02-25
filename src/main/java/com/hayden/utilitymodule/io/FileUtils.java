@@ -10,6 +10,10 @@ import java.util.stream.Stream;
 @Slf4j
 public class FileUtils {
 
+    public static InputStream getResourceAsStream(String value) {
+        return FileUtils.class.getClassLoader().getResourceAsStream(value);
+    }
+
     public static boolean writeBytesToFile(byte[] data, Path file) {
         try {
             if (!file.toFile().exists() && !file.toFile().createNewFile()) {
