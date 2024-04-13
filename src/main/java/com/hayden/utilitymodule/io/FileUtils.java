@@ -64,4 +64,16 @@ public class FileUtils {
         return Stream.empty();
     }
 
+    public static boolean deleteFilesRecursive(Path path) {
+        return GetFilesRecursive(path).allMatch(p -> {
+            try {
+                Files.delete(p);
+                return true;
+            } catch (IOException e) {
+                log.error("Could not delete file {} with error {}.", p.toFile().getAbsoluteFile(), e.getMessage());
+                return false;
+            }
+        });
+    }
+
 }
