@@ -25,11 +25,6 @@ public record Result<T, E extends Result.Error>(@Delegate Optional<T> result, @N
         return this;
     }
 
-    public Result<T, E> flatMapOptional(Function<Result<T, E>, Optional<T>> mapper) {
-        return mapper.apply(this)
-                .map(t -> Result.<T, E>fromResult(t))
-                .orElse(Result.fromError(error));
-    }
 
     public Result<T, E> or(Supplier<Result<T, E>> res) {
         if (result.isPresent())
@@ -39,6 +34,16 @@ public record Result<T, E extends Result.Error>(@Delegate Optional<T> result, @N
 
     public Result<T, E> flatMap(Function<T, Result<T, E>> mapper) {
         return result.map(mapper).orElse(this);
+    }
+
+    public Optional<T> optional() {
+        return result;
+    }
+
+    public <OPT> Result<OPT, E> flatMapOptional(Function<T, Optional<OPT>> mapper) {
+        return this.optional().flatMap(mapper)
+                .<Result<OPT, E>>map(Result::fromResult)
+                .orElse(Result.fromError(this.error));
     }
 
     public <U, V extends Error> Result<U, V> map(Function<T, U> mapper) {
