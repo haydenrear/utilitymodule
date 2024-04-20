@@ -8,6 +8,7 @@ import org.checkerframework.checker.nullness.Opt;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -17,6 +18,11 @@ public record Result<T, E extends Result.Error>(@Delegate Optional<T> result, @N
 
     public boolean isError() {
         return error != null;
+    }
+
+    public Result<T, E> mapError(Consumer<E> mapper) {
+        mapper.accept(error);
+        return this;
     }
 
     public Result<T, E> flatMapOptional(Function<Result<T, E>, Optional<T>> mapper) {
