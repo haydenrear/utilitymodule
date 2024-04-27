@@ -6,6 +6,7 @@ import lombok.experimental.Delegate;
 import org.checkerframework.checker.nullness.Opt;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -25,6 +26,45 @@ public record Result<T, E extends Result.Error>(@Delegate Optional<T> result, @N
         return this;
     }
 
+    public static <T extends AggregateResponse, E extends AggregateError> @Nullable Result<T, E> all(Collection<Result<T, E>> mapper) {
+        Result<T, E> result = null;
+        for (Result<T, E> nextResultToAdd : mapper) {
+            if (result == null)
+                result = nextResultToAdd;
+            if (nextResultToAdd.result.isPresent()) {
+                // can't add a ref, only update current, because it's immutable.
+                if (result.result.isEmpty()) {
+                    var temp = result;
+                    result = nextResultToAdd;
+                    nextResultToAdd = temp;
+                } else {
+                    result.result.get().add(nextResultToAdd.result.get());
+                }
+            }
+
+            result = addErrors(nextResultToAdd, result);
+        }
+
+        return result;
+    }
+
+    private static <T extends AggregateResponse, E extends AggregateError> Result<T, E> addErrors(Result<T, E> r, Result<T, E> result) {
+        if (r.error != null) {
+            if (result.error == null) {
+                result = result.result
+                        .map(s -> Result.from(s, r.error))
+                        // this one shouldn't ever happen...
+                        .orElseGet(() -> r.result
+                                .map(t -> Result.from(t, r.error))
+                                .orElseGet(() -> Result.fromError(r.error)));
+            } else {
+                Optional.ofNullable(r.error.errors())
+                        .ifPresent(result.error::addError);
+            }
+        }
+        return result;
+    }
+
 
     public Result<T, E> or(Supplier<Result<T, E>> res) {
         if (result.isPresent())
@@ -32,8 +72,12 @@ public record Result<T, E extends Result.Error>(@Delegate Optional<T> result, @N
         return res.get();
     }
 
-    public Result<T, E> flatMap(Function<T, Result<T, E>> mapper) {
-        return result.map(mapper).orElse(this);
+    public <U> Result<U, E> flatMap(Function<T, Result<U, E>> mapper) {
+        try {
+            return result.map(mapper).orElse((Result<U, E>) this);
+        } catch (Exception e) {
+            return Result.emptyError();
+        }
     }
 
     public Optional<T> optional() {
@@ -62,14 +106,34 @@ public record Result<T, E extends Result.Error>(@Delegate Optional<T> result, @N
         public static Error fromE(Throwable error) {
             return new StandardError(error);
         }
+
+        String getMessage();
+    }
+
+    public interface AggregateResponse {
+        void add(AggregateResponse aggregateResponse);
     }
 
     public interface AggregateError extends Error {
+
+        default List<String> getMessages() {
+            return errors().stream().map(Error::getMessage)
+                    .toList();
+        }
+
+        @Override
+        default String getMessage() {
+            return String.join(", ", getMessages());
+        }
 
         List<Error> errors();
 
         default void addError(Error error) {
             errors().add(error);
+        }
+
+        default void addError(List<Error> error) {
+            errors().addAll(error);
         }
 
         default String prettyPrint() {
@@ -87,6 +151,10 @@ public record Result<T, E extends Result.Error>(@Delegate Optional<T> result, @N
 
     public static <T> Result<T, Result.Error> from(T result, @Nullable String error) {
         return new Result<>(Optional.ofNullable(result), new StandardError(error));
+    }
+
+    public static <T, E extends AggregateError> Result<T, E> from(T result, @Nullable E error) {
+        return new Result<>(Optional.ofNullable(result), error);
     }
 
     public static <T, E extends Error> Result<T, E> fromError(E error) {
@@ -107,6 +175,11 @@ public record Result<T, E extends Result.Error>(@Delegate Optional<T> result, @N
         }
         public StandardError(String throwable) {
             this(throwable, null);
+        }
+
+        @Override
+        public String getMessage() {
+            return error;
         }
     }
 
