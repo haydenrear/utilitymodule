@@ -25,6 +25,19 @@ class ResultTest {
     }
 
     @Test
+    void flatMap() {
+        var singleMessage = singleMessage();
+        Result<String, TestAgg> hello = singleMessage
+                .flatMap(t -> Result.ok("hello"))
+                .cast();
+        assertThat(hello.get()).isEqualTo("hello");
+        var hello2 = singleMessage
+                .flatMap(t -> Result.emptyError())
+                .cast();
+        assertThat(hello2.get()).isEqualTo(singleMessage.get());
+    }
+
+    @Test
     void all() {
         var singleMessage = singleMessage();
         var errorAndMessage = errorAndMessage();
@@ -114,12 +127,12 @@ class ResultTest {
     }
 
     private static @NotNull Result<TestRes, TestAgg> singleMessage() {
-        Result<TestRes, TestAgg> r = Result.fromResult(new TestRes(Lists.newArrayList("hello")));
+        Result<TestRes, TestAgg> r = Result.ok(new TestRes(Lists.newArrayList("hello")));
         return r;
     }
 
     private static @NotNull Result<TestRes, TestAgg> withSingleError() {
-        Result<TestRes, TestAgg> r2 = Result.fromError(
+        Result<TestRes, TestAgg> r2 = Result.err(
                 new TestAgg(Lists.newArrayList(Result.Error.fromMessage("goodbye2")))
         );
         return r2;
@@ -127,14 +140,14 @@ class ResultTest {
 
     private static @NotNull Result<TestRes, TestAgg> multipleErrors() {
         Result<TestRes, TestAgg> r2;
-        r2 = Result.fromError(
+        r2 = Result.err(
                 new TestAgg(Lists.newArrayList(Result.Error.fromMessage("goodbye9"), Result.Error.fromMessage("goodbye10")))
         );
         return r2;
     }
 
     private static @NotNull Result<TestRes, TestAgg> multipleMessages() {
-        Result<TestRes, TestAgg> r2 = Result.fromResult(new TestRes(Lists.newArrayList("hello9", "hello10", "hello11")));
+        Result<TestRes, TestAgg> r2 = Result.ok(new TestRes(Lists.newArrayList("hello9", "hello10", "hello11")));
         return r2;
     }
 
