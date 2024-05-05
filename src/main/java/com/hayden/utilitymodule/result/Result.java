@@ -125,6 +125,16 @@ public record Result<T, E extends Result.Error>(@Delegate Optional<T> result,
         return this;
     }
 
+    public static <T extends AggregateResponse, E extends AggregateError> @Nullable Result<T, E> all(Collection<Result<T, E>> mapper, Result<T, E> finalResult) {
+        return Optional.ofNullable(all(mapper))
+                .flatMap(r -> Optional.ofNullable(r.error))
+                .map(e -> {
+                    finalResult.error.errors().addAll(e.errors()) ;
+                    return finalResult;
+                })
+                .orElse(finalResult);
+    }
+
     public static <T extends AggregateResponse, E extends AggregateError> @Nullable Result<T, E> all(Collection<Result<T, E>> mapper) {
         Result<T, E> result = null;
         for (Result<T, E> nextResultToAdd : mapper) {
