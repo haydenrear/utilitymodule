@@ -1,5 +1,7 @@
 package com.hayden.utilitymodule.result;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.hayden.utilitymodule.reflection.TypeReferenceDelegate;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import lombok.experimental.Delegate;
@@ -75,6 +77,10 @@ public record Result<T, E extends Result.Error>(@Delegate Optional<T> result,
 
     }
 
+    public static <T, E extends Error> Result<T, E> from(Optional<T> result, Supplier<E> e) {
+        return result.map(Result::<T, E>ok)
+                .orElse(Result.err(e.get()));
+    }
 
     public static <T, E extends Error> Result<T, E> ok(T result) {
         return new Result<>(Optional.ofNullable(result), null);
@@ -86,6 +92,10 @@ public record Result<T, E extends Result.Error>(@Delegate Optional<T> result,
 
     public static <T, E extends AggregateError> Result<T, E> from(@Nullable T result, @Nullable E error) {
         return new Result<>(Optional.ofNullable(result), error);
+    }
+
+    public static <T, E extends AggregateError> Result<T, E> from(Optional<T> result, @Nullable E error) {
+        return new Result<>(result, error);
     }
 
     public static <T, E extends Error> Result<T, E> err(@Nullable E error) {
@@ -171,6 +181,16 @@ public record Result<T, E extends Result.Error>(@Delegate Optional<T> result,
         }
     }
 
+    public <U, E extends Result.Error> Result<U, E> flatMapResult(Function<T, Result<U, E>> mapper) {
+        try {
+            return result.map(mapper)
+                    .filter(r -> r.result.isPresent())
+                    .orElse((Result<U, E>) this);
+        } catch (Exception e) {
+            return Result.emptyError();
+        }
+    }
+
     public Optional<T> optional() {
         return result;
     }
@@ -197,6 +217,10 @@ public record Result<T, E extends Result.Error>(@Delegate Optional<T> result,
 
     public <U, V extends Error> Result<U, V> cast() {
         return this.map(c -> (U) c);
+    }
+
+    public <R extends Result<U, V>, U, V extends Error> R cast(TypeReference<R> refDelegate) {
+        return (R) this.map(c -> (U) c);
     }
 
     public static <T, V extends Error> Result<T, V> emptyError() {
