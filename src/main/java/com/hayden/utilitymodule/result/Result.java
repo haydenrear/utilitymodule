@@ -121,7 +121,7 @@ public record Result<T, E extends Result.Error>(@Delegate Optional<T> result,
     }
 
     public Result<T, E> mapError(Consumer<E> mapper) {
-        mapper.accept(error);
+        Optional.ofNullable(error).ifPresent(mapper);
         return this;
     }
 
@@ -196,8 +196,8 @@ public record Result<T, E extends Result.Error>(@Delegate Optional<T> result,
             return result.map(mapper)
                     .filter(r -> r.result.isPresent())
                     .orElse((Result<U, E>) this);
-        } catch (Exception e) {
-            return Result.emptyError();
+        } catch (ClassCastException e) {
+            return Result.err(this.error).cast();
         }
     }
 
