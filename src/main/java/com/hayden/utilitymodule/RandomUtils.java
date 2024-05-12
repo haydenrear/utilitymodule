@@ -2,6 +2,8 @@ package com.hayden.utilitymodule;
 
 import java.util.Map;
 import java.util.Random;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public class RandomUtils {
 
@@ -19,5 +21,10 @@ public class RandomUtils {
         return RandomFound.Random.random.ints(starting, ending)
                 .findFirst()
                 .orElseThrow();
+    }
+
+    public static String randomNumberString(int length) {
+        return IntStream.range(0, length).boxed().map(i -> String.valueOf(numberBetween(0, 9)))
+                .collect(Collectors.joining());
     }
 }

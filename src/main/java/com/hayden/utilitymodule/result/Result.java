@@ -1,21 +1,64 @@
 package com.hayden.utilitymodule.result;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.hayden.utilitymodule.reflection.TypeReferenceDelegate;
-import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import lombok.RequiredArgsConstructor;
 import lombok.experimental.Delegate;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Supplier;
+import java.util.*;
+import java.util.function.*;
+import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 public record Result<T, E extends Result.Error>(@Delegate Optional<T> result,
                                                 @Nullable E error) {
+
+    @RequiredArgsConstructor
+    public static class AggregateResultCollector<T extends AggregateResponse, E extends AggregateError> implements Collector<Result<T, E>, Result<T, E>, Result<T, E>> {
+
+        private final T aggregateResponse;
+        private final E aggregateError;
+
+        public static <T extends AggregateResponse, E extends AggregateError> AggregateResultCollector<T, E> fromValues(T t, E e) {
+            return new AggregateResultCollector<>(t, e);
+        }
+
+        public static <T extends AggregateResponse, E extends AggregateError> AggregateResultCollector<T, E> toResult(Supplier<T> t, Supplier<E> e) {
+            return new AggregateResultCollector<>(t.get(), e.get());
+        }
+
+        @Override
+        public Supplier<Result<T, E>> supplier() {
+            return () -> Result.from(aggregateResponse, aggregateError);
+        }
+
+        @Override
+        public BiConsumer<Result<T, E>, Result<T, E>> accumulator() {
+            return (r1, r2) -> {
+                r2.ifPresent(aggregateResponse::add);
+                Optional.ofNullable(r2.error).map(E::errors).ifPresent(aggregateError::addError);
+            };
+        }
+
+        @Override
+        public BinaryOperator<Result<T, E>> combiner() {
+            return (r1, r2) -> {
+                r2.ifPresent(aggregateResponse::add);
+                Optional.ofNullable(r2.error).map(E::errors).ifPresent(aggregateError::addError);
+                return Result.from(aggregateResponse, aggregateError);
+            };
+        }
+
+        @Override
+        public Function<Result<T, E>, Result<T, E>> finisher() {
+            return r1 -> Result.from(aggregateResponse, aggregateError);
+        }
+
+        @Override
+        public Set<Characteristics> characteristics() {
+            return Collections.emptySet();
+        }
+    }
 
     public record StandardError(String error, Throwable throwable) implements Error {
         public StandardError(Throwable throwable) {
@@ -39,6 +82,10 @@ public record Result<T, E extends Result.Error>(@Delegate Optional<T> result,
             return new StandardError(error);
         }
 
+        static Error fromE(Throwable error, String cause) {
+            return new StandardError(cause, error);
+        }
+
         String getMessage();
     }
 
@@ -48,9 +95,9 @@ public record Result<T, E extends Result.Error>(@Delegate Optional<T> result,
 
     public interface AggregateError extends Error {
 
-        default List<String> getMessages() {
+        default Set<String> getMessages() {
             return errors().stream().map(Error::getMessage)
-                    .toList();
+                    .collect(Collectors.toSet());
         }
 
         @Override
@@ -58,13 +105,13 @@ public record Result<T, E extends Result.Error>(@Delegate Optional<T> result,
             return String.join(", ", getMessages());
         }
 
-        List<Error> errors();
+        Set<Error> errors();
 
         default void addError(Error error) {
             errors().add(error);
         }
 
-        default void addError(List<Error> error) {
+        default void addError(Set<Error> error) {
             errors().addAll(error);
         }
 
@@ -133,6 +180,12 @@ public record Result<T, E extends Result.Error>(@Delegate Optional<T> result,
                     return finalResult;
                 })
                 .orElse(finalResult);
+    }
+
+
+    @SafeVarargs
+    public static <T extends AggregateResponse, E extends AggregateError> @Nullable Result<T, E> all(Result<T, E> ... mapper) {
+        return all(Arrays.asList(mapper));
     }
 
     public static <T extends AggregateResponse, E extends AggregateError> @Nullable Result<T, E> all(Collection<Result<T, E>> mapper) {
