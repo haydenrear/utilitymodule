@@ -2,6 +2,7 @@ package com.hayden.utilitymodule;
 
 //import com.squareup.javapoet.MethodSpec;
 //import com.squareup.javapoet.TypeSpec;
+import jakarta.annotation.Nullable;
 import org.apache.commons.lang3.ArrayUtils;
 
 import java.util.*;
@@ -14,6 +15,10 @@ import java.util.stream.Stream;
 public class ArrayUtilUtilities {
 
     private ArrayUtilUtilities() {}
+
+    public static <T> Stream<T> fromArray(@Nullable T[] array) {
+        return Optional.ofNullable(array).stream().flatMap(Arrays::stream);
+    }
 
     public static void assertFloatArrayEquals(float[] one, float[] two) {
 //        assertThat(Arrays.equals(one, two)).isTrue();

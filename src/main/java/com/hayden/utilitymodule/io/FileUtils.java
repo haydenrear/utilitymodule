@@ -1,5 +1,7 @@
 package com.hayden.utilitymodule.io;
 
+import com.hayden.utilitymodule.result.Result;
+import jakarta.annotation.Nonnull;
 import lombok.extern.slf4j.Slf4j;
 import org.checkerframework.checker.units.qual.A;
 import org.junit.Assert;
@@ -116,4 +118,14 @@ public class FileUtils {
         log.error("Could not delete {}.", p);
     }
 
+    public static @Nonnull Result<String, Result.Error> readToString(File f) {
+        try (
+                FileReader fileReader = new FileReader(f);
+                BufferedReader bf = new BufferedReader(fileReader)
+        ) {
+            return Result.ok(bf.lines().collect(Collectors.joining(System.lineSeparator())));
+        } catch (IOException e) {
+            return Result.err(e);
+        }
+    }
 }
