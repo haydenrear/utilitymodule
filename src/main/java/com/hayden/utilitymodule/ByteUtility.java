@@ -10,7 +10,7 @@ public class ByteUtility {
 
 
     public static List<byte[]> splitByteArrayByByteValue(byte[] toSplitBy, byte[] toSplit) {
-        return splitByteArrayByByteValue(toSplitBy, toSplit, true) ;
+        return splitByteArrayByByteValue(toSplitBy, toSplit, false) ;
     }
 
     public static List<byte[]> splitByteArrayByByteValue(byte[] toSplitBy, byte[] toSplit, boolean include) {
