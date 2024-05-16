@@ -27,4 +27,5 @@ public class RandomUtils {
         return IntStream.range(0, length).boxed().map(i -> String.valueOf(numberBetween(0, 9)))
                 .collect(Collectors.joining());
     }
+
 }
