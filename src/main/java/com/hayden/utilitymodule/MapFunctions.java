@@ -263,6 +263,13 @@ public class MapFunctions {
         return entryStream.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
+    public static <T,U> Map<T,List<U>> CollectMapGroupBy(
+            Stream<Map.Entry<T,U>> entryStream
+    )
+    {
+        return entryStream.collect(Collectors.groupingBy(Map.Entry::getKey, Collectors.mapping(Map.Entry::getValue, Collectors.toList())));
+    }
+
     public static <T,U,MAP extends Map<T,U>> MAP CollectMap(
             Stream<Map.Entry<T,U>> entryStream,
             Supplier<MAP> map

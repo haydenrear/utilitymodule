@@ -1,6 +1,7 @@
 package com.hayden.utilitymodule.result;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.collect.Sets;
 import jakarta.annotation.Nullable;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.Delegate;
@@ -93,6 +94,26 @@ public record Result<T, E extends Result.Error>(@Delegate Optional<T> result,
         void add(AggregateResponse aggregateResponse);
     }
 
+    public record StandardAggregateError(Set<Error> messages) implements AggregateError {
+
+        public StandardAggregateError(Error error) {
+            this(Sets.newHashSet(error));
+        }
+
+        public StandardAggregateError(String message) {
+            this(Sets.newHashSet(Error.fromMessage(message)));
+        }
+
+        public StandardAggregateError(Throwable message) {
+            this(Sets.newHashSet(Error.fromE(message)));
+        }
+
+        @Override
+        public Set<Error> errors() {
+            return messages;
+        }
+    }
+
     public interface AggregateError extends Error {
 
         default Set<String> getMessages() {
@@ -141,6 +162,10 @@ public record Result<T, E extends Result.Error>(@Delegate Optional<T> result,
         return new Result<>(Optional.ofNullable(result), error);
     }
 
+    public static <T, E extends AggregateError> Result<T, E> fromValues(@Nullable T result, @Nullable E error) {
+        return new Result<>(Optional.ofNullable(result), error);
+    }
+
     public static <T, E extends AggregateError> Result<T, E> from(Optional<T> result, @Nullable E error) {
         return new Result<>(result, error);
     }
@@ -171,6 +196,7 @@ public record Result<T, E extends Result.Error>(@Delegate Optional<T> result,
         Optional.ofNullable(error).ifPresent(mapper);
         return this;
     }
+
 
     public static <T extends AggregateResponse, E extends AggregateError> @Nullable Result<T, E> all(Collection<Result<T, E>> mapper, Result<T, E> finalResult) {
         return Optional.ofNullable(all(mapper))
