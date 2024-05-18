@@ -1,20 +1,16 @@
 package com.hayden.utilitymodule.io;
 
+import com.hayden.utilitymodule.result.Error;
 import com.hayden.utilitymodule.result.Result;
 import jakarta.annotation.Nonnull;
 import lombok.extern.slf4j.Slf4j;
-import org.checkerframework.checker.units.qual.A;
 import org.junit.Assert;
 
 import java.io.*;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -118,7 +114,7 @@ public class FileUtils {
         log.error("Could not delete {}.", p);
     }
 
-    public static @Nonnull Result<String, Result.Error> readToString(File f) {
+    public static @Nonnull Result<String, Error> readToString(File f) {
         try (
                 FileReader fileReader = new FileReader(f);
                 BufferedReader bf = new BufferedReader(fileReader)
