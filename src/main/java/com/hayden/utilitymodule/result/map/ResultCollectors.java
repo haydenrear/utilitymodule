@@ -1,5 +1,9 @@
-package com.hayden.utilitymodule.result;
+package com.hayden.utilitymodule.result.map;
 
+import com.hayden.utilitymodule.result.res.Responses;
+import com.hayden.utilitymodule.result.Result;
+import com.hayden.utilitymodule.result.error.AggregateError;
+import com.hayden.utilitymodule.result.error.Error;
 import lombok.RequiredArgsConstructor;
 
 import java.util.Collections;
@@ -13,8 +17,8 @@ import java.util.stream.Collector;
 
 @RequiredArgsConstructor
 public abstract class ResultCollectors<
-        T extends Result.AggregateResponse,
-        E extends Error.AggregateError,
+        T extends Responses.AggregateResponse,
+        E extends AggregateError,
         R1 extends Result<R1T, R1E>,
         R1T,
         R1E extends Error
@@ -24,23 +28,29 @@ public abstract class ResultCollectors<
     protected final T aggregateResponse;
     protected final E aggregateError;
 
+    public interface ResultMapper<ResultTypeT, ErrorTypeT extends Error, ToCreateAggT extends Responses.AggregateResponse> extends Function<Result<ResultTypeT, ErrorTypeT>, Optional<ToCreateAggT>> {
+    }
+
+    public interface ErrorMapper<ResultTypeT, ErrorTypeT extends Error, ToCreateAggT extends AggregateError> extends Function<Result<ResultTypeT, ErrorTypeT>, Optional<ToCreateAggT>> {
+    }
+
     public static <
-            T extends Result.AggregateResponse,
-            E extends Error.AggregateError,
+            T extends Responses.AggregateResponse,
+            E extends AggregateError,
             R1, E1 extends Error
             >
     ResultCollectors<T, E, Result<R1, E1>, R1, E1> from(
             T t,
             E e,
-            Function<Result<R1, E1>, Optional<T>> result,
-            Function<Result<R1, E1>, Optional<E>> error
+            ResultMapper<R1, E1, T> result,
+            ErrorMapper<R1, E1, E> error
     ) {
         return new AggregateMappingResultCollector<>(t, e, result, error);
     }
 
     public static <
-            T extends Result.AggregateResponse,
-            E extends Error.AggregateError
+            T extends Responses.AggregateResponse,
+            E extends AggregateError
             >
     ResultCollectors<T, E, Result<T, E>, T, E> from(
             T t, E e
@@ -48,7 +58,7 @@ public abstract class ResultCollectors<
         return AggregateResultCollector.fromValues(t, e);
     }
 
-    public static class AggregateResultCollector<T extends Result.AggregateResponse, E extends Error.AggregateError>
+    public static class AggregateResultCollector<T extends Responses.AggregateResponse, E extends AggregateError>
             extends ResultCollectors<T, E, Result<T, E>, T, E> {
 
         public AggregateResultCollector(T t, E e) {
@@ -56,11 +66,11 @@ public abstract class ResultCollectors<
         }
 
 
-        public static <T extends Result.AggregateResponse, E extends Error.AggregateError> AggregateResultCollector<T, E> fromValues(T t, E e) {
+        public static <T extends Responses.AggregateResponse, E extends AggregateError> AggregateResultCollector<T, E> fromValues(T t, E e) {
             return new AggregateResultCollector<>(t, e);
         }
 
-        public static <T extends Result.AggregateResponse, E extends Error.AggregateError> AggregateResultCollector<T, E> toResult(Supplier<T> t, Supplier<E> e) {
+        public static <T extends Responses.AggregateResponse, E extends AggregateError> AggregateResultCollector<T, E> toResult(Supplier<T> t, Supplier<E> e) {
             return new AggregateResultCollector<>(t.get(), e.get());
         }
 
@@ -97,7 +107,7 @@ public abstract class ResultCollectors<
         }
     }
 
-    public static class AggregateMappingResultCollector<T extends Result.AggregateResponse, E extends Error.AggregateError, R1, E1 extends Error>
+    public static class AggregateMappingResultCollector<T extends Responses.AggregateResponse, E extends AggregateError, R1, E1 extends Error>
             extends ResultCollectors<T, E, Result<R1, E1>, R1, E1> {
 
 

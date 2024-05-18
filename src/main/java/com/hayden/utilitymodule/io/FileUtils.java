@@ -1,6 +1,6 @@
 package com.hayden.utilitymodule.io;
 
-import com.hayden.utilitymodule.result.Error;
+import com.hayden.utilitymodule.result.error.Error;
 import com.hayden.utilitymodule.result.Result;
 import jakarta.annotation.Nonnull;
 import lombok.extern.slf4j.Slf4j;

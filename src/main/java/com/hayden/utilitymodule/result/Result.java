@@ -1,6 +1,9 @@
 package com.hayden.utilitymodule.result;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.hayden.utilitymodule.result.error.AggregateError;
+import com.hayden.utilitymodule.result.error.Error;
+import com.hayden.utilitymodule.result.res.Responses;
 import jakarta.annotation.Nullable;
 import lombok.experimental.Delegate;
 
@@ -9,10 +12,6 @@ import java.util.function.*;
 
 public record Result<T, E extends Error>(@Delegate Optional<T> result,
                                          @Nullable E error) {
-
-    public interface AggregateResponse {
-        void add(AggregateResponse aggregateResponse);
-    }
 
     public static <T, E extends Error> Result<T, E> from(Optional<T> result, Supplier<E> e) {
         return result.map(Result::<T, E>ok)
@@ -27,15 +26,15 @@ public record Result<T, E extends Error>(@Delegate Optional<T> result,
         return new Result<>(Optional.ofNullable(result), new Error.StandardError(error));
     }
 
-    public static <T, E extends Error.AggregateError> Result<T, E> from(@Nullable T result, @Nullable E error) {
+    public static <T, E extends AggregateError> Result<T, E> from(@Nullable T result, @Nullable E error) {
         return new Result<>(Optional.ofNullable(result), error);
     }
 
-    public static <T, E extends Error.AggregateError> Result<T, E> fromValues(@Nullable T result, @Nullable E error) {
+    public static <T, E extends AggregateError> Result<T, E> fromValues(@Nullable T result, @Nullable E error) {
         return new Result<>(Optional.ofNullable(result), error);
     }
 
-    public static <T, E extends Error.AggregateError> Result<T, E> from(Optional<T> result, @Nullable E error) {
+    public static <T, E extends AggregateError> Result<T, E> from(Optional<T> result, @Nullable E error) {
         return new Result<>(result, error);
     }
 
@@ -67,7 +66,7 @@ public record Result<T, E extends Error>(@Delegate Optional<T> result,
     }
 
 
-    public static <T extends AggregateResponse, E extends Error.AggregateError> @Nullable Result<T, E> all(Collection<Result<T, E>> mapper, Result<T, E> finalResult) {
+    public static <T extends Responses.AggregateResponse, E extends AggregateError> @Nullable Result<T, E> all(Collection<Result<T, E>> mapper, Result<T, E> finalResult) {
         return Optional.ofNullable(all(mapper))
                 .flatMap(r -> Optional.ofNullable(r.error))
                 .map(e -> {
@@ -79,11 +78,11 @@ public record Result<T, E extends Error>(@Delegate Optional<T> result,
 
 
     @SafeVarargs
-    public static <T extends AggregateResponse, E extends Error.AggregateError> @Nullable Result<T, E> all(Result<T, E> ... mapper) {
+    public static <T extends Responses.AggregateResponse, E extends AggregateError> @Nullable Result<T, E> all(Result<T, E> ... mapper) {
         return all(Arrays.asList(mapper));
     }
 
-    public static <T extends AggregateResponse, E extends Error.AggregateError> @Nullable Result<T, E> all(Collection<Result<T, E>> mapper) {
+    public static <T extends Responses.AggregateResponse, E extends AggregateError> @Nullable Result<T, E> all(Collection<Result<T, E>> mapper) {
         Result<T, E> result = null;
         for (Result<T, E> nextResultToAdd : mapper) {
             if (result == null)
@@ -105,7 +104,7 @@ public record Result<T, E extends Error>(@Delegate Optional<T> result,
         return result;
     }
 
-    private static <T extends AggregateResponse, E extends Error.AggregateError> Result<T, E> addErrors(Result<T, E> r, Result<T, E> result) {
+    private static <T extends Responses.AggregateResponse, E extends AggregateError> Result<T, E> addErrors(Result<T, E> r, Result<T, E> result) {
         if (r.error != null) {
             if (result.error == null) {
                 result = result.result

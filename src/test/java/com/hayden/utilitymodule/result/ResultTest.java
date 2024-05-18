@@ -1,6 +1,10 @@
 package com.hayden.utilitymodule.result;
 
 import com.google.common.collect.Sets;
+import com.hayden.utilitymodule.result.error.AggregateError;
+import com.hayden.utilitymodule.result.error.Error;
+import com.hayden.utilitymodule.result.map.ResultCollectors;
+import com.hayden.utilitymodule.result.res.Responses;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 
@@ -15,13 +19,13 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ResultTest {
 
-    record TestAgg(Set<Error> errors) implements Error.AggregateError {
+    record TestAgg(Set<Error> errors) implements AggregateError {
 
     }
-    record TestRes(Set<String> values) implements Result.AggregateResponse {
+    record TestRes(Set<String> values) implements Responses.AggregateResponse {
 
         @Override
-        public void add(Result.AggregateResponse aggregateResponse) {
+        public void add(Responses.AggregateResponse aggregateResponse) {
             this.values.addAll(((TestRes)aggregateResponse).values());
         }
     }
@@ -37,7 +41,7 @@ class ResultTest {
                 .flatMap(t -> Result.emptyError())
                 .cast();
         assertThat(hello2.get()).isEqualTo(singleMessage.get());
-        Error.StandardAggregateError error = new Error.StandardAggregateError("hello...");
+        AggregateError.StandardAggregateError error = new AggregateError.StandardAggregateError("hello...");
         var hello3 = singleMessage
                 .flatMapError(t -> Result.err(error))
                 .cast();
