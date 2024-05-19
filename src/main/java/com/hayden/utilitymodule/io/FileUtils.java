@@ -23,7 +23,7 @@ public class FileUtils {
 
     public static boolean writeBytesToFile(byte[] data, Path file) {
         try {
-            if (!file.toFile().exists() && !file.toFile().createNewFile()) {
+            if (isFileInvalidNotCreatable(file)) {
                 log.error("Failed to write to file {}. Could not create file", file.toFile());
                 return false;
             }
@@ -39,7 +39,7 @@ public class FileUtils {
 
     public static boolean writeToFile(String data, Path file) {
         try {
-            if (!file.toFile().exists() && !file.toFile().createNewFile()) {
+            if (isFileInvalidNotCreatable(file)) {
                 log.error("Failed to write to file {}. Could not create file", file.toFile());
                 return false;
             }
@@ -51,6 +51,23 @@ public class FileUtils {
             log.error("Failed to write to file: {}.", e.getMessage());
             return false;
         }
+    }
+
+    private static boolean isFileInvalidNotCreatable(Path file) throws IOException {
+        createFile(file);
+        return !file.toFile().exists();
+    }
+
+    private static void createDirs(Path file) {
+        file.getParent().toFile().mkdirs();
+    }
+
+    private static void createFile(Path file) throws IOException {
+        if (file.toFile().exists())
+            return;
+        createDirs(file);
+        file.toFile().createNewFile();
+
     }
 
     public static boolean doOnFilesRecursive(Path path, Function<Path, Boolean> toDo) {

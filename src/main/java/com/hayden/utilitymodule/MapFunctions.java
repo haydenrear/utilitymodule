@@ -267,7 +267,7 @@ public class MapFunctions {
             Stream<Map.Entry<T,U>> entryStream
     )
     {
-        return entryStream.collect(Collectors.groupingBy(Map.Entry::getKey, Collectors.mapping(Map.Entry::getValue, Collectors.toList())));
+        return entryStream.collect(Collectors.groupingBy(Map.Entry::getKey, Collectors.mapping(Map.Entry::getValue, Collectors.toCollection(ArrayList::new))));
     }
 
     public static <T,U,MAP extends Map<T,U>> MAP CollectMap(
