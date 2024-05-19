@@ -13,7 +13,7 @@ import java.util.function.*;
 public record Result<T, E extends Error>(@Delegate Optional<T> result,
                                          @Nullable E error) {
 
-    public static <T, E extends Error> Result<T, E> from(Optional<T> result, Supplier<E> e) {
+    public static <T, E extends Error> Result<T, E> fromThunk(Optional<T> result, Supplier<E> e) {
         return result.map(Result::<T, E>ok)
                 .orElse(Result.err(e.get()));
     }
@@ -27,6 +27,10 @@ public record Result<T, E extends Error>(@Delegate Optional<T> result,
     }
 
     public static <T, E extends AggregateError> Result<T, E> from(@Nullable T result, @Nullable E error) {
+        return new Result<>(Optional.ofNullable(result), error);
+    }
+
+    public static <T, E extends Error> Result<T, E> from(@Nullable T result, @Nullable E error) {
         return new Result<>(Optional.ofNullable(result), error);
     }
 
@@ -60,17 +64,37 @@ public record Result<T, E extends Error>(@Delegate Optional<T> result,
         return error != null;
     }
 
-    public Result<T, E> mapError(Consumer<E> mapper) {
+    public Result<T, E> doOnError(Consumer<E> mapper) {
         Optional.ofNullable(error).ifPresent(mapper);
         return this;
     }
 
 
+    public <E1 extends Error> Result<T, E1> mapError(Function<E, E1> mapper) {
+        var e = Optional.ofNullable(error).map(mapper);
+        if (e.isEmpty()) {
+            return (Result) this;
+        } else {
+            return Result.err(e.get());
+        }
+    }
+
+    public <E1 extends Error> Result<T, E1> mapError(Function<E, E1> mapper, E1 defaultValue) {
+        var e = Optional.ofNullable(error).map(mapper);
+        if (e.isEmpty()) {
+            return Result.from(result.orElse(null), defaultValue);
+        } else {
+            return Result.err(e.get());
+        }
+    }
+
     public static <T extends Responses.AggregateResponse, E extends AggregateError> @Nullable Result<T, E> all(Collection<Result<T, E>> mapper, Result<T, E> finalResult) {
         return Optional.ofNullable(all(mapper))
                 .flatMap(r -> Optional.ofNullable(r.error))
                 .map(e -> {
-                    finalResult.error.errors().addAll(e.errors()) ;
+                    Optional.ofNullable(finalResult.error)
+                            .flatMap(f -> Optional.ofNullable(f.errors()))
+                            .ifPresent(f -> f.addAll(e.errors()));
                     return finalResult;
                 })
                 .orElse(finalResult);
@@ -128,13 +152,17 @@ public record Result<T, E extends Error>(@Delegate Optional<T> result,
         return res.get();
     }
 
-    public <U> Result<?, E> flatMap(Function<T, Result<U, E>> mapper) {
+    public <U> Result<U, E> flatMap(Function<T, Result<U, E>> mapper) {
         try {
             return result.map(mapper)
                     .filter(r -> r.result.isPresent())
-                    .orElse((Result<U, E>) this);
-        } catch (Exception e) {
-            return Result.emptyError();
+                    .orElse((Result) this);
+        } catch (ClassCastException e) {
+            try {
+                return Result.err(this.error).cast();
+            } catch (ClassCastException c) {
+                throw new RuntimeException(c);
+            }
         }
     }
 
@@ -144,7 +172,11 @@ public record Result<T, E extends Error>(@Delegate Optional<T> result,
                     .filter(Result::isError)
                     .orElse((Result) this);
         } catch (ClassCastException e) {
-            return Result.err(this.error).cast();
+            try {
+                return Result.err(this.error).cast();
+            } catch (ClassCastException c) {
+                throw new RuntimeException(c);
+            }
         }
     }
 

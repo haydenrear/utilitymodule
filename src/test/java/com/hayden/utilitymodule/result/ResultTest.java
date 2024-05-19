@@ -5,6 +5,7 @@ import com.hayden.utilitymodule.result.error.AggregateError;
 import com.hayden.utilitymodule.result.error.Error;
 import com.hayden.utilitymodule.result.map.ResultCollectors;
 import com.hayden.utilitymodule.result.res.Responses;
+import com.mongodb.assertions.Assertions;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 
@@ -20,12 +21,12 @@ import static org.junit.jupiter.api.Assertions.*;
 class ResultTest {
 
     record TestAgg(Set<Error> errors) implements AggregateError {
-
     }
+
     record TestRes(Set<String> values) implements Responses.AggregateResponse {
 
         @Override
-        public void add(Responses.AggregateResponse aggregateResponse) {
+        public void add(Agg aggregateResponse) {
             this.values.addAll(((TestRes)aggregateResponse).values());
         }
     }
@@ -46,6 +47,37 @@ class ResultTest {
                 .flatMapError(t -> Result.err(error))
                 .cast();
         assertThat(hello3.error()).isEqualTo(error);
+        hello3 = singleMessage
+                .flatMapError(t -> null)
+                .cast();
+        assertThat(hello3.error()).isNull();
+        hello3 = singleMessage
+                .flatMapError(t -> Result.ok("hello"))
+                .cast();
+        assertThat(hello3.error()).isNull();
+    }
+
+    @Test
+    public void testMapErr() {
+        record TestErr(String getMessage) implements Error {
+        }
+        record TestErr1(String getMessage) implements Error {
+        }
+
+        Result<String, TestErr1> from = Result.from("hello", new TestErr1("hello"));
+        Result<Integer, TestErr> from1 = Result.from(1, new TestErr("hello"));
+
+        var n = from.mapError(e -> new TestErr1("yes"));
+        Assertions.assertTrue(n.error().getMessage.equals("yes"));
+
+        Result<Integer, Error> integerErrorResult = from1.mapError(e -> null);
+        Assertions.assertTrue(integerErrorResult.error().getMessage().equals("hello"));
+
+        Result<Integer, TestErr> from2 = Result.ok(1);
+        Result<Integer, TestErr1> hello = from2.mapError(e -> new TestErr1("hello"), new TestErr1("hello"));
+        Assertions.assertTrue(hello.error().getMessage().equals("hello"));
+        hello = from2.mapError(e -> new TestErr1("hello"));
+        Assertions.assertNull(hello.error());
     }
 
     @Test
