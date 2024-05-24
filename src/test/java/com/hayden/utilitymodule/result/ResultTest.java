@@ -13,6 +13,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -38,23 +39,20 @@ class ResultTest {
                 .flatMap(t -> Result.ok("hello"))
                 .cast();
         assertThat(hello.get()).isEqualTo("hello");
-        var hello2 = singleMessage
-                .flatMap(t -> Result.emptyError())
-                .cast();
-        assertThat(hello2.get()).isEqualTo(singleMessage.get());
         AggregateError.StandardAggregateError error = new AggregateError.StandardAggregateError("hello...");
         var hello3 = singleMessage
-                .flatMapError(t -> Result.err(error))
-                .cast();
+                .flatMapError(() -> Result.err(error))
+                .castError();
         assertThat(hello3.error()).isEqualTo(error);
         hello3 = singleMessage
                 .flatMapError(t -> null)
                 .cast();
         assertThat(hello3.error()).isNull();
         hello3 = singleMessage
-                .flatMapError(t -> Result.ok("hello"))
+                .flatMapResult(r -> Result.ok("hello"))
                 .cast();
         assertThat(hello3.error()).isNull();
+
     }
 
     @Test
