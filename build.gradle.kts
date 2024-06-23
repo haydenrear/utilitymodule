@@ -1,5 +1,6 @@
 plugins {
     id("com.hayden.no-main-class")
+    id("com.hayden.kotlin")
 }
 
 description = "utilitymodule"
