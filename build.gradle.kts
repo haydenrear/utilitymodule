@@ -1,6 +1,8 @@
 plugins {
     id("com.hayden.no-main-class")
     id("com.hayden.kotlin")
+    id("com.hayden.messaging")
+    id("com.hayden.ai")
 }
 
 description = "utilitymodule"

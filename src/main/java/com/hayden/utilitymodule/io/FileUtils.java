@@ -4,7 +4,7 @@ import com.hayden.utilitymodule.result.error.Error;
 import com.hayden.utilitymodule.result.Result;
 import jakarta.annotation.Nonnull;
 import lombok.extern.slf4j.Slf4j;
-import org.junit.Assert;
+import org.springframework.util.Assert;
 
 import java.io.*;
 import java.nio.file.Path;
@@ -112,7 +112,7 @@ public class FileUtils {
     public static boolean deleteFilesRecursive(Path path) {
         return doOnFilesRecursive(path, p -> {
             if (p.toFile().isDirectory()) {
-                Assert.assertTrue(isEmpty(p));
+                Assert.isTrue(isEmpty(p), "Was not empty directory when deleting recursively.");
                 if (!p.toFile().delete()) {
                     logNotDeleted(p);
                     return false;

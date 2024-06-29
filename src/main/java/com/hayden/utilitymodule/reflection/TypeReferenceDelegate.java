@@ -12,7 +12,7 @@ import java.util.Optional;
 
 @RequiredArgsConstructor
 @Slf4j
-public final class TypeReferenceDelegate<T> {
+public class TypeReferenceDelegate<T> {
     @Delegate
     private final Class<T> underlying;
     @Delegate
