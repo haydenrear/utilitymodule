@@ -7,6 +7,8 @@ import org.apache.commons.lang3.ArrayUtils;
 
 import java.util.*;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Function;
+import java.util.function.IntFunction;
 import java.util.stream.Stream;
 
 //import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
@@ -84,4 +86,9 @@ public class ArrayUtilUtilities {
                 .toArray(Float[][]::new);
     }
 
+    public static <T> T[] toArray(Collection<T> path, IntFunction<T[]> arrayFactory) {
+        return Optional.ofNullable(path)
+                .stream().flatMap(Collection::stream)
+                .toArray(arrayFactory);
+    }
 }
