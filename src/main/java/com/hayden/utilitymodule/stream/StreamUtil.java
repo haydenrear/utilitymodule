@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Delegate;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.Arrays;
 import java.util.stream.Stream;
@@ -13,6 +14,7 @@ public class StreamUtil {
     @AllArgsConstructor
     @NoArgsConstructor
     @Data
+    @Slf4j
     public static class StreamBuilderDelegate<T> {
 
         @Delegate
@@ -25,7 +27,14 @@ public class StreamUtil {
         public StreamBuilderDelegate<T> addAllStreams(Stream ... streams) {
             Arrays.stream(streams)
                     .flatMap(s -> s)
-                    .forEach(t -> builder.add((T) t));
+                    .forEach(t -> {
+                        try {
+                            builder.add((T) t);
+                        } catch (ClassCastException c) {
+                            log.error("Could not add builder in stream builder delegate: {}.", c.getMessage());
+                            throw c;
+                        }
+                    });
             return this;
         }
 
