@@ -7,7 +7,6 @@ import com.hayden.utilitymodule.result.res.Responses;
 import jakarta.annotation.Nullable;
 import lombok.experimental.Delegate;
 
-import java.lang.reflect.ParameterizedType;
 import java.util.*;
 import java.util.function.*;
 
@@ -154,55 +153,28 @@ public record Result<T, E extends Error>(@Delegate Optional<T> result,
     }
 
     public <U> Result<U, E> flatMap(Function<T, Result<U, E>> mapper) {
-        try {
-            return result.map(mapper)
-                    .filter(r -> r.result.isPresent())
-                    .orElse((Result) this);
-        } catch (ClassCastException e) {
-            try {
-                return Result.err(this.error).cast();
-            } catch (ClassCastException c) {
-                throw new RuntimeException(c);
-            }
-        }
+        return result.map(mapper)
+                .filter(r -> r.result.isPresent())
+                .orElse(this.cast());
     }
+
     public <NE extends Error> Result<T, NE> flatMapError(Supplier<Result<T, NE>> mapper) {
-        try {
-            return Optional.ofNullable(mapper.get())
-                    .filter(Result::isError)
-                    .orElse((Result) this);
-        } catch (ClassCastException e) {
-            try {
-                return Result.err(this.error).cast();
-            } catch (ClassCastException c) {
-                throw new RuntimeException(c);
-            }
-        }
+        return Optional.ofNullable(mapper.get())
+                .filter(Result::isError)
+                .orElse(this.castError());
     }
 
     public <NE extends Error> Result<T, NE> flatMapError(Function<E, Result<T, NE>> mapper) {
-        try {
-            return Optional.ofNullable(error)
-                    .map(mapper)
-                    .filter(Result::isError)
-                    .orElse((Result) this);
-        } catch (ClassCastException e) {
-            try {
-                return (Result) this;
-            } catch (ClassCastException c) {
-                throw new RuntimeException(c);
-            }
-        }
+        return Optional.ofNullable(error)
+                .map(mapper)
+                .filter(Result::isError)
+                .orElseGet(() -> (Result) this);
     }
 
-    public <U, E extends Error> Result<U, E> flatMapResult(Function<T, Result<U, E>> mapper) {
-        try {
-            return result.map(mapper)
-                    .filter(r -> r.result.isPresent() || r.error != null)
-                    .orElseThrow(() -> new RuntimeException("Failed to flatmap as neither result or error provided."));
-        } catch (ClassCastException e) {
-            return Result.err(this.error).cast();
-        }
+    public <U, NE extends Error> Result<U, NE> flatMapResult(Function<T, Result<U, NE>> mapper) {
+        return result.map(mapper)
+                .filter(r -> r.result.isPresent() || r.error != null)
+                .orElseThrow(() -> new RuntimeException("Failed to flatmap as neither result or error provided."));
     }
 
     public Optional<T> optional() {
@@ -215,23 +187,11 @@ public record Result<T, E extends Error>(@Delegate Optional<T> result,
     }
 
     public <U, V extends Error> Result<U, V> cast() {
-        return this.flatMapResult(c -> {
-            try {
-                return (Result) Result.ok(c);
-            } catch (ClassCastException ex) {
-                return (Result) Result.err(Error.fromMessage("Failed to cast to result: %s.".formatted(ex.getMessage())));
-            }
-        });
+        return this.flatMapResult(c -> (Result) Result.ok(c));
     }
 
     public <V extends Error> Result<T, V> castError() {
-        return this.flatMapError(c -> {
-            try {
-                return (Result) Result.ok(c);
-            } catch (ClassCastException ex) {
-                return (Result) Result.err(Error.fromMessage("Failed to cast to result: %s.".formatted(ex.getMessage())));
-            }
-        });
+        return this.flatMapError(c -> (Result) Result.err(c));
     }
 
     public <R extends Result<U, V>, U, V extends Error> R cast(TypeReference<R> refDelegate) {
