@@ -13,7 +13,7 @@ import java.util.function.*;
 public record Result<T, E extends Error>(@Delegate Optional<T> result,
                                          @Nullable E error) {
 
-    public static <T, E extends Error> Result<T, E> fromThunk(Optional<T> result, Supplier<E> e) {
+    public static <T, E extends Error> Result<T, E> fromThunkError(Optional<T> result, Supplier<E> e) {
         return result.map(Result::<T, E>ok)
                 .orElse(Result.err(e.get()));
     }
@@ -54,6 +54,10 @@ public record Result<T, E extends Error>(@Delegate Optional<T> result,
 
     public static <T> Result<T, Error> err(Throwable error) {
         return new Result<>(Optional.empty(), new Error.StandardError(error));
+    }
+
+    public static <T, V extends Error> Result<T, V> emptyError() {
+        return new Result<>(Optional.empty(), null);
     }
 
     public boolean isOk() {
@@ -197,11 +201,6 @@ public record Result<T, E extends Error>(@Delegate Optional<T> result,
     public <R extends Result<U, V>, U, V extends Error> R cast(TypeReference<R> refDelegate) {
         return (R) this.map(c -> (U) c);
     }
-
-    public static <T, V extends Error> Result<T, V> emptyError() {
-        return new Result<>(Optional.empty(), null);
-    }
-
 
 
 }
