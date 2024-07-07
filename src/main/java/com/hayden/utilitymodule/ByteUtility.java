@@ -42,7 +42,7 @@ public class ByteUtility {
             counter += 1;
         }
 
-        if (bytesMatch(toSplitBy, toSplit, i)) {
+        if (bytesMatch(toSplitBy, toSplit, i == -1 ? 0 : i)) {
             if (i != -1) {
                 if (include) {
                     byte[] out = new byte[counter - i];
