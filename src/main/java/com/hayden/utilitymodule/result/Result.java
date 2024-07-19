@@ -26,6 +26,7 @@ public record Result<T, E extends Error>(@Delegate Optional<T> result,
         return new Result<>(Optional.ofNullable(result), new Error.StandardError(error));
     }
 
+
     public static <T, E extends AggregateError> Result<T, E> from(@Nullable T result, @Nullable E error) {
         return new Result<>(Optional.ofNullable(result), error);
     }
@@ -39,6 +40,10 @@ public record Result<T, E extends Error>(@Delegate Optional<T> result,
     }
 
     public static <T, E extends AggregateError> Result<T, E> from(Optional<T> result, @Nullable E error) {
+        return new Result<>(result, error);
+    }
+
+    public static <T, E extends Error> Result<T, E> fromOpt(Optional<T> result, @Nullable E error) {
         return new Result<>(result, error);
     }
 
