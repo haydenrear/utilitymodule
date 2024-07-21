@@ -8,8 +8,11 @@ import org.springframework.util.Assert;
 
 import java.io.*;
 import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.Optional;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -85,7 +88,9 @@ public class FileUtils {
                     return false;
                 })
                 .collect(Collectors.toSet());
+
         Boolean didDeletePath = toDo.apply(path);
+
         boolean didDeleteAll = did.stream().allMatch(Boolean::booleanValue);
         return didDeletePath && didDeleteAll;
     }
@@ -97,6 +102,82 @@ public class FileUtils {
             return true;
         });
         return builder.build();
+    }
+
+    public static boolean isEmptyDirectory(File[] next, int filePointer) {
+        return !next[filePointer].isFile()
+                && Optional.ofNullable(next[filePointer].listFiles())
+                .map(f -> f.length).map(l -> l == 0).orElse(true);
+    }
+
+    public static <T> T doOverFilePathLines(Path file, BiConsumer<String, AtomicReference<T>> toDo, AtomicReference<T> update) {
+        if (file.toFile().isFile()) {
+            try(
+                    FileReader fr = new FileReader(file.toFile());
+                    BufferedReader bf = new BufferedReader(fr)
+            ) {
+                bf.lines().forEach(l -> toDo.accept(l, update));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        return update.get();
+    }
+
+    public static Iterator<Path> GetFileIteratorRecursive(Path path) {
+        record FilePointer(File[] file, int pointer) {}
+
+        final File[][] next = {path.toFile().listFiles()};
+        Stack<FilePointer> parent = new Stack<>();
+        final AtomicInteger[] filePointer = {new AtomicInteger(0)};
+
+        return new Iterator<>() {
+            @Override
+            public boolean hasNext() {
+                boolean isValidFilePointer = filePointer[0].get() < next[0].length;
+                if (isValidFilePointer && isEmptyDirectory(next[0], filePointer[0].get()))
+                    return false;
+                if (isValidFilePointer)
+                    return true;
+                else {
+                    while (!parent.isEmpty()) {
+                        FilePointer top = parent.peek();
+                        if (top.pointer < top.file.length) {
+                            top = parent.pop();
+                            filePointer[0] = new AtomicInteger(top.pointer);
+                            next[0] = top.file;
+                            if (next[0].length > filePointer[0].get()
+                                    && isEmptyDirectory(next[0], filePointer[0].get())) {
+                                continue;
+                            }
+                            return true;
+                        } else {
+                            parent.pop();
+                        }
+                    }
+                }
+
+                return false;
+            }
+
+            @Override
+            public Path next() {
+                var fp = filePointer[0].get();
+                if (next[0][fp].isFile()) {
+                    return next[0][filePointer[0].getAndIncrement()].toPath();
+                } else {
+                    parent.add(new FilePointer(next[0], filePointer[0].incrementAndGet()));
+                    next[0] = next[0][fp].listFiles();
+                    filePointer[0] = new AtomicInteger(0);
+                    if (hasNext()) {
+                        return next();
+                    } else {
+                        return null;
+                    }
+                }
+            }
+        };
     }
 
     public static Stream<File> getFileStream(Path path) {

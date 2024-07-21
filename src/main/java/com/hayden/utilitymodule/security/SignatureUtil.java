@@ -1,24 +1,18 @@
 package com.hayden.utilitymodule.security;
 
-import com.hayden.utilitymodule.io.FileUtils;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
-import org.bson.ByteBuf;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Security;
-import java.util.Arrays;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 
