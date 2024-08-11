@@ -24,10 +24,6 @@ public record Result<T, E>(ResultInner<T> r, Error<E> e) {
         return from(new ResultInner<>(stringStringEntry), Error.err(gitAggregateError));
     }
 
-    public static <T, E> Result<T, E> fromThunkError(Optional<T> any, Supplier<E> o) {
-        return fromOpt(any, o.get());
-    }
-
     public Error<E> error() {
         return e;
     }
@@ -36,28 +32,28 @@ public record Result<T, E>(ResultInner<T> r, Error<E> e) {
         return r.stream();
     }
 
-    public static <R, E> com.hayden.utilitymodule.result.Result<R, E> ok(R r) {
-        return new com.hayden.utilitymodule.result.Result<>(new ResultInner<>(r), Error.empty());
+    public static <R, E> Result<R, E> ok(R r) {
+        return new Result<>(new ResultInner<>(r), Error.empty());
     }
 
-    public static <R, E> com.hayden.utilitymodule.result.Result<R, E> ok(ResultInner<R> r) {
-        return new com.hayden.utilitymodule.result.Result<>(r, Error.empty());
+    public static <R, E> Result<R, E> ok(ResultInner<R> r) {
+        return new Result<>(r, Error.empty());
     }
 
     public static <R, E> Result<R, E> err(E r) {
-        return new com.hayden.utilitymodule.result.Result<>(ResultInner.empty(), Error.err(r));
+        return new Result<>(ResultInner.empty(), Error.err(r));
     }
 
-    public static <R, E> com.hayden.utilitymodule.result.Result<R, E> err(Error<E> r) {
-        return new com.hayden.utilitymodule.result.Result<>(ResultInner.empty(), r);
+    public static <R, E> Result<R, E> err(Error<E> r) {
+        return new Result<>(ResultInner.empty(), r);
     }
 
-    public static <R, E> com.hayden.utilitymodule.result.Result<R, E> from(R r, E e) {
-        return new com.hayden.utilitymodule.result.Result<>(ResultInner.ok(r), Error.err(e));
+    public static <R, E> Result<R, E> from(R r, E e) {
+        return new Result<>(ResultInner.ok(r), Error.err(e));
     }
 
-    public static <R, E> com.hayden.utilitymodule.result.Result<R, E> from(ResultInner<R> r, Error<E> e) {
-        return new com.hayden.utilitymodule.result.Result<>(r, e);
+    public static <R, E> Result<R, E> from(ResultInner<R> r, Error<E> e) {
+        return new Result<>(r, e);
     }
 
     public static <T extends Responses.AggregateResponse, E extends AggregateError> @Nullable Result<T, E> all(Collection<Result<T, E>> mapper, Result<T, E> finalResult) {
@@ -111,24 +107,6 @@ public record Result<T, E>(ResultInner<T> r, Error<E> e) {
         return result;
     }
 
-    public boolean isError() {
-        return r.isEmpty();
-    }
-
-    public T orElseGet(Supplier<T> o) {
-        if (this.r.isPresent())
-            return this.r.get();
-
-        return o.get();
-    }
-
-    public T get() {
-        return this.r.get();
-    }
-
-    public boolean isPresent() {
-        return r.isPresent();
-    }
 
     @Data
     @NoArgsConstructor
@@ -285,7 +263,26 @@ public record Result<T, E>(ResultInner<T> r, Error<E> e) {
         this.r.ifPresent(t);
     }
 
-    public <U> com.hayden.utilitymodule.result.Result<U, E> map(Function<T, U> mapper) {
+    public boolean isError() {
+        return r.isEmpty();
+    }
+
+    public T orElseGet(Supplier<T> o) {
+        if (this.r.isPresent())
+            return this.r.get();
+
+        return o.get();
+    }
+
+    public T get() {
+        return this.r.get();
+    }
+
+    public boolean isPresent() {
+        return r.isPresent();
+    }
+
+    public <U> Result<U, E> map(Function<T, U> mapper) {
         if (this.r.isPresent()) {
             var toRet = mapper.apply(this.r.get());
             return Result.from(Result.ResultInner.ok(toRet), this.e);
@@ -295,74 +292,68 @@ public record Result<T, E>(ResultInner<T> r, Error<E> e) {
     }
 
 
-    public <U, V> com.hayden.utilitymodule.result.Result<U, V> map(Function<T, U> mapper, Supplier<V> err) {
-        return r.<com.hayden.utilitymodule.result.Result<U, V>>map(t -> com.hayden.utilitymodule.result.Result.ok(mapper.apply(t)))
-                .orElse(com.hayden.utilitymodule.result.Result.err(err.get()));
+    public <U, V> Result<U, V> map(Function<T, U> mapper, Supplier<V> err) {
+        return r.<Result<U, V>>map(t -> Result.ok(mapper.apply(t)))
+                .orElse(Result.err(err.get()));
     }
 
-    public <E1> com.hayden.utilitymodule.result.Result<T, E1> mapError(Function<E, E1> mapper) {
+    public <E1> Result<T, E1> mapError(Function<E, E1> mapper) {
         if (this.e.isPresent()) {
-            return com.hayden.utilitymodule.result.Result.err(this.e.mapErr(mapper));
+            Error<E1> r1 = this.e.mapErr(mapper);
+            return Result.from(this.r, r1);
         }
 
         return this.castError();
     }
 
-    public com.hayden.utilitymodule.result.Result<T, E> orErrorRes(Supplier<com.hayden.utilitymodule.result.Result<T, E>> s) {
+    public Result<T, E> orErrorRes(Supplier<Result<T, E>> s) {
         if (e.isPresent())
             return this;
         return s.get();
     }
 
-    public com.hayden.utilitymodule.result.Result<T, E> orError(Supplier<Error<E>> s) {
+    public Result<T, E> orError(Supplier<Error<E>> s) {
         if (e.isPresent())
             return this;
 
-        Result<T, E> err = com.hayden.utilitymodule.result.Result.err(s.get());
+        Result<T, E> err = Result.err(s.get());
         err.r.t = this.r.t;
         return err;
     }
 
-    public com.hayden.utilitymodule.result.Result<T, E> or(Supplier<com.hayden.utilitymodule.result.Result<T, E>> s) {
+    public Result<T, E> or(Supplier<Result<T, E>> s) {
         if (this.r.isPresent())
             return this;
         return s.get();
     }
 
-    public com.hayden.utilitymodule.result.Result<T, E> filterResult(Function<T, Boolean> b) {
+    public Result<T, E> filterResult(Function<T, Boolean> b) {
         if (r.isPresent() && b.apply(r.get())) {
             return this;
         }
 
-        return com.hayden.utilitymodule.result.Result.empty();
+        return Result.empty();
     }
 
-    private static <E, T> com.hayden.utilitymodule.result.Result<T, E> empty() {
-        return new com.hayden.utilitymodule.result.Result<>(ResultInner.empty(), Error.empty());
+    private static <E, T> Result<T, E> empty() {
+        return new Result<>(ResultInner.empty(), Error.empty());
     }
 
-    public <E1> com.hayden.utilitymodule.result.Result<T, E1> mapError(Function<E, E1> mapper, E1 defaultValue) {
+    public <E1> Result<T, E1> mapError(Function<E, E1> mapper, E1 defaultValue) {
         var err = this.mapError(mapper);
-        if (err.isNotEmpty()) {
-            return com.hayden.utilitymodule.result.Result.from(r.orElse(null), defaultValue);
+        if (err.e().isEmpty()) {
+            return Result.from(r, Error.err(defaultValue));
         } else {
             return mapError(mapper).orError(() -> Error.err(defaultValue));
         }
     }
 
-    public <U> com.hayden.utilitymodule.result.Result<U, E> flatMap(Function<T, com.hayden.utilitymodule.result.Result<U, E>> mapper) {
+    public <U> Result<U, E> flatMap(Function<T, Result<U, E>> mapper) {
         if (this.r.isPresent())
             return mapper.apply(this.r.get());
 
         return this.cast();
     }
-
-//    public com.hayden.utilitymodule.result.Result<T, E> orElseRes(com.hayden.utilitymodule.result.Result<T, E> or) {
-//        if (this.r.isPresent())
-//            return this;
-//
-//        return or;
-//    }
 
     public T orElseRes(T or) {
         if (this.r.isPresent())
@@ -371,7 +362,7 @@ public record Result<T, E>(ResultInner<T> r, Error<E> e) {
         return or;
     }
 
-    public com.hayden.utilitymodule.result.Result<T, E> orElseErr(com.hayden.utilitymodule.result.Result<T, E> or) {
+    public Result<T, E> orElseErr(Result<T, E> or) {
         if (this.e.isPresent())
             return this;
 
@@ -381,24 +372,24 @@ public record Result<T, E>(ResultInner<T> r, Error<E> e) {
     }
 
 
-    public <U> com.hayden.utilitymodule.result.Result<U, E> flatMap(Function<T, com.hayden.utilitymodule.result.Result<U, E>> mapper, Supplier<E> errorSupplier) {
+    public <U> Result<U, E> flatMap(Function<T, Result<U, E>> mapper, Supplier<E> errorSupplier) {
         return r.map(mapper)
                 .filter(r -> r.r.isPresent())
-                .orElse(com.hayden.utilitymodule.result.Result.err(errorSupplier.get()));
+                .orElse(Result.err(errorSupplier.get()));
     }
 
-    public <NE> com.hayden.utilitymodule.result.Result<T, NE> flatMapError(Function<E, Error<NE>> mapper) {
+    public <NE> Result<T, NE> flatMapError(Function<E, Error<NE>> mapper) {
         if (this.e.isEmpty()) {
             return this.castError();
         } else {
             var mapped =  this.e
                     .flatMapErr(mapper)
                     .orErr(Error::empty);
-            return com.hayden.utilitymodule.result.Result.from(this.r, mapped);
+            return Result.from(this.r, mapped);
         }
     }
 
-    public com.hayden.utilitymodule.result.Result<T, E> orElseGetErr(Supplier<com.hayden.utilitymodule.result.Result<T, E>> s) {
+    public Result<T, E> orElseGetErr(Supplier<Result<T, E>> s) {
         if (this.e.isPresent())
             return this;
 
@@ -407,7 +398,7 @@ public record Result<T, E>(ResultInner<T> r, Error<E> e) {
         return retrieved;
     }
 
-    public com.hayden.utilitymodule.result.Result<T, E> orElseGetRes(Supplier<com.hayden.utilitymodule.result.Result<T, E>> s) {
+    public Result<T, E> orElseGetRes(Supplier<Result<T, E>> s) {
         if (this.r.isPresent())
             return this;
 
@@ -416,32 +407,32 @@ public record Result<T, E>(ResultInner<T> r, Error<E> e) {
         return retrieved;
     }
 
-    public com.hayden.utilitymodule.result.Result<T, E> filterErr(Function<Error<E>, Boolean> ty) {
+    public Result<T, E> filterErr(Function<Error<E>, Boolean> ty) {
         if(this.e.isPresent() && ty.apply(this.e)) {
             return this;
         }
 
-        return com.hayden.utilitymodule.result.Result.from(this.r, Error.empty());
+        return Result.from(this.r, Error.empty());
     }
 
-    public com.hayden.utilitymodule.result.Result<T, E> filterRes(Function<ResultInner<T>, Boolean> ty) {
+    public Result<T, E> filterRes(Function<ResultInner<T>, Boolean> ty) {
         if(this.r.isPresent() && ty.apply(this.r)) {
             return this;
         }
 
-        return com.hayden.utilitymodule.result.Result.from(ResultInner.empty(), this.e);
+        return Result.from(ResultInner.empty(), this.e);
     }
 
-    public <U> com.hayden.utilitymodule.result.Result<U, E> flatMapRes(Function<T, ResultInner<U>> mapper) {
+    public <U> Result<U, E> flatMapRes(Function<T, ResultInner<U>> mapper) {
         if (this.r.isEmpty()) {
             return this.cast();
         } else {
             var mapped =  this.r.flatMapResult(mapper);
-            return com.hayden.utilitymodule.result.Result.from(mapped, this.e);
+            return Result.from(mapped, this.e);
         }
     }
 
-    public <U> com.hayden.utilitymodule.result.Result<U, E> flatMapResult(Function<T, Result<U, E>> mapper) {
+    public <U> Result<U, E> flatMapResult(Function<T, Result<U, E>> mapper) {
         if (this.r.isEmpty()) {
             return this.cast();
         } else {
@@ -451,14 +442,14 @@ public record Result<T, E>(ResultInner<T> r, Error<E> e) {
         }
     }
 
-    public <U, E1> com.hayden.utilitymodule.result.Result<U, E1> flatMapResultError(Function<T, Result<U, E1>> mapper) {
+    public <U, E1> Result<U, E1> flatMapResultError(Function<T, Result<U, E1>> mapper) {
         if (this.r.isEmpty()) {
             return Result.from(ResultInner.empty(), this.e.cast());
         }
         return mapper.apply(this.r.get());
     }
 
-    public <E1> com.hayden.utilitymodule.result.Result<T, E1> flatMapErr(Function<E, com.hayden.utilitymodule.result.Result<T, E1>> mapper) {
+    public <E1> Result<T, E1> flatMapErr(Function<E, Result<T, E1>> mapper) {
         if (this.e.isEmpty()) {
             return this.castError();
         } else {
@@ -472,10 +463,6 @@ public record Result<T, E>(ResultInner<T> r, Error<E> e) {
         return r.isPresent() || e.isPresent();
     }
 
-    private boolean isEmpty() {
-        return r.isEmpty() && e.isEmpty();
-    }
-
     private boolean isErr() {
         return e.isEmpty();
     }
@@ -484,12 +471,12 @@ public record Result<T, E>(ResultInner<T> r, Error<E> e) {
         return r.isPresent();
     }
 
-    public com.hayden.utilitymodule.result.Result<T, E> doOnNext(Consumer<T> mapper) {
+    public Result<T, E> doOnNext(Consumer<T> mapper) {
         this.r.ifPresent(mapper);
         return this;
     }
 
-    public <U, NE> Stream<com.hayden.utilitymodule.result.Result<U, NE>> flatMapStreamResult(Function<T, Stream<com.hayden.utilitymodule.result.Result<U, NE>>> mapper) {
+    public <U, NE> Stream<Result<U, NE>> flatMapStreamResult(Function<T, Stream<Result<U, NE>>> mapper) {
         var p = map(mapper);
 
         if (p.r.isPresent())
@@ -506,15 +493,15 @@ public record Result<T, E>(ResultInner<T> r, Error<E> e) {
         return r.t;
     }
 
-    public <U> com.hayden.utilitymodule.result.Result<U, E> cast() {
+    public <U> Result<U, E> cast() {
         return Result.from(this.r.cast(), this.e);
     }
 
-    public <V> com.hayden.utilitymodule.result.Result<T, V> castError() {
+    public <V> Result<T, V> castError() {
         return Result.from(this.r, this.e.cast());
     }
 
-    public <R extends com.hayden.utilitymodule.result.Result<U, V>, U, V> R cast(TypeReference<R> refDelegate) {
+    public <R extends Result<U, V>, U, V> R cast(TypeReference<R> refDelegate) {
         return (R) this.map(c -> (U) c);
     }
 
