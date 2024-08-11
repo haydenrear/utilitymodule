@@ -218,7 +218,7 @@ public class FileUtils {
         ) {
             return Result.ok(bf.lines().collect(Collectors.joining(System.lineSeparator())));
         } catch (IOException e) {
-            return Result.err(e);
+            return Result.err(ErrorCollect.fromE(e));
         }
     }
 }

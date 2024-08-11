@@ -42,16 +42,11 @@ class ResultTest {
         Result<TestRes, AggregateError.StandardAggregateError> hello3 = singleMessage
                 .flatMapError(e -> Result.Error.err(error))
                 .castError();
-        assertThat(hello3.error()).isEqualTo(error);
+        assertThat(hello3.error().isEmpty()).isTrue();
         hello3 = singleMessage
-                .<AggregateError.StandardAggregateError>flatMapError(t -> null)
+                .<AggregateError.StandardAggregateError>flatMapError(t -> Result.Error.empty())
                 .cast();
-        assertThat(hello3.error()).isNull();
-        hello3 = singleMessage
-                .<String>flatMapResult(r -> Result.ok("hello"))
-                .<AggregateError.StandardAggregateError>mapError(t -> null)
-                .cast();
-        assertThat(hello3.error()).isNull();
+        assertThat(hello3.error().isEmpty()).isTrue();
 
     }
 
@@ -68,14 +63,12 @@ class ResultTest {
         var n = from.mapError(e -> new TestErr1("yes"));
         Assertions.assertTrue(n.error().get().getMessage.equals("yes"));
 
-        Result<Integer, ErrorCollect> integerErrorResult = from1.mapError(e -> null);
-        Assertions.assertTrue(integerErrorResult.error().get().getMessage().equals("hello"));
 
         Result<Integer, TestErr> from2 = Result.ok(1);
         Result<Integer, TestErr1> hello = from2.mapError(e -> new TestErr1("hello"), new TestErr1("hello"));
         assertEquals("hello", hello.error().get().getMessage());
         hello = from2.mapError(e -> new TestErr1("hello"));
-        Assertions.assertNull(hello.error());
+        Assertions.assertTrue(hello.error().isEmpty());
     }
 
     @Test
@@ -128,10 +121,10 @@ class ResultTest {
             var all = Result.all(c);
             var collected = c.stream().collect(ResultCollectors.from(new TestRes(new HashSet<>()), new TestAgg(new HashSet<>())));
             assertAll(
-                    () -> assertThat(all.get().values).hasSameElementsAs(List.of("hello", "hello1", "hello2")),
-                    () -> assertThat(all.error().getMessages()).hasSameElementsAs(List.of("goodbye1", "goodbye2", "goodbye3")),
-                    () -> assertThat(collected.get().values).hasSameElementsAs(List.of("hello", "hello1", "hello2")),
-                    () -> assertThat(collected.error().getMessages()).hasSameElementsAs(List.of("goodbye1", "goodbye2", "goodbye3"))
+                    () -> assertThat(all.r().get().values).hasSameElementsAs(List.of("hello", "hello1", "hello2")),
+                    () -> assertThat(all.error().get().getMessages()).hasSameElementsAs(List.of("goodbye1", "goodbye2", "goodbye3")),
+                    () -> assertThat(collected.r().get().values).hasSameElementsAs(List.of("hello", "hello1", "hello2")),
+                    () -> assertThat(collected.error().get().getMessages()).hasSameElementsAs(List.of("goodbye1", "goodbye2", "goodbye3"))
             );
 
 
@@ -142,11 +135,11 @@ class ResultTest {
         var collected3 = Stream.of(singleMessage).collect(ResultCollectors.AggregateResultCollector.fromValues(new TestRes(new HashSet<>()), new TestAgg(new HashSet<>())));
 
         assertAll(
-                () -> assertThat(all3.get().values).hasSameElementsAs(List.of("hello")),
-                () -> assertThat(all3.error()).isNull(),
-                () -> assertThat(collected3.get().values).hasSameElementsAs(List.of("hello")),
-                () -> assertThat(collected3.error()).isNotNull(),
-                () -> assertThat(collected3.error().errors().size()).isZero()
+                () -> assertThat(all3.r().get().values).hasSameElementsAs(List.of("hello")),
+                () -> assertThat(all3.error().isEmpty()).isTrue(),
+                () -> assertThat(collected3.r().get().values).hasSameElementsAs(List.of("hello")),
+                () -> assertThat(collected3.error().isPresent()).isTrue(),
+                () -> assertThat(collected3.error().get().errors().size()).isZero()
         );
 
         var all2 = Result.all(List.<Result<TestRes, TestAgg>>of());
@@ -154,8 +147,8 @@ class ResultTest {
 
         assertAll(
                 () -> assertThat(all2).isNull(),
-                () -> assertThat(collected2.error()).isNotNull(),
-                () -> assertThat(collected2.error().errors().size()).isZero()
+                () -> assertThat(collected2.error().isPresent()).isTrue(),
+                () -> assertThat(collected2.error().get().errors().size()).isZero()
         );
 
         errorAndMessage2 = errorAndMessage2();
@@ -164,10 +157,10 @@ class ResultTest {
         Result<TestRes, TestAgg> collected4 = Stream.of(errorAndMessage2).collect(ResultCollectors.AggregateResultCollector.fromValues(new TestRes(new HashSet<>()), new TestAgg(new HashSet<>())));
 
         assertAll(
-                () -> assertThat(all4.get().values).hasSameElementsAs(List.of("hello2")),
-                () -> assertThat(all4.error().getMessages()).hasSameElementsAs(List.of("goodbye3")),
-                () -> assertThat(collected4.get().values).hasSameElementsAs(List.of("hello2")),
-                () -> assertThat(collected4.error().getMessages()).hasSameElementsAs(List.of("goodbye3"))
+                () -> assertThat(all4.r().get().values).hasSameElementsAs(List.of("hello2")),
+                () -> assertThat(all4.error().get().getMessages()).hasSameElementsAs(List.of("goodbye3")),
+                () -> assertThat(collected4.r().get().values).hasSameElementsAs(List.of("hello2")),
+                () -> assertThat(collected4.error().get().getMessages()).hasSameElementsAs(List.of("goodbye3"))
         );
 
         singleError = withSingleError();
@@ -176,29 +169,29 @@ class ResultTest {
         Result<TestRes, TestAgg> collected5 = Stream.of(singleError).collect(ResultCollectors.AggregateResultCollector.fromValues(new TestRes(new HashSet<>()), new TestAgg(new HashSet<>())));
 
         assertAll(
-                () -> assertThat(all5.isEmpty()).isTrue(),
-                () -> assertThat(all5.error().getMessages()).hasSameElementsAs(List.of("goodbye2")),
-                () -> assertThat(collected5.isEmpty()).isFalse(),
-                () -> assertThat(collected5.get().values().isEmpty()).isTrue(),
-                () -> assertThat(collected5.error().getMessages()).hasSameElementsAs(List.of("goodbye2"))
+                () -> assertThat(all5.r().isEmpty()).isTrue(),
+                () -> assertThat(all5.error().get().getMessages()).hasSameElementsAs(List.of("goodbye2")),
+                () -> assertThat(collected5.r().isEmpty()).isFalse(),
+                () -> assertThat(collected5.r().get().values().isEmpty()).isTrue(),
+                () -> assertThat(collected5.error().get().getMessages()).hasSameElementsAs(List.of("goodbye2"))
         );
 
 
         assertAll(
-                () -> assertThat(multipleErrors.isEmpty()).isTrue(),
-                () -> assertThat(multipleErrors.error().getMessages()).hasSameElementsAs(List.of("goodbye9", "goodbye10"))
+                () -> assertThat(multipleErrors.r().isEmpty()).isTrue(),
+                () -> assertThat(multipleErrors.error().get().getMessages()).hasSameElementsAs(List.of("goodbye9", "goodbye10"))
         );
 
 
         assertAll(
-                () -> assertThat(multipleMessage.get().values).hasSameElementsAs(List.of("hello9", "hello10", "hello11")),
-                () -> assertThat(multipleMessage.error()).isNull()
+                () -> assertThat(multipleMessage.r().get().values).hasSameElementsAs(List.of("hello9", "hello10", "hello11")),
+                () -> assertThat(multipleMessage.error().isPresent()).isFalse()
         );
 
 
         assertAll(
-                () -> assertThat(multipleMessageMultipleError.get().values).hasSameElementsAs(List.of("hello12", "hello13", "hello14")),
-                () -> assertThat(multipleMessageMultipleError.error().getMessages()).hasSameElementsAs(List.of("goodbye11", "goodbye12"))
+                () -> assertThat(multipleMessageMultipleError.r().get().values).hasSameElementsAs(List.of("hello12", "hello13", "hello14")),
+                () -> assertThat(multipleMessageMultipleError.error().get().getMessages()).hasSameElementsAs(List.of("goodbye11", "goodbye12"))
         );
     }
 

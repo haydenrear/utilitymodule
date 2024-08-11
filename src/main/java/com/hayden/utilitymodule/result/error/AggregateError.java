@@ -10,6 +10,10 @@ public interface AggregateError extends ErrorCollect, Agg {
 
     Set<ErrorCollect> errors();
 
+    default boolean isError() {
+        return !errors().isEmpty();
+    }
+
     default Set<String> getMessages() {
         return errors().stream().map(ErrorCollect::getMessage)
                 .collect(Collectors.toSet());

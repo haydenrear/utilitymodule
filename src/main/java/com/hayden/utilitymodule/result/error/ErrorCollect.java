@@ -1,6 +1,11 @@
 package com.hayden.utilitymodule.result.error;
 
 public interface ErrorCollect {
+
+    default boolean isError() {
+        return true;
+    }
+
     static ErrorCollect fromMessage(String error) {
         return new StandardError(error);
     }

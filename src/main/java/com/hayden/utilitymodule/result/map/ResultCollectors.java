@@ -83,7 +83,7 @@ public abstract class ResultCollectors<
         public BiConsumer<Result<T, E>, Result<T, E>> accumulator() {
             return (r1, r2) -> {
                 r2.ifPresent(aggregateResponse::add);
-                Optional.ofNullable(r2.error().get()).map(E::errors).ifPresent(aggregateError::addError);
+                r2.error().map(E::errors).ifPresent(aggregateError::addError);
             };
         }
 
@@ -91,7 +91,7 @@ public abstract class ResultCollectors<
         public BinaryOperator<Result<T, E>> combiner() {
             return (r1, r2) -> {
                 r2.ifPresent(aggregateResponse::add);
-                Optional.ofNullable(r2.error().get()).map(E::errors).ifPresent(aggregateError::addError);
+                r2.error().map(E::errors).ifPresent(aggregateError::addError);
                 return Result.from(aggregateResponse, aggregateError);
             };
         }

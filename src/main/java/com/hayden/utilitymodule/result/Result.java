@@ -1,9 +1,15 @@
 package com.hayden.utilitymodule.result;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.hayden.utilitymodule.result.error.AggregateError;
+import com.hayden.utilitymodule.result.error.ErrorCollect;
+import com.hayden.utilitymodule.result.res.Responses;
+import jakarta.annotation.Nullable;
 import lombok.*;
 import lombok.experimental.Delegate;
 
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -14,6 +20,10 @@ public record Result<T, E>(ResultInner<T> r, Error<E> e) {
 
     public Error<E> error() {
         return e;
+    }
+
+    public Stream<T> stream() {
+        return r.stream();
     }
 
     public static <R, E> com.hayden.utilitymodule.result.Result<R, E> ok(R r) {
@@ -38,6 +48,57 @@ public record Result<T, E>(ResultInner<T> r, Error<E> e) {
 
     public static <R, E> com.hayden.utilitymodule.result.Result<R, E> from(ResultInner<R> r, Error<E> e) {
         return new com.hayden.utilitymodule.result.Result<>(r, e);
+    }
+
+    public static <T extends Responses.AggregateResponse, E extends AggregateError> @Nullable Result<T, E> all(Collection<Result<T, E>> mapper, Result<T, E> finalResult) {
+        return Optional.ofNullable(all(mapper))
+                .flatMap(r -> Optional.ofNullable(r.e))
+                .map(e -> {
+                    finalResult.e.t
+                            .flatMap(f -> Optional.ofNullable(f.errors()))
+                            .ifPresent(f -> e.t.ifPresent(toAdd -> f.addAll(toAdd.errors())));
+                    return finalResult;
+                })
+                .orElse(finalResult);
+    }
+
+
+    @SafeVarargs
+    public static <T extends Responses.AggregateResponse, E extends AggregateError> @Nullable Result<T, E> all(Result<T, E> ... mapper) {
+        return all(Arrays.asList(mapper));
+    }
+
+    public static <T extends Responses.AggregateResponse, E extends AggregateError> @Nullable Result<T, E> all(Collection<Result<T, E>> mapper) {
+        Result<T, E> result = null;
+        for (Result<T, E> nextResultToAdd : mapper) {
+            if (result == null)
+                result = nextResultToAdd;
+            if (nextResultToAdd.r.isPresent()) {
+                // can't add a ref, only update current, because it's immutable.
+                if (result.r.isEmpty()) {
+                    var temp = result;
+                    result = nextResultToAdd;
+                    nextResultToAdd = temp;
+                } else {
+                    result.r.get().add(nextResultToAdd.r.get());
+                }
+            }
+
+            result = addErrors(nextResultToAdd, result);
+        }
+
+        return result;
+    }
+
+    private static <T extends Responses.AggregateResponse, E extends AggregateError> Result<T, E> addErrors(Result<T, E> r, Result<T, E> result) {
+        if (r.e.isPresent()) {
+            if (result.e.isEmpty()) {
+                result.e.setT(r.e.t);
+            } else if (result.e.t.filter(e -> r.e.get() == e).isEmpty()) {
+                result.error().get().addError(r.e.get());
+            }
+        }
+        return result;
     }
 
     public boolean isError() {
@@ -289,7 +350,8 @@ public record Result<T, E>(ResultInner<T> r, Error<E> e) {
         if (this.e.isEmpty()) {
             return this.castError();
         } else {
-            var mapped =  this.e.flatMapErr(mapper)
+            var mapped =  this.e
+                    .flatMapErr(mapper)
                     .orErr(Error::empty);
             return com.hayden.utilitymodule.result.Result.from(this.r, mapped);
         }
@@ -397,16 +459,20 @@ public record Result<T, E>(ResultInner<T> r, Error<E> e) {
     }
 
     public <U> com.hayden.utilitymodule.result.Result<U, E> cast() {
-        return this.flatMapRes(c -> ResultInner.ok(c).cast());
+        return Result.from(this.r.cast(), this.e);
     }
 
     public <V> com.hayden.utilitymodule.result.Result<T, V> castError() {
-        return this.<V>flatMapError(c -> Error.err(c).cast());
+        return Result.from(this.r, this.e.cast());
     }
 
     public <R extends com.hayden.utilitymodule.result.Result<U, V>, U, V> R cast(TypeReference<R> refDelegate) {
         return (R) this.map(c -> (U) c);
     }
 
+    public Result<T, E> doOnError(Consumer<E> e) {
+        this.e.ifPresent(e);
+        return this;
+    }
 
 }
