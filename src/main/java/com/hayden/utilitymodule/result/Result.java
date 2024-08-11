@@ -2,14 +2,16 @@ package com.hayden.utilitymodule.result;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.hayden.utilitymodule.result.error.AggregateError;
-import com.hayden.utilitymodule.result.error.ErrorCollect;
 import com.hayden.utilitymodule.result.res.Responses;
 import jakarta.annotation.Nullable;
 import lombok.*;
 import lombok.experimental.Delegate;
+import org.jetbrains.annotations.NotNull;
 
+import java.io.File;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -17,6 +19,14 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 public record Result<T, E>(ResultInner<T> r, Error<E> e) {
+
+    public static <T, E> Result<T, E> fromOpt(Optional<T> stringStringEntry, E gitAggregateError) {
+        return from(new ResultInner<>(stringStringEntry), Error.err(gitAggregateError));
+    }
+
+    public static <T, E> Result<T, E> fromThunkError(Optional<T> any, Supplier<E> o) {
+        return fromOpt(any, o.get());
+    }
 
     public Error<E> error() {
         return e;
@@ -105,6 +115,21 @@ public record Result<T, E>(ResultInner<T> r, Error<E> e) {
         return e.isPresent();
     }
 
+    public T orElseGet(Supplier<T> o) {
+        if (this.r.isPresent())
+            return this.r.get();
+
+        return o.get();
+    }
+
+    public T get() {
+        return this.r.get();
+    }
+
+    public boolean isPresent() {
+        return r.isPresent();
+    }
+
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
@@ -120,7 +145,7 @@ public record Result<T, E>(ResultInner<T> r, Error<E> e) {
     public static final class ResultInner<R> extends ResultTy<R> {
 
         public ResultInner(R r) {
-            super(Optional.of(r));
+            super(Optional.ofNullable(r));
         }
 
         @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
@@ -261,8 +286,12 @@ public record Result<T, E>(ResultInner<T> r, Error<E> e) {
     }
 
     public <U> com.hayden.utilitymodule.result.Result<U, E> map(Function<T, U> mapper) {
-        return r.map(t -> com.hayden.utilitymodule.result.Result.<U, E>ok(mapper.apply(t)))
-                .orElse(null);
+        if (this.r.isPresent()) {
+            var toRet = mapper.apply(this.r.get());
+            return Result.from(Result.ResultInner.ok(toRet), this.e);
+        }
+
+        return this.cast();
     }
 
 
@@ -289,7 +318,9 @@ public record Result<T, E>(ResultInner<T> r, Error<E> e) {
         if (e.isPresent())
             return this;
 
-        return com.hayden.utilitymodule.result.Result.err(s.get());
+        Result<T, E> err = com.hayden.utilitymodule.result.Result.err(s.get());
+        err.r.t = this.r.t;
+        return err;
     }
 
     public com.hayden.utilitymodule.result.Result<T, E> or(Supplier<com.hayden.utilitymodule.result.Result<T, E>> s) {
@@ -326,9 +357,16 @@ public record Result<T, E>(ResultInner<T> r, Error<E> e) {
         return this.cast();
     }
 
-    public com.hayden.utilitymodule.result.Result<T, E> orElse(com.hayden.utilitymodule.result.Result<T, E> or) {
+//    public com.hayden.utilitymodule.result.Result<T, E> orElseRes(com.hayden.utilitymodule.result.Result<T, E> or) {
+//        if (this.r.isPresent())
+//            return this;
+//
+//        return or;
+//    }
+
+    public T orElseRes(T or) {
         if (this.r.isPresent())
-            return this;
+            return this.r.get();
 
         return or;
     }
@@ -337,8 +375,11 @@ public record Result<T, E>(ResultInner<T> r, Error<E> e) {
         if (this.e.isPresent())
             return this;
 
+        or.r.t = this.r.t;
+
         return or;
     }
+
 
     public <U> com.hayden.utilitymodule.result.Result<U, E> flatMap(Function<T, com.hayden.utilitymodule.result.Result<U, E>> mapper, Supplier<E> errorSupplier) {
         return r.map(mapper)
@@ -410,6 +451,13 @@ public record Result<T, E>(ResultInner<T> r, Error<E> e) {
         }
     }
 
+    public <U, E1> com.hayden.utilitymodule.result.Result<U, E1> flatMapResultError(Function<T, Result<U, E1>> mapper) {
+        if (this.r.isEmpty()) {
+            return Result.from(ResultInner.empty(), this.e.cast());
+        }
+        return mapper.apply(this.r.get());
+    }
+
     public <E1> com.hayden.utilitymodule.result.Result<T, E1> flatMapErr(Function<E, com.hayden.utilitymodule.result.Result<T, E1>> mapper) {
         if (this.e.isEmpty()) {
             return this.castError();
@@ -432,7 +480,7 @@ public record Result<T, E>(ResultInner<T> r, Error<E> e) {
         return e.isEmpty();
     }
 
-    private boolean isOk() {
+    public boolean isOk() {
         return r.isPresent();
     }
 
