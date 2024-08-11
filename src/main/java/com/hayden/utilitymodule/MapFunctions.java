@@ -258,9 +258,14 @@ public class MapFunctions {
 
     public static <T,U> Map<T,U> CollectMap(
             Stream<Map.Entry<T,U>> entryStream
-    )
-    {
+    ) {
         return entryStream.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    }
+
+    public static <T,U> Map<T,U> CollectMapRidDuplicates(
+            Stream<Map.Entry<T,U>> entryStream
+    ) {
+        return entryStream.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (k1, k2) -> k1));
     }
 
     public static <T,U> Map<T,List<U>> CollectMapGroupBy(

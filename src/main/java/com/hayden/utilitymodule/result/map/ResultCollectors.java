@@ -3,7 +3,7 @@ package com.hayden.utilitymodule.result.map;
 import com.hayden.utilitymodule.result.res.Responses;
 import com.hayden.utilitymodule.result.Result;
 import com.hayden.utilitymodule.result.error.AggregateError;
-import com.hayden.utilitymodule.result.error.Error;
+import com.hayden.utilitymodule.result.error.ErrorCollect;
 import lombok.RequiredArgsConstructor;
 
 import java.util.Collections;
@@ -21,23 +21,23 @@ public abstract class ResultCollectors<
         E extends AggregateError,
         R1 extends Result<R1T, R1E>,
         R1T,
-        R1E extends Error
+        R1E extends ErrorCollect
         >
         implements Collector<R1, Result<T, E>, Result<T, E>> {
 
     protected final T aggregateResponse;
     protected final E aggregateError;
 
-    public interface ResultMapper<ResultTypeT, ErrorTypeT extends Error, ToCreateAggT extends Responses.AggregateResponse> extends Function<Result<ResultTypeT, ErrorTypeT>, Optional<ToCreateAggT>> {
+    public interface ResultMapper<ResultTypeT, ErrorTypeT extends ErrorCollect, ToCreateAggT extends Responses.AggregateResponse> extends Function<Result<ResultTypeT, ErrorTypeT>, Optional<ToCreateAggT>> {
     }
 
-    public interface ErrorMapper<ResultTypeT, ErrorTypeT extends Error, ToCreateAggT extends AggregateError> extends Function<Result<ResultTypeT, ErrorTypeT>, Optional<ToCreateAggT>> {
+    public interface ErrorMapper<ResultTypeT, ErrorTypeT extends ErrorCollect, ToCreateAggT extends AggregateError> extends Function<Result<ResultTypeT, ErrorTypeT>, Optional<ToCreateAggT>> {
     }
 
     public static <
             T extends Responses.AggregateResponse,
             E extends AggregateError,
-            R1, E1 extends Error
+            R1, E1 extends ErrorCollect
             >
     ResultCollectors<T, E, Result<R1, E1>, R1, E1> from(
             T t,
@@ -83,7 +83,7 @@ public abstract class ResultCollectors<
         public BiConsumer<Result<T, E>, Result<T, E>> accumulator() {
             return (r1, r2) -> {
                 r2.ifPresent(aggregateResponse::add);
-                Optional.ofNullable(r2.error()).map(E::errors).ifPresent(aggregateError::addError);
+                Optional.ofNullable(r2.error().get()).map(E::errors).ifPresent(aggregateError::addError);
             };
         }
 
@@ -91,7 +91,7 @@ public abstract class ResultCollectors<
         public BinaryOperator<Result<T, E>> combiner() {
             return (r1, r2) -> {
                 r2.ifPresent(aggregateResponse::add);
-                Optional.ofNullable(r2.error()).map(E::errors).ifPresent(aggregateError::addError);
+                Optional.ofNullable(r2.error().get()).map(E::errors).ifPresent(aggregateError::addError);
                 return Result.from(aggregateResponse, aggregateError);
             };
         }
@@ -107,7 +107,7 @@ public abstract class ResultCollectors<
         }
     }
 
-    public static class AggregateMappingResultCollector<T extends Responses.AggregateResponse, E extends AggregateError, R1, E1 extends Error>
+    public static class AggregateMappingResultCollector<T extends Responses.AggregateResponse, E extends AggregateError, R1, E1 extends ErrorCollect>
             extends ResultCollectors<T, E, Result<R1, E1>, R1, E1> {
 
 
@@ -124,14 +124,14 @@ public abstract class ResultCollectors<
 
         @Override
         public Supplier<Result<T, E>> supplier() {
-            return () -> Result.fromValues(this.aggregateResponse, this.aggregateError);
+            return () -> Result.from(this.aggregateResponse, this.aggregateError);
         }
 
         @Override
         public BiConsumer<Result<T, E>, Result<R1, E1>> accumulator() {
             return (r1, r2) -> {
                 mapResult.apply(r2).ifPresent(a -> r1.ifPresent(b -> b.add(a)));
-                mapError.apply(r2).ifPresent(a -> Optional.ofNullable(r1.error()).ifPresent(b -> b.addError(a)));
+                mapError.apply(r2).ifPresent(a -> Optional.ofNullable(r1.error().get()).ifPresent(b -> b.addError(a)));
             };
         }
 
@@ -139,7 +139,7 @@ public abstract class ResultCollectors<
         public BinaryOperator<Result<T, E>> combiner() {
             return (r1, r2) -> {
                 r2.ifPresent(aggregateResponse::add);
-                Optional.ofNullable(r2.error()).map(E::errors).ifPresent(aggregateError::addError);
+                Optional.ofNullable(r2.error().get()).map(E::errors).ifPresent(aggregateError::addError);
                 return Result.from(aggregateResponse, aggregateError);
             };
         }

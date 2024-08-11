@@ -6,12 +6,12 @@ import com.hayden.utilitymodule.result.Agg;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public interface AggregateError extends Error, Agg {
+public interface AggregateError extends ErrorCollect, Agg {
 
-    Set<Error> errors();
+    Set<ErrorCollect> errors();
 
     default Set<String> getMessages() {
-        return errors().stream().map(Error::getMessage)
+        return errors().stream().map(ErrorCollect::getMessage)
                 .collect(Collectors.toSet());
     }
 
@@ -30,11 +30,11 @@ public interface AggregateError extends Error, Agg {
         }
     }
 
-    default void addError(Error error) {
+    default void addError(ErrorCollect error) {
         errors().add(error);
     }
 
-    default void addError(Set<Error> error) {
+    default void addError(Set<ErrorCollect> error) {
         errors().addAll(error);
     }
 
@@ -42,25 +42,25 @@ public interface AggregateError extends Error, Agg {
         return """
                    Aggregate Error:
                    %s
-                """.formatted(errors().stream().map(Error::toString).collect(Collectors.joining("\n\r")));
+                """.formatted(errors().stream().map(ErrorCollect::toString).collect(Collectors.joining("\n\r")));
     }
 
-    record StandardAggregateError(Set<Error> messages) implements AggregateError {
+    record StandardAggregateError(Set<ErrorCollect> messages) implements AggregateError {
 
-        public StandardAggregateError(Error error) {
+        public StandardAggregateError(ErrorCollect error) {
             this(Sets.newHashSet(error));
         }
 
         public StandardAggregateError(String message) {
-            this(Sets.newHashSet(Error.fromMessage(message)));
+            this(Sets.newHashSet(ErrorCollect.fromMessage(message)));
         }
 
         public StandardAggregateError(Throwable message) {
-            this(Sets.newHashSet(Error.fromE(message)));
+            this(Sets.newHashSet(ErrorCollect.fromE(message)));
         }
 
         @Override
-        public Set<Error> errors() {
+        public Set<ErrorCollect> errors() {
             return messages;
         }
 

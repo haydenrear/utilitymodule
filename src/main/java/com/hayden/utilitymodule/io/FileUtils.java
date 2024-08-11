@@ -1,6 +1,6 @@
 package com.hayden.utilitymodule.io;
 
-import com.hayden.utilitymodule.result.error.Error;
+import com.hayden.utilitymodule.result.error.ErrorCollect;
 import com.hayden.utilitymodule.result.Result;
 import jakarta.annotation.Nonnull;
 import lombok.extern.slf4j.Slf4j;
@@ -12,7 +12,6 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -212,7 +211,7 @@ public class FileUtils {
         log.error("Could not delete {}.", p);
     }
 
-    public static @Nonnull Result<String, Error> readToString(File f) {
+    public static @Nonnull Result<String, ErrorCollect> readToString(File f) {
         try (
                 FileReader fileReader = new FileReader(f);
                 BufferedReader bf = new BufferedReader(fileReader)

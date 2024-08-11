@@ -2,18 +2,17 @@ package com.hayden.utilitymodule.result;
 
 import com.google.common.collect.Sets;
 import com.hayden.utilitymodule.result.error.AggregateError;
-import com.hayden.utilitymodule.result.error.Error;
+import com.hayden.utilitymodule.result.error.ErrorCollect;
 import com.hayden.utilitymodule.result.map.ResultCollectors;
 import com.hayden.utilitymodule.result.res.Responses;
-import com.mongodb.assertions.Assertions;
 import org.jetbrains.annotations.NotNull;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -21,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ResultTest {
 
-    record TestAgg(Set<Error> errors) implements AggregateError {
+    record TestAgg(Set<ErrorCollect> errors) implements AggregateError {
     }
 
     record TestRes(Set<String> values) implements Responses.AggregateResponse {
@@ -38,18 +37,19 @@ class ResultTest {
         Result<String, TestAgg> hello = singleMessage
                 .flatMap(t -> Result.ok("hello"))
                 .cast();
-        assertThat(hello.get()).isEqualTo("hello");
+        assertThat(hello.r().get()).isEqualTo("hello");
         AggregateError.StandardAggregateError error = new AggregateError.StandardAggregateError("hello...");
-        var hello3 = singleMessage
-                .flatMapError(() -> Result.err(error))
+        Result<TestRes, AggregateError.StandardAggregateError> hello3 = singleMessage
+                .flatMapError(e -> Result.Error.err(error))
                 .castError();
         assertThat(hello3.error()).isEqualTo(error);
         hello3 = singleMessage
-                .flatMapError(t -> null)
+                .<AggregateError.StandardAggregateError>flatMapError(t -> null)
                 .cast();
         assertThat(hello3.error()).isNull();
         hello3 = singleMessage
-                .flatMapResult(r -> Result.ok("hello"))
+                .<String>flatMapResult(r -> Result.ok("hello"))
+                .<AggregateError.StandardAggregateError>mapError(t -> null)
                 .cast();
         assertThat(hello3.error()).isNull();
 
@@ -57,23 +57,23 @@ class ResultTest {
 
     @Test
     public void testMapErr() {
-        record TestErr(String getMessage) implements Error {
+        record TestErr(String getMessage) implements ErrorCollect {
         }
-        record TestErr1(String getMessage) implements Error {
+        record TestErr1(String getMessage) implements ErrorCollect {
         }
 
         Result<String, TestErr1> from = Result.from("hello", new TestErr1("hello"));
         Result<Integer, TestErr> from1 = Result.from(1, new TestErr("hello"));
 
         var n = from.mapError(e -> new TestErr1("yes"));
-        Assertions.assertTrue(n.error().getMessage.equals("yes"));
+        Assertions.assertTrue(n.error().get().getMessage.equals("yes"));
 
-        Result<Integer, Error> integerErrorResult = from1.mapError(e -> null);
-        Assertions.assertTrue(integerErrorResult.error().getMessage().equals("hello"));
+        Result<Integer, ErrorCollect> integerErrorResult = from1.mapError(e -> null);
+        Assertions.assertTrue(integerErrorResult.error().get().getMessage().equals("hello"));
 
         Result<Integer, TestErr> from2 = Result.ok(1);
         Result<Integer, TestErr1> hello = from2.mapError(e -> new TestErr1("hello"), new TestErr1("hello"));
-        Assertions.assertTrue(hello.error().getMessage().equals("hello"));
+        assertEquals("hello", hello.error().get().getMessage());
         hello = from2.mapError(e -> new TestErr1("hello"));
         Assertions.assertNull(hello.error());
     }
@@ -81,7 +81,7 @@ class ResultTest {
     @Test
     public void aggregateMappingCollector() {
 
-        record TestErr(String getMessage) implements Error {
+        record TestErr(String getMessage) implements ErrorCollect {
         }
 
 
@@ -93,17 +93,17 @@ class ResultTest {
                     ResultCollectors.from(
                             new TestRes(new HashSet<>()),
                             new TestAgg(new HashSet<>()),
-                            ab -> ab.optional().map(o -> new TestRes(Set.of(o))),
+                            ab -> ab.toOptional().map(o -> new TestRes(Set.of(o))),
                             b -> {
                                 if (b.isError()) {
-                                    return Optional.of(new TestAgg(Sets.newHashSet(b.error())));
+                                    return Optional.of(new TestAgg(Sets.newHashSet(b.error().get())));
                                 }
                                 return Optional.empty();
                             }
                     ));
             assertAll(
-                    () -> assertThat(collected.get().values).hasSameElementsAs(List.of("well", "how")),
-                    () -> assertThat(collected.error().getMessages()).hasSameElementsAs(List.of("hello", "goodbye"))
+                    () -> assertThat(collected.r().get().values).hasSameElementsAs(List.of("well", "how")),
+                    () -> assertThat(collected.error().get().getMessages()).hasSameElementsAs(List.of("hello", "goodbye"))
             );
 
 
@@ -205,7 +205,7 @@ class ResultTest {
     private static @NotNull Result<TestRes, TestAgg> errorAndMessage2() {
         Result<TestRes, TestAgg> r3 = Result.from(
                 new TestRes(Sets.newHashSet("hello2")),
-                new TestAgg(Sets.newHashSet(Error.fromMessage("goodbye3")))
+                new TestAgg(Sets.newHashSet(ErrorCollect.fromMessage("goodbye3")))
         );
         return r3;
     }
@@ -213,7 +213,7 @@ class ResultTest {
     private static @NotNull Result<TestRes, TestAgg> errorAndMessage() {
         Result<TestRes, TestAgg> r1 = Result.from(
                 new TestRes(Sets.newHashSet("hello1")),
-                new TestAgg(Sets.newHashSet(Error.fromMessage("goodbye1")))
+                new TestAgg(Sets.newHashSet(ErrorCollect.fromMessage("goodbye1")))
         );
         return r1;
     }
@@ -225,7 +225,7 @@ class ResultTest {
 
     private static @NotNull Result<TestRes, TestAgg> withSingleError() {
         Result<TestRes, TestAgg> r2 = Result.err(
-                new TestAgg(Sets.newHashSet(Error.fromMessage("goodbye2")))
+                new TestAgg(Sets.newHashSet(ErrorCollect.fromMessage("goodbye2")))
         );
         return r2;
     }
@@ -233,7 +233,7 @@ class ResultTest {
     private static @NotNull Result<TestRes, TestAgg> multipleErrors() {
         Result<TestRes, TestAgg> r2;
         r2 = Result.err(
-                new TestAgg(Sets.newHashSet(Error.fromMessage("goodbye9"), Error.fromMessage("goodbye10")))
+                new TestAgg(Sets.newHashSet(ErrorCollect.fromMessage("goodbye9"), ErrorCollect.fromMessage("goodbye10")))
         );
         return r2;
     }
@@ -247,7 +247,7 @@ class ResultTest {
     private static @NotNull Result<TestRes, TestAgg> multipleErrorAndMessages() {
         return Result.from(
                 new TestRes(Sets.newHashSet("hello12", "hello13", "hello14")),
-                new TestAgg(Sets.newHashSet(Error.fromMessage("goodbye11"), Error.fromMessage("goodbye12")))
+                new TestAgg(Sets.newHashSet(ErrorCollect.fromMessage("goodbye11"), ErrorCollect.fromMessage("goodbye12")))
         );
     }
 }

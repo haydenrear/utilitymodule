@@ -1,21 +1,21 @@
 package com.hayden.utilitymodule.result.error;
 
-public interface Error {
-    static Error fromMessage(String error) {
+public interface ErrorCollect {
+    static ErrorCollect fromMessage(String error) {
         return new StandardError(error);
     }
 
-    static Error fromE(Throwable error) {
+    static ErrorCollect fromE(Throwable error) {
         return new StandardError(error);
     }
 
-    static Error fromE(Throwable error, String cause) {
+    static ErrorCollect fromE(Throwable error, String cause) {
         return new StandardError(cause, error);
     }
 
     String getMessage();
 
-    record StandardError(String error, Throwable throwable) implements Error {
+    record StandardError(String error, Throwable throwable) implements ErrorCollect {
         public StandardError(Throwable throwable) {
             this(throwable.getMessage(), throwable);
         }

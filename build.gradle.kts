@@ -3,6 +3,7 @@ plugins {
     id("com.hayden.kotlin")
     id("com.hayden.messaging")
     id("com.hayden.ai")
+    id("com.hayden.security")
 }
 
 description = "utilitymodule"
