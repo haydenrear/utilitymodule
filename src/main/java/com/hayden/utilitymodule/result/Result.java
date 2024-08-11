@@ -112,7 +112,7 @@ public record Result<T, E>(ResultInner<T> r, Error<E> e) {
     }
 
     public boolean isError() {
-        return e.isPresent();
+        return r.isEmpty();
     }
 
     public T orElseGet(Supplier<T> o) {
