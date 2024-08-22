@@ -9,6 +9,7 @@ import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import java.io.FileInputStream;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -32,6 +33,19 @@ class ResultTest {
     }
 
     @Test
+    void autoClosable() throws InterruptedException {
+        Result.tryFrom(() -> new FileInputStream("build.gradle.kts"))
+                        .ifPresent(fi -> {});
+    }
+
+    @Test
+    void stream() throws InterruptedException {
+        Result.stream(Stream.of("one", "two", "three"))
+                .peek(System.out::println)
+                .ifPresent(System.out::println);
+    }
+
+    @Test
     void flatMap() {
         var singleMessage = singleMessage();
         Result<String, TestAgg> hello = singleMessage
@@ -40,11 +54,11 @@ class ResultTest {
         assertThat(hello.r().get()).isEqualTo("hello");
         AggregateError.StandardAggregateError error = new AggregateError.StandardAggregateError("hello...");
         Result<TestRes, AggregateError.StandardAggregateError> hello3 = singleMessage
-                .flatMapError(e -> Result.Error.err(error))
+                .flatMapError(e -> Result.Err.err(error))
                 .castError();
         assertThat(hello3.error().isEmpty()).isTrue();
         hello3 = singleMessage
-                .<AggregateError.StandardAggregateError>flatMapError(t -> Result.Error.empty())
+                .<AggregateError.StandardAggregateError>flatMapError(t -> Result.Err.empty())
                 .cast();
         assertThat(hello3.error().isEmpty()).isTrue();
 
