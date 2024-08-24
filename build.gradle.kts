@@ -9,7 +9,7 @@ plugins {
 description = "utilitymodule"
 
 java {
-    version = JavaVersion.VERSION_21
+    version = JavaVersion.VERSION_22
 }
 
 dependencies {
@@ -19,3 +19,4 @@ dependencies {
     }
     api(project(":tracing_apt"))
 }
+
