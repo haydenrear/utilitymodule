@@ -1,6 +1,7 @@
 package com.hayden.utilitymodule.sort;
 
 import com.hayden.utilitymodule.MapFunctions;
+import com.hayden.utilitymodule.proxies.ProxyUtil;
 import lombok.experimental.UtilityClass;
 import org.jetbrains.annotations.NotNull;
 
@@ -97,6 +98,11 @@ public class GraphSort {
     }
 
     public static <T extends GraphSortable<T>> List<T> sort(List<T> graphs) {
+        var evilProxy = graphs.stream().filter(ProxyUtil::isProxy).findAny();
+        if (evilProxy.isPresent()) {
+            throw new RuntimeException("Detected proxy in graph: %s."
+                    .formatted(evilProxy.map(t -> t.getClass()).map(Object::toString).orElse(null)));
+        }
         GraphSortAlgo<T> algo = new GraphSortAlgo<>(graphs);
         return algo.sort();
     }
