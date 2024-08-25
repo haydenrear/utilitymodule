@@ -6,12 +6,46 @@ import lombok.experimental.UtilityClass;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @UtilityClass
 public class GraphSort {
 
     public interface GraphSortable<SELF extends GraphSortable<SELF>> {
+
         List<Class<? extends SELF>> dependsOn();
+
+        default List<SELF> parseAllDeps(Map<Class<? extends SELF>, SELF> values) {
+            return retrieve(new HashSet<>(), values);
+        }
+
+        default List<SELF> retrieve(Set<String> prev,
+                                    Map<Class<? extends SELF>, SELF> r) {
+            List<SELF> out = new ArrayList<>();
+            prev.add(this.getClass().getName());
+            var notSorted = retrieveRecursive((SELF) this, prev, r, out);
+            var newSorted = new ArrayList<>(notSorted);
+            newSorted.add((SELF) this);
+            return newSorted;
+        }
+
+        private @NotNull List<SELF> retrieveRecursive(SELF selfG,
+                                                      Set<String> prev,
+                                                      Map<Class<? extends SELF>, SELF> r,
+                                                      List<SELF> out) {
+            return selfG.dependsOn()
+                    .stream()
+                    .peek(s -> {
+                        if (prev.contains(s.getName())) {
+                            throw new RuntimeException("Found cycle.");
+                        }
+                        prev.add(s.getName());
+                    })
+                    .map(r::get)
+                    .flatMap(s -> s.retrieve(prev, r).stream())
+                    .collect(Collectors.toCollection(() -> out));
+        }
+
     }
 
     public class GraphSortAlgo<T extends GraphSortable<T>> {
