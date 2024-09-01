@@ -654,6 +654,10 @@ public record Result<T, E>(Ok<T> r, Err<E> e) {
         return r.isEmpty();
     }
 
+    public boolean hasError() {
+        return e.isPresent();
+    }
+
     public T orElseGet(Supplier<T> o) {
         if (this.r.isPresent())
             return this.r.get();
