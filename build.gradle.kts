@@ -18,5 +18,8 @@ dependencies {
         exclude("org.junit")
     }
     api(project(":tracing_apt"))
+    annotationProcessor(project(":inject_fields"))
+    testAnnotationProcessor(project(":inject_fields"))
+    api(project(":inject_fields"))
 }
 
