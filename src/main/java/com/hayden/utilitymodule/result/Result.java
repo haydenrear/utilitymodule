@@ -1,21 +1,22 @@
 package com.hayden.utilitymodule.result;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.hayden.utilitymodule.Either;
 import com.hayden.utilitymodule.result.error.AggregateError;
+import com.hayden.utilitymodule.result.map.StreamResultCollector;
 import com.hayden.utilitymodule.result.res.Responses;
 import jakarta.annotation.Nullable;
 import lombok.*;
 import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public record Result<T, E>(Ok<T> r, Err<E> e) {
@@ -913,6 +914,26 @@ public record Result<T, E>(Ok<T> r, Err<E> e) {
 
     public void doOnEach(Consumer<T> e) {
         this.r.forEach(e);
+    }
+
+    /**
+     * If underlying is stream, then collect to list, otherwise then
+     * will be lists of 1.
+     * @return
+     */
+    public Result<List<T>, List<E>> toResultLists() {
+        return this.toEntryStream().collect(new StreamResultCollector<>());
+    }
+
+    public Stream<Either<Result.Ok<T>, Result.Err<E>>> toEntryStream() {
+        List<Either<Result.Ok<T>, Result.Err<E>>> l = this.r.stream()
+                .map(t -> Either.<Ok<T>, Err<E>>from(Ok.ok(t), null))
+                .collect(Collectors.toCollection(ArrayList::new));
+        List<Either<Result.Ok<T>, Result.Err<E>>> r = this.e.stream()
+                .map(t -> Either.<Ok<T>, Err<E>>from(null, Err.err(t)))
+                .collect(Collectors.toCollection(() -> l));
+
+        return r.stream();
     }
 
 }

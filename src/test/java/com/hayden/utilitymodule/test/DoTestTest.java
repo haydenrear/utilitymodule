@@ -2,7 +2,6 @@ package com.hayden.utilitymodule.test;
 
 import com.hayden.inject_fields.AutowireParameter;
 import com.hayden.inject_fields.InjectFieldsAutoConfiguration;
-import com.hayden.utilitymodule.test.DoTest;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

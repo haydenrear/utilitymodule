@@ -7,6 +7,7 @@ import com.hayden.utilitymodule.result.error.ErrorCollect;
 import lombok.RequiredArgsConstructor;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
@@ -17,16 +18,14 @@ import java.util.stream.Collector;
 
 @RequiredArgsConstructor
 public abstract class ResultCollectors<
-        T extends Responses.AggregateResponse,
-        E extends AggregateError,
+        T,
+        E,
         R1 extends Result<R1T, R1E>,
         R1T,
         R1E extends ErrorCollect
         >
         implements Collector<R1, Result<T, E>, Result<T, E>> {
 
-    protected final T aggregateResponse;
-    protected final E aggregateError;
 
     public interface ResultMapper<ResultTypeT, ErrorTypeT extends ErrorCollect, ToCreateAggT extends Responses.AggregateResponse> extends Function<Result<ResultTypeT, ErrorTypeT>, Optional<ToCreateAggT>> {
     }
@@ -50,10 +49,10 @@ public abstract class ResultCollectors<
 
     public static <
             T extends Responses.AggregateResponse,
-            E extends AggregateError
+            Er extends AggregateError
             >
-    ResultCollectors<T, E, Result<T, E>, T, E> from(
-            T t, E e
+    ResultCollectors<T, Er, Result<T, Er>, T, Er> from(
+            T t, Er e
     ) {
         return AggregateResultCollector.fromValues(t, e);
     }
@@ -61,8 +60,12 @@ public abstract class ResultCollectors<
     public static class AggregateResultCollector<T extends Responses.AggregateResponse, E extends AggregateError>
             extends ResultCollectors<T, E, Result<T, E>, T, E> {
 
+        protected final T aggregateResponse;
+        protected final E aggregateError;
+
         public AggregateResultCollector(T t, E e) {
-            super(t, e);
+            this.aggregateResponse = t;
+            this.aggregateError = e;
         }
 
 
@@ -110,6 +113,8 @@ public abstract class ResultCollectors<
     public static class AggregateMappingResultCollector<T extends Responses.AggregateResponse, E extends AggregateError, R1, E1 extends ErrorCollect>
             extends ResultCollectors<T, E, Result<R1, E1>, R1, E1> {
 
+        protected final T aggregateResponse;
+        protected final E aggregateError;
 
         private final Function<Result<R1, E1>, Optional<T>> mapResult;
         private final Function<Result<R1, E1>, Optional<E>> mapError;
@@ -117,7 +122,8 @@ public abstract class ResultCollectors<
         public AggregateMappingResultCollector(T t, E e,
                                                Function<Result<R1, E1>, Optional<T>> result,
                                                Function<Result<R1, E1>, Optional<E>> error) {
-            super(t, e);
+            this.aggregateResponse = t;
+            this.aggregateError = e;
             mapResult = result;
             mapError = error;
         }

@@ -16,7 +16,7 @@ public class DoTest {
                     fields = {
                             TestBean.class
                     },
-                    scope = @Scope("session")
+                    scope = @Scope("prototype")
             )
             com.hayden.utilitymodule.test.TestObject testObject
     ) {
