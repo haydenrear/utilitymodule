@@ -25,6 +25,12 @@ public record Result<T, E>(Ok<T> r, Err<E> e) {
         return from(new Ok<>(stringStringEntry), Err.err(gitAggregateError));
     }
 
+    public static <T, E> Result<T, E> fromOptOrErr(Optional<T> stringStringEntry, E gitAggregateError) {
+        return stringStringEntry.isPresent()
+                ? from(new Ok<>(stringStringEntry), Err.empty())
+                : from(Ok.empty(), Err.err(gitAggregateError));
+    }
+
     public static <T extends AutoCloseable, E> Result<T, E> tryFrom(Callable<T> o) {
         try {
             return Result.ok(o.call());
@@ -767,6 +773,13 @@ public record Result<T, E>(Ok<T> r, Err<E> e) {
             return this.r.get();
 
         return or;
+    }
+
+    public T orElseErrRes(Function<Err<E>, T> or) {
+        if (this.r.isPresent())
+            return this.r.get();
+
+        return or.apply(this.e);
     }
 
     public Result<T, E> orElseErr(Result<T, E> or) {

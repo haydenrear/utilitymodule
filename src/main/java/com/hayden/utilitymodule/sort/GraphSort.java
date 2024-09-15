@@ -13,7 +13,9 @@ public class GraphSort {
 
     public interface GraphSortable<SELF extends GraphSortable<SELF>> {
 
-        List<Class<? extends SELF>> dependsOn();
+        default List<Class<? extends SELF>> dependsOn() {
+            return new ArrayList<>();
+        }
 
         default List<SELF> parseAllDeps(Map<Class<? extends SELF>, SELF> values) {
             return retrieve(new HashSet<>(), values);
