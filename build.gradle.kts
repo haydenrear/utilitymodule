@@ -1,5 +1,6 @@
 plugins {
     id("com.hayden.no-main-class")
+    id("com.hayden.log")
     id("com.hayden.kotlin")
     id("com.hayden.messaging")
     id("com.hayden.ai")
@@ -18,8 +19,8 @@ dependencies {
         exclude("org.junit")
     }
     api(project(":tracing_apt"))
-    annotationProcessor(project(":inject_fields"))
-    testAnnotationProcessor(project(":inject_fields"))
-    api(project(":inject_fields"))
+//    annotationProcessor(project(":inject_fields"))
+//    testAnnotationProcessor(project(":inject_fields"))
+//    api(project(":inject_fields"))
 }
 
