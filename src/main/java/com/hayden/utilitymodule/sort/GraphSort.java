@@ -110,7 +110,7 @@ public class GraphSort {
             for (Class<? extends T> dependency : dependencies.get(graph)) {
                 // If the dependency is not visited, visit it
                 if (!visited.contains(dependency)) {
-                    if (!dfs(dependency, dependencies, visited, recursionStack, sortedGraphs)) {
+                    if (dfs(dependency, dependencies, visited, recursionStack, sortedGraphs)) {
                         return true;
                     }
                 }

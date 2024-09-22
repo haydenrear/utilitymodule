@@ -3,13 +3,13 @@ package com.hayden.utilitymodule.log;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
 import org.fluentd.logger.errorhandler.ErrorHandler;
 import org.fluentd.logger.sender.Sender;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
@@ -29,6 +29,7 @@ public class FluentDRestTemplateSender implements Sender {
     private final int port;
     private final int timeout;
     private final int bufferCapacity;
+
     private ErrorHandler handler;
 
     @Override
@@ -39,12 +40,19 @@ public class FluentDRestTemplateSender implements Sender {
             headers.put("Content-Type", Lists.newArrayList(MediaType.APPLICATION_JSON_VALUE));
             var h = new HttpEntity<>(o, headers);
             var posted = restTemplate.postForEntity("http://localhost:8888", h, String.class);
-            return posted.getStatusCode().is2xxSuccessful();
+            return parseResponseToDidSucceed(posted);
         } catch (IOException e) {
             handler.handleNetworkError(e);
             System.out.printf("FAIL in the networking for the logging. How do you log about a log? %s%n", e.getMessage());
             return false;
         }
+    }
+
+    private static boolean parseResponseToDidSucceed(ResponseEntity<String> posted) {
+        if (!posted.getStatusCode().is2xxSuccessful()) {
+            System.out.printf("Call to fluentbit was not successful %s%n", posted.getStatusCode());
+        }
+        return posted.getStatusCode().is2xxSuccessful();
     }
 
     @Override
