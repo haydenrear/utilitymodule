@@ -10,62 +10,62 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class GraphSortTest {
 
-    interface TestNode extends GraphSort.GraphSortable<TestNode> {
+    interface TestNode extends GraphSort.GraphSortable {
 
     }
 
     // Mock implementation of GraphSortable for testing
     static class TestNodeOne implements TestNode {
-        private final List<Class<? extends TestNode>> dependencies;
+        private final List<Class<? extends GraphSort.GraphSortable>> dependencies;
 
-        public TestNodeOne(List<Class<? extends TestNode>> dependencies) {
+        public TestNodeOne(List<Class<? extends GraphSort.GraphSortable>> dependencies) {
             this.dependencies = dependencies;
         }
 
         @Override
-        public List<Class<? extends TestNode>> dependsOn() {
+        public List<Class<? extends GraphSort.GraphSortable>> dependsOn() {
             return dependencies;
         }
     }
 
     // Mock implementation of GraphSortable for testing
     static class TestNodeTwo implements TestNode {
-        private final List<Class<? extends TestNode>> dependencies;
+        private final List<Class<? extends GraphSort.GraphSortable>> dependencies;
 
-        public TestNodeTwo(List<Class<? extends TestNode>> dependencies) {
+        public TestNodeTwo(List<Class<? extends GraphSort.GraphSortable>> dependencies) {
             this.dependencies = dependencies;
         }
 
         @Override
-        public List<Class<? extends TestNode>> dependsOn() {
+        public List<Class<? extends GraphSort.GraphSortable>> dependsOn() {
             return dependencies;
         }
     }
 
     // Mock implementation of GraphSortable for testing
     static class TestNodeThree implements TestNode {
-        private final List<Class<? extends TestNode>> dependencies;
+        private final List<Class<? extends GraphSort.GraphSortable>> dependencies;
 
-        public TestNodeThree(List<Class<? extends TestNode>> dependencies) {
+        public TestNodeThree(List<Class<? extends GraphSort.GraphSortable>> dependencies) {
             this.dependencies = dependencies;
         }
 
         @Override
-        public List<Class<? extends TestNode>> dependsOn() {
+        public List<Class<? extends GraphSort.GraphSortable>> dependsOn() {
             return dependencies;
         }
     }
 
     // Mock implementation of GraphSortable for testing
     static class TestNodeFour implements TestNode {
-        private final List<Class<? extends TestNode>> dependencies;
+        private final List<Class<? extends GraphSort.GraphSortable>> dependencies;
 
-        public TestNodeFour(List<Class<? extends TestNode>> dependencies) {
+        public TestNodeFour(List<Class<? extends GraphSort.GraphSortable>> dependencies) {
             this.dependencies = dependencies;
         }
 
         @Override
-        public List<Class<? extends TestNode>> dependsOn() {
+        public List<Class<? extends GraphSort.GraphSortable>> dependsOn() {
             return dependencies;
         }
     }

@@ -6,35 +6,53 @@ import lombok.experimental.UtilityClass;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @UtilityClass
 public class GraphSort {
 
-    public interface GraphSortable<SELF extends GraphSortable<SELF>> {
+    public static <T extends GraphSortable> Optional<T> is(GraphSortable graphSortable) {
+        try {
+            return Optional.ofNullable((T) graphSortable) ;
+        } catch (ClassCastException e) {
+            return Optional.empty();
+        }
+    }
 
-        default List<Class<? extends SELF>> dependsOn() {
-            return new ArrayList<>();
+    public interface GraphSortable {
+
+        default <T extends GraphSortable> Optional<T> is(GraphSortable graphSortable) {
+            try {
+                return Optional.ofNullable((T) graphSortable) ;
+            } catch (ClassCastException e) {
+                return Optional.empty();
+            }
         }
 
-        default List<SELF> parseAllDeps(Map<Class<? extends SELF>, SELF> values) {
+        default <T extends GraphSortable> List<Class<? extends T>> dependsOn() {
+            return new ArrayList<>() ;
+        }
+
+
+        default <T extends GraphSortable>  List<T> parseAllDeps(Map<Class<? extends T>, T> values) {
             return retrieve(new HashSet<>(), values);
         }
 
-        default List<SELF> retrieve(Set<String> prev,
-                                    Map<Class<? extends SELF>, SELF> r) {
-            List<SELF> out = new ArrayList<>();
+        default <T extends GraphSortable> List<T> retrieve(Set<String> prev,
+                                                           Map<Class<? extends T>, T> r) {
+            List<T> out = new ArrayList<>();
             prev.add(this.getClass().getName());
-            var notSorted = retrieveRecursive((SELF) this, prev, r, out);
-            var newSorted = new ArrayList<>(notSorted);
-            newSorted.add((SELF) this);
+            List<T> notSorted = retrieveRecursive((T) this, prev, r, out);
+            List<T> newSorted = new ArrayList<>(notSorted);
+            newSorted.add((T) this);
             return newSorted;
         }
 
-        private @NotNull List<SELF> retrieveRecursive(SELF selfG,
-                                                      Set<String> prev,
-                                                      Map<Class<? extends SELF>, SELF> r,
-                                                      List<SELF> out) {
+        private @NotNull <T extends GraphSortable> List<T> retrieveRecursive(T selfG,
+                                                                             Set<String> prev,
+                                                                             Map<Class<? extends T>, T> r,
+                                                                             List<T> out) {
             return selfG.dependsOn()
                     .stream()
                     .peek(s -> {
@@ -50,7 +68,7 @@ public class GraphSort {
 
     }
 
-    public class GraphSortAlgo<T extends GraphSortable<T>> {
+    public class GraphSortAlgo<T extends GraphSortable> {
         Map<Class<? extends T>, T> mappings;
         List<T> graphs;
 
@@ -60,8 +78,11 @@ public class GraphSort {
             this.graphs = mappings;
         }
 
-
         public List<T> sort() {
+            return sort(GraphSort::is) ;
+        }
+
+        public List<T> sort(Function<GraphSortable, Optional<T>> isDep) {
             // Create a map to store the dependencies of each graph
             Map<Class<? extends T>, List<Class<? extends T>>> dependencies = new HashMap<>();
             // Create a set to keep track of visited graphs during DFS
@@ -72,7 +93,7 @@ public class GraphSort {
             List<Class<? extends T>> sortedGraphs = new ArrayList<>();
 
             // Initialize the dependencies map
-            for (T graph : graphs) {
+            for (GraphSortable graph : graphs) {
                 dependencies.put((Class<? extends T>) graph.getClass(), graph.dependsOn());
             }
 
@@ -127,13 +148,17 @@ public class GraphSort {
             return false;
         }
 
-        private static <T extends GraphSortable<T>> @NotNull Class<? extends T> getGraphClazz(T graph) {
+        private static <T extends GraphSortable> @NotNull Class<? extends T> getGraphClazz(T graph) {
             return (Class<? extends T>) graph.getClass();
         }
 
     }
+    public static <T extends GraphSortable> List<T> sort(List<T> graphs) {
+        return sort(graphs, GraphSort::is);
+    }
 
-    public static <T extends GraphSortable<T>> List<T> sort(List<T> graphs) {
+    public static <T extends GraphSortable> List<T> sort(List<T> graphs,
+                                                         Function<GraphSortable, Optional<T>> isDep) {
         var evilProxy = graphs.stream().filter(ProxyUtil::isProxy).findAny();
         if (evilProxy.isPresent()) {
             throw new RuntimeException("Detected proxy in graph: %s."
