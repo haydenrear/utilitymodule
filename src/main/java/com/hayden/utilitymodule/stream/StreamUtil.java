@@ -43,6 +43,11 @@ public class StreamUtil {
             return this;
         }
 
+        public StreamBuilderDelegate<T> addStream(Stream<T> streams) {
+            streams.forEach(builder::add);
+            return this;
+        }
+
         public StreamBuilderDelegate<T> addAll(Stream<T> stream) {
             stream.forEach(builder::add);
             return this;
