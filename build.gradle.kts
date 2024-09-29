@@ -1,3 +1,5 @@
+import com.hayden.haydenbomplugin.BuildSrcVersionCatalogCollector
+
 plugins {
     id("com.hayden.no-main-class")
     id("com.hayden.log")
@@ -5,6 +7,7 @@ plugins {
     id("com.hayden.messaging")
     id("com.hayden.ai")
     id("com.hayden.security")
+    id("com.hayden.bom-plugin")
 }
 
 description = "utilitymodule"
@@ -13,7 +16,13 @@ java {
     version = JavaVersion.VERSION_22
 }
 
+val vC = project.extensions.getByType(BuildSrcVersionCatalogCollector::class.java)
+
 dependencies {
+
+    vC.bundles.opentelemetryBundle.inBundle()
+        .map { implementation(it) }
+
     implementation("com.squareup:javapoet:1.13.0")
     annotationProcessor(project(":tracing_apt")) {
         exclude("org.junit")
