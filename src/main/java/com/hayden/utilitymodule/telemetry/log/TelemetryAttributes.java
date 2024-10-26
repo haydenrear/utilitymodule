@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
@@ -21,6 +22,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @ConfigurationProperties(prefix = "telemetry-resources")
+@Profile("telemetry-logging")
 public class TelemetryAttributes implements TelemetryAttributesProvider {
 
     @Value("#{${telemetry-resources.attributes:null}}")

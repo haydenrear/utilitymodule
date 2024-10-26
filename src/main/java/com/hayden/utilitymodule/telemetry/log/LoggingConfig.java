@@ -12,12 +12,14 @@ import org.springframework.boot.env.YamlPropertySourceLoader;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 import org.springframework.util.ReflectionUtils;
 
 import java.util.Optional;
 
 @Configuration
+@Profile("telemetry-logging")
 public class LoggingConfig {
 
     @Bean
@@ -27,7 +29,7 @@ public class LoggingConfig {
 
     @Bean
     @Order(Integer.MIN_VALUE)
-    CommandLineRunner cmd(ApplicationContext ctx) {
+    CommandLineRunner initializeLogger(ApplicationContext ctx) {
         var lf = LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
         if (lf instanceof Logger l) {
             l.iteratorForAppenders().forEachRemaining(a -> {
