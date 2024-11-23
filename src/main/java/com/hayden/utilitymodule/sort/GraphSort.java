@@ -34,6 +34,11 @@ public class GraphSort {
             return new ArrayList<>() ;
         }
 
+        default <T extends GraphSortable>  List<T> parseAllDepsNotThis(Map<Class<? extends T>, T> values) {
+            var r = retrieve(new HashSet<>(), values);
+            r.remove(this);
+            return r.stream().distinct().toList();
+        }
 
         default <T extends GraphSortable>  List<T> parseAllDeps(Map<Class<? extends T>, T> values) {
             return retrieve(new HashSet<>(), values);
@@ -56,7 +61,7 @@ public class GraphSort {
             return selfG.dependsOn()
                     .stream()
                     .peek(s -> {
-                        if (prev.contains(s.getName())) {
+                        if (prev.contains(s.getName()) && r.get(s).dependsOn().contains(selfG.getClass())) {
                             throw new RuntimeException("Found cycle.");
                         }
                         prev.add(s.getName());
