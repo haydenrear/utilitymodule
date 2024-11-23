@@ -8,9 +8,11 @@ import org.fluentd.logger.FluentLogger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.env.YamlPropertySourceLoader;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
@@ -18,8 +20,10 @@ import org.springframework.util.ReflectionUtils;
 
 import java.util.Optional;
 
+
 @Configuration
 @Profile("telemetry-logging")
+@ConditionalOnProperty(prefix = "tracing", value = "enabled", havingValue = "true")
 public class LoggingConfig {
 
     @Bean

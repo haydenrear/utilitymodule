@@ -1,6 +1,7 @@
 package com.hayden.utilitymodule.result;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.collect.Lists;
 import com.hayden.utilitymodule.Either;
 import com.hayden.utilitymodule.result.error.AggregateError;
 import com.hayden.utilitymodule.result.map.StreamResultCollector;
@@ -9,6 +10,8 @@ import jakarta.annotation.Nullable;
 import lombok.*;
 import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.util.*;
 import java.util.concurrent.Callable;
@@ -235,6 +238,8 @@ public record Result<T, E>(Ok<T> r, Err<E> e) {
         <V> IResultTy<V> from(Optional<V> r);
 
         Stream<R> stream();
+        Flux<R> flux();
+        Mono<R> mono();
         IResultTy<R> filter(Predicate<R> p);
         R get();
         <V> IResultTy<V> flatMap(Function<R, IResultTy<V>> toMap);
@@ -264,6 +269,17 @@ public record Result<T, E>(Ok<T> r, Err<E> e) {
             @Override
             public Stream<R> stream() {
                 return r.stream();
+            }
+
+            @Override
+            public Flux<R> flux() {
+                return r.map(Flux::just)
+                        .orElse(Flux.empty());
+            }
+
+            @Override
+            public Mono<R> mono() {
+                return Mono.justOrEmpty(r);
             }
 
             @Override
@@ -349,6 +365,179 @@ public record Result<T, E>(Ok<T> r, Err<E> e) {
         }
 
         @Slf4j
+        record MonoResult<R>(Mono<R> r) implements IResultTy<R> {
+
+            @Override
+            public Optional<R> optional() {
+                var l = Lists.newArrayList(r.flux().toIterable());
+                if (l.size() > 1) {
+                    log.error("Called optional on stream result with more than one value. Returning first.");
+                }
+
+                return !l.isEmpty() ? Optional.of(l.getFirst()) : Optional.empty();
+            }
+
+            @Override
+            public <T> IResultTy<T> from(T r) {
+                return new StreamResult<>(Stream.ofNullable(r));
+            }
+
+            @Override
+            public <T> IResultTy<T> from(Optional<T> r) {
+                return new StreamResult<>(r.stream());
+            }
+
+            @Override
+            public Stream<R> stream() {
+                return flux().toStream();
+            }
+
+            @Override
+            public Flux<R> flux() {
+                return r.flux();
+            }
+
+            @Override
+            public Mono<R> mono() {
+                return flux().collectList()
+                        .flatMap(l -> l.size() <= 1
+                                      ? Mono.justOrEmpty(l.getFirst())
+                                      : Mono.error(new RuntimeException("Called Mono on stream result with more than one value.")));
+            }
+
+            @Override
+            public IResultTy<R> filter(Predicate<R> p) {
+                return new MonoResult<>(r.filter(p));
+            }
+
+            @Override
+            public R get() {
+                return optional().get();
+            }
+
+            @Override
+            public <T> MonoResult<T> flatMap(Function<R, IResultTy<T>> toMap) {
+                return new MonoResult<>(
+                        r.map(toMap)
+                                .flatMap(IResultTy::mono)
+                );
+            }
+
+            @Override
+            public <T> IResultTy<T> map(Function<R, T> toMap) {
+                return new MonoResult<>(r.map(toMap));
+            }
+
+            @Override
+            public R orElse(R r) {
+                return optional().orElse(r);
+            }
+
+            @Override
+            public R orElseGet(Supplier<R> r) {
+                return optional().orElseGet(r);
+            }
+
+            @Override
+            public void ifPresent(Consumer<? super R> consumer) {
+                this.r.subscribe(consumer);
+            }
+
+            @Override
+            public MonoResult<R> peek(Consumer<? super R> consumer) {
+                return new MonoResult<>(this.r.map(f -> {consumer.accept(f); return f;}));
+            }
+        }
+
+
+        @Slf4j
+        record FluxResult<R>(Flux<R> r) implements IResultTy<R> {
+
+            @Override
+            public Optional<R> optional() {
+                var l = Lists.newArrayList(r.toIterable());
+                if (l.size() > 1) {
+                    log.error("Called optional on stream result with more than one value. Returning first.");
+                }
+
+                return !l.isEmpty() ? Optional.of(l.getFirst()) : Optional.empty();
+            }
+
+            @Override
+            public <T> IResultTy<T> from(T r) {
+                return new StreamResult<>(Stream.ofNullable(r));
+            }
+
+            @Override
+            public <T> IResultTy<T> from(Optional<T> r) {
+                return new StreamResult<>(r.stream());
+            }
+
+            @Override
+            public Stream<R> stream() {
+                return r.toStream();
+            }
+
+            @Override
+            public Flux<R> flux() {
+                return r;
+            }
+
+            @Override
+            public Mono<R> mono() {
+                return r.collectList()
+                        .flatMap(l -> l.size() <= 1
+                                      ? Mono.justOrEmpty(l.getFirst())
+                                      : Mono.error(new RuntimeException("Called Mono on stream result with more than one value.")));
+            }
+
+            @Override
+            public IResultTy<R> filter(Predicate<R> p) {
+                return new FluxResult<>(r.filter(p));
+            }
+
+            @Override
+            public R get() {
+                return optional().get();
+            }
+
+            @Override
+            public <T> FluxResult<T> flatMap(Function<R, IResultTy<T>> toMap) {
+                return new FluxResult<>(
+                        r.map(toMap)
+                                .flatMap(IResultTy::flux)
+                );
+            }
+
+            @Override
+            public <T> IResultTy<T> map(Function<R, T> toMap) {
+                return new FluxResult<>(r.map(toMap));
+            }
+
+            @Override
+            public R orElse(R r) {
+                return optional().orElse(r);
+            }
+
+            @Override
+            public R orElseGet(Supplier<R> r) {
+                return optional().orElseGet(r);
+            }
+
+            @Override
+            public void ifPresent(Consumer<? super R> consumer) {
+                this.r.subscribe(consumer);
+            }
+
+            @Override
+            public FluxResult<R> peek(Consumer<? super R> consumer) {
+                return new FluxResult<>(this.r.map(f -> {consumer.accept(f); return f;}));
+            }
+        }
+
+
+
+        @Slf4j
         record StreamResult<R>(Stream<R> r) implements IResultTy<R> {
 
             @Override
@@ -374,6 +563,19 @@ public record Result<T, E>(Ok<T> r, Err<E> e) {
             @Override
             public Stream<R> stream() {
                 return r;
+            }
+
+            @Override
+            public Flux<R> flux() {
+                return Flux.fromStream(r);
+            }
+
+            @Override
+            public Mono<R> mono() {
+                List<R> streamList = this.r.toList();
+                return streamList.size() <= 1
+                        ? Mono.justOrEmpty(streamList.getFirst())
+                        : Mono.error(new RuntimeException("Called get Mono on list with more than 1."));
             }
 
             @Override
@@ -458,6 +660,16 @@ public record Result<T, E>(Ok<T> r, Err<E> e) {
             @Override
             public Stream<R> stream() {
                 return this.r.stream();
+            }
+
+            @Override
+            public Flux<R> flux() {
+                return Flux.fromStream(this.r.stream());
+            }
+
+            @Override
+            public Mono<R> mono() {
+                return Mono.justOrEmpty(this.r);
             }
 
             @Override
