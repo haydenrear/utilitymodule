@@ -1,14 +1,15 @@
 package com.hayden.utilitymodule.result;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.google.common.collect.Lists;
 import com.hayden.utilitymodule.Either;
-import com.hayden.utilitymodule.result.error.AggregateError;
+import com.hayden.utilitymodule.result.agg.AggregateError;
+import com.hayden.utilitymodule.result.agg.AggregateParamError;
+import com.hayden.utilitymodule.result.error.Err;
 import com.hayden.utilitymodule.result.map.StreamResultCollector;
-import com.hayden.utilitymodule.result.res.Responses;
+import com.hayden.utilitymodule.result.agg.Responses;
+import com.hayden.utilitymodule.result.res_ty.ClosableResult;
+import com.hayden.utilitymodule.result.res_ty.IResultTy;
 import jakarta.annotation.Nullable;
-import lombok.*;
-import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -22,21 +23,51 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public record Result<T, E>(Ok<T> r, Err<E> e) {
+/**
+ * Contains an Ok and an Err, and these have compositions that can be aggregate
+ * and contain multiple, and they have variations of the monad that can collect
+ * and iterate over multiple of the item T and E. Ok can be composed of Closable
+ * or Async types as well as Stream or Optional.
+ * @param r
+ * @param e
+ * @param <T>
+ * @param <E>
+ */
+@Slf4j
+public record Result<T, E>(Responses.Ok<T> r, Err<E> e) {
 
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public static <T, E> Result<T, E> fromOpt(Optional<T> stringStringEntry, E gitAggregateError) {
-        return from(new Ok<>(stringStringEntry), Err.err(gitAggregateError));
+        return from(new Responses.Ok<>(stringStringEntry), Err.err(gitAggregateError));
     }
 
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public static <T, E> Result<T, E> fromOptOrErr(Optional<T> stringStringEntry, E gitAggregateError) {
         return stringStringEntry.isPresent()
-                ? from(new Ok<>(stringStringEntry), Err.empty())
-                : from(Ok.empty(), Err.err(gitAggregateError));
+                ? from(new Responses.Ok<>(stringStringEntry), Err.empty())
+                : from(Responses.Ok.empty(), Err.err(gitAggregateError));
+    }
+
+    public static <T extends AutoCloseable, E> Result<T, E> tryFrom(T o, Callable<Void> onClose) {
+        try {
+            log.debug("Doing try from with result ty. Means there was a closable opened. Will log debug on close.");
+            return Result.ok(new ClosableResult<>(Optional.ofNullable(o), onClose));
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
     }
 
     public static <T extends AutoCloseable, E> Result<T, E> tryFrom(Callable<T> o) {
         try {
             return Result.ok(o.call());
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    public static <T, E> Result<T, E> stream(Mono<T> o) {
+        try {
+            return Result.ok(o);
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
@@ -50,6 +81,10 @@ public record Result<T, E>(Ok<T> r, Err<E> e) {
         }
     }
 
+    public Result<List<T>, List<E>> collectList() {
+        return toResultLists();
+    }
+
     public Err<E> error() {
         return e;
     }
@@ -59,30 +94,46 @@ public record Result<T, E>(Ok<T> r, Err<E> e) {
     }
 
     public static <R, E> Result<R, E> ok(R r) {
-        return new Result<>(new Ok<>(r), Err.empty());
+        return new Result<>(new Responses.Ok<>(r), Err.empty());
+    }
+
+    public static <R, E> Result<R, E> ok(IResultTy<R> r) {
+        return new Result<>(new Responses.Ok<>(r), Err.empty());
+    }
+
+    public static <R extends AutoCloseable, E> Result<R, E> ok(ClosableResult<R> r, Callable<Void> onClose) {
+        return new Result<>(new Responses.Ok<>(r), Err.empty());
+    }
+
+    public static <R, E> Result<R, E> ok(Mono<R> r) {
+        return new Result<>(new Responses.Ok<>(r), Err.empty());
+    }
+
+    public static <R, E> Result<R, E> ok(Flux<R> r) {
+        return new Result<>(new Responses.Ok<>(r), Err.empty());
     }
 
     public static <R, E> Result<R, E> ok(Stream<R> r) {
-        return new Result<>(new Ok<>(r), Err.empty());
+        return new Result<>(new Responses.Ok<>(r), Err.empty());
     }
 
-    public static <R, E> Result<R, E> ok(Ok<R> r) {
+    public static <R, E> Result<R, E> ok(Responses.Ok<R> r) {
         return new Result<>(r, Err.empty());
     }
 
     public static <R, E> Result<R, E> err(E r) {
-        return new Result<>(Ok.empty(), Err.err(r));
+        return new Result<>(Responses.Ok.empty(), Err.err(r));
     }
 
     public static <R, E> Result<R, E> err(Err<E> r) {
-        return new Result<>(Ok.empty(), r);
+        return new Result<>(Responses.Ok.empty(), r);
     }
 
     public static <R, E> Result<R, E> from(R r, E e) {
-        return new Result<>(Ok.ok(r), Err.err(e));
+        return new Result<>(Responses.Ok.ok(r), Err.err(e));
     }
 
-    public static <R, E> Result<R, E> from(Ok<R> r, Err<E> e) {
+    public static <R, E> Result<R, E> from(Responses.Ok<R> r, Err<E> e) {
         return new Result<>(r, e);
     }
 
@@ -98,12 +149,24 @@ public record Result<T, E>(Ok<T> r, Err<E> e) {
                 .orElse(finalResult);
     }
 
+    public static void logThreadStarvation() {
+        log.warn("Calling blocking operation on subscription. This could lead to thread  starvation.");
+    }
+
+    public static void logClosableMaybeNotClosed() {
+        log.warn("Called a function on closable that maybe means close was not closed.");
+    }
+
+    public static void logAsync() {
+        log.warn("Calling async operation on Mono subscription. This could lead to operations happening before or after expected.");
+    }
+
     @SafeVarargs
-    public static <T extends Responses.AggregateResponse, E extends AggregateError> @Nullable Result<T, E> all(Result<T, E> ... mapper) {
+    public static <T extends Responses.AggregateResponse, E extends AggregateParamError> @Nullable Result<T, E> all(Result<T, E> ... mapper) {
         return all(Arrays.asList(mapper));
     }
 
-    public static <T extends Responses.AggregateResponse, E extends AggregateError> @Nullable Result<T, E> all(Collection<Result<T, E>> mapper) {
+    public static <T extends Responses.AggregateResponse, E extends AggregateParamError> @Nullable Result<T, E> all(Collection<Result<T, E>> mapper) {
         Result<T, E> result = null;
         for (Result<T, E> nextResultToAdd : mapper) {
             if (result == null)
@@ -115,7 +178,7 @@ public record Result<T, E>(Ok<T> r, Err<E> e) {
                     result = nextResultToAdd;
                     nextResultToAdd = temp;
                 } else {
-                    result.r.get().add(nextResultToAdd.r.get());
+                    result.r.get().addAgg(nextResultToAdd.r.get());
                 }
             }
 
@@ -125,7 +188,7 @@ public record Result<T, E>(Ok<T> r, Err<E> e) {
         return result;
     }
 
-    private static <T extends Responses.AggregateResponse, E extends AggregateError> Result<T, E> addErrors(Result<T, E> r, Result<T, E> result) {
+    private static <T extends Responses.AggregateResponse, E extends AggregateParamError> Result<T, E> addErrors(Result<T, E> r, Result<T, E> result) {
         if (r.e.isPresent()) {
             if (result.e.isEmpty()) {
                 result.e.setT(r.e.t);
@@ -136,63 +199,6 @@ public record Result<T, E>(Ok<T> r, Err<E> e) {
         return result;
     }
 
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public abstract static class ResultTy<U> {
-
-        @Delegate
-        protected IResultTy<U> t;
-
-        public void set(U u) {
-            this.t = from(u);
-        }
-
-        public ResultTy(Stream<U> t) {
-            this.t = new IResultTy.StreamResult<>(t);
-        }
-
-        public ResultTy(Optional<U> t) {
-            if (t.isEmpty()) {
-                this.t = new IResultTy.ResultTyResult<>(Optional.empty());
-            } else {
-                var to = t.get();
-
-                if (to instanceof AutoCloseable a) {
-                    this.t = (IResultTy<U>) new IResultTy.ClosableResult<>(Optional.of(a));
-                } else {
-                    this.t = new IResultTy.ResultTyResult<>(Optional.ofNullable(to));
-                }
-
-            }
-        }
-
-        public ResultTy(U t) {
-            if (t instanceof AutoCloseable a) {
-                this.t = (IResultTy<U>) new IResultTy.ClosableResult<>(Optional.of(a));
-            } else {
-                this.t = new IResultTy.ResultTyResult<>(Optional.ofNullable(t));
-            }
-        }
-
-        static <V> ResultTy<V> ok(V v) {
-            return Ok.ok(v);
-        }
-
-        static <V> ResultTy<V> stream(Stream<V> t) {
-            return Ok.stream(t);
-        }
-
-        static <V extends AutoCloseable> ResultTy<V> tryFrom(V t) {
-            return Ok.ok(t);
-        }
-
-        static <V> ResultTy<V> err(V v) {
-            return Err.err(v);
-        }
-
-    }
 
     public interface Monadic<R> {
 
@@ -212,656 +218,6 @@ public record Result<T, E>(Ok<T> r, Err<E> e) {
         void ifPresent(Consumer<? super R> consumer);
 
         boolean isEmpty();
-
-    }
-
-    public interface IResultTy<R> extends Monadic<R> {
-
-        static <V> IResultTy<V> toRes(V v) {
-            if (v instanceof AutoCloseable a) {
-                throw new RuntimeException("Did not implement for auto-closable! Probably something to do with scopes to prove only one can be left open and any cannot be accessed twice without knowing.");
-//                return (IResultTy<T>) new ClosableResult<>(Optional.of(a));
-            }
-
-            return new ResultTyResult<>(Optional.ofNullable(v));
-        }
-
-        static IResultTy<AutoCloseable> empty() {
-            return new ResultTyResult<>(Optional.empty());
-        }
-
-
-        Optional<R> optional();
-
-        <V> IResultTy<V> from(V r);
-
-        <V> IResultTy<V> from(Optional<V> r);
-
-        Stream<R> stream();
-        Flux<R> flux();
-        Mono<R> mono();
-        IResultTy<R> filter(Predicate<R> p);
-        R get();
-        <V> IResultTy<V> flatMap(Function<R, IResultTy<V>> toMap);
-        <V> IResultTy<V> map(Function<R, V> toMap);
-        R orElse(R r);
-        R orElseGet(Supplier<R> r);
-        void ifPresent(Consumer<? super R> consumer);
-        IResultTy<R> peek(Consumer<? super R> consumer);
-
-        default void forEach(Consumer<? super R> consumer) {
-            this.stream().forEach(consumer);
-        }
-
-        default boolean isEmpty() {
-            return optional().isEmpty();
-        }
-
-        /**
-         * If R is AutoClosable, assumes there is a terminating operation:
-         *   ifPresent(...)
-         *   ifPresentOrElse(..., ...)
-         * @param r
-         * @param <R>
-         */
-        record ClosableResult<R extends AutoCloseable>(Optional<R> r) implements IResultTy<R> {
-
-            @Override
-            public Stream<R> stream() {
-                return r.stream();
-            }
-
-            @Override
-            public Flux<R> flux() {
-                return r.map(Flux::just)
-                        .orElse(Flux.empty());
-            }
-
-            @Override
-            public Mono<R> mono() {
-                return Mono.justOrEmpty(r);
-            }
-
-            @Override
-            public Optional<R> optional() {
-                return r();
-            }
-
-            @Override
-            public <T> IResultTy<T> from(T r) {
-                if (r instanceof AutoCloseable a) {
-                    return (IResultTy<T>) new ClosableResult<>(Optional.of(a));
-                }
-
-                return (IResultTy<T>) new ClosableResult<>(Optional.empty());
-            }
-
-            @Override
-            public <T> IResultTy<T> from(Optional<T> r) {
-                if (r.isEmpty())
-                    return (IResultTy<T>) new ClosableResult<>(Optional.empty());
-                else if (r.get() instanceof AutoCloseable a) {
-                    return (IResultTy<T>) new ClosableResult<>(Optional.of(a));
-                }
-
-                return (IResultTy<T>) new ClosableResult<>(Optional.empty());
-            }
-
-            @Override
-            public void forEach(Consumer<? super R> consumer) {
-                this.ifPresent(consumer);
-            }
-
-            @Override
-            public IResultTy<R> filter(Predicate<R> p) {
-                return from(r.filter(p));
-            }
-
-            @Override
-            public R get() {
-                return this.r.get();
-            }
-
-            @Override
-            public <T> IResultTy<T> flatMap(Function<R, IResultTy<T>> toMap) {
-                return from(r.flatMap(t -> {
-                    var applied = toMap.apply(t);
-                    return applied.optional();
-                }));
-            }
-
-            @Override
-            public <T> IResultTy<T> map(Function<R, T> toMap) {
-                return from(r.map(toMap));
-            }
-
-            @Override
-            public R orElse(R o) {
-                return r.orElse(o) ;
-            }
-
-            @Override
-            public R orElseGet(Supplier<R> o) {
-                return r.orElseGet(o);
-            }
-
-            @Override
-            public void ifPresent(Consumer<? super R> consumer) {
-                r.ifPresent(rFound -> {
-                    consumer.accept(rFound);
-                    try {
-                        rFound.close();
-                    } catch (Exception ex) {
-                        throw new RuntimeException(ex);
-                    }
-                });
-            }
-
-            @Override
-            public ClosableResult<R> peek(Consumer<? super R> consumer) {
-                r.ifPresent(consumer);
-                return this;
-            }
-        }
-
-        @Slf4j
-        record MonoResult<R>(Mono<R> r) implements IResultTy<R> {
-
-            @Override
-            public Optional<R> optional() {
-                var l = Lists.newArrayList(r.flux().toIterable());
-                if (l.size() > 1) {
-                    log.error("Called optional on stream result with more than one value. Returning first.");
-                }
-
-                return !l.isEmpty() ? Optional.of(l.getFirst()) : Optional.empty();
-            }
-
-            @Override
-            public <T> IResultTy<T> from(T r) {
-                return new StreamResult<>(Stream.ofNullable(r));
-            }
-
-            @Override
-            public <T> IResultTy<T> from(Optional<T> r) {
-                return new StreamResult<>(r.stream());
-            }
-
-            @Override
-            public Stream<R> stream() {
-                return flux().toStream();
-            }
-
-            @Override
-            public Flux<R> flux() {
-                return r.flux();
-            }
-
-            @Override
-            public Mono<R> mono() {
-                return flux().collectList()
-                        .flatMap(l -> l.size() <= 1
-                                      ? Mono.justOrEmpty(l.getFirst())
-                                      : Mono.error(new RuntimeException("Called Mono on stream result with more than one value.")));
-            }
-
-            @Override
-            public IResultTy<R> filter(Predicate<R> p) {
-                return new MonoResult<>(r.filter(p));
-            }
-
-            @Override
-            public R get() {
-                return optional().get();
-            }
-
-            @Override
-            public <T> MonoResult<T> flatMap(Function<R, IResultTy<T>> toMap) {
-                return new MonoResult<>(
-                        r.map(toMap)
-                                .flatMap(IResultTy::mono)
-                );
-            }
-
-            @Override
-            public <T> IResultTy<T> map(Function<R, T> toMap) {
-                return new MonoResult<>(r.map(toMap));
-            }
-
-            @Override
-            public R orElse(R r) {
-                return optional().orElse(r);
-            }
-
-            @Override
-            public R orElseGet(Supplier<R> r) {
-                return optional().orElseGet(r);
-            }
-
-            @Override
-            public void ifPresent(Consumer<? super R> consumer) {
-                this.r.subscribe(consumer);
-            }
-
-            @Override
-            public MonoResult<R> peek(Consumer<? super R> consumer) {
-                return new MonoResult<>(this.r.map(f -> {consumer.accept(f); return f;}));
-            }
-        }
-
-
-        @Slf4j
-        record FluxResult<R>(Flux<R> r) implements IResultTy<R> {
-
-            @Override
-            public Optional<R> optional() {
-                var l = Lists.newArrayList(r.toIterable());
-                if (l.size() > 1) {
-                    log.error("Called optional on stream result with more than one value. Returning first.");
-                }
-
-                return !l.isEmpty() ? Optional.of(l.getFirst()) : Optional.empty();
-            }
-
-            @Override
-            public <T> IResultTy<T> from(T r) {
-                return new StreamResult<>(Stream.ofNullable(r));
-            }
-
-            @Override
-            public <T> IResultTy<T> from(Optional<T> r) {
-                return new StreamResult<>(r.stream());
-            }
-
-            @Override
-            public Stream<R> stream() {
-                return r.toStream();
-            }
-
-            @Override
-            public Flux<R> flux() {
-                return r;
-            }
-
-            @Override
-            public Mono<R> mono() {
-                return r.collectList()
-                        .flatMap(l -> l.size() <= 1
-                                      ? Mono.justOrEmpty(l.getFirst())
-                                      : Mono.error(new RuntimeException("Called Mono on stream result with more than one value.")));
-            }
-
-            @Override
-            public IResultTy<R> filter(Predicate<R> p) {
-                return new FluxResult<>(r.filter(p));
-            }
-
-            @Override
-            public R get() {
-                return optional().get();
-            }
-
-            @Override
-            public <T> FluxResult<T> flatMap(Function<R, IResultTy<T>> toMap) {
-                return new FluxResult<>(
-                        r.map(toMap)
-                                .flatMap(IResultTy::flux)
-                );
-            }
-
-            @Override
-            public <T> IResultTy<T> map(Function<R, T> toMap) {
-                return new FluxResult<>(r.map(toMap));
-            }
-
-            @Override
-            public R orElse(R r) {
-                return optional().orElse(r);
-            }
-
-            @Override
-            public R orElseGet(Supplier<R> r) {
-                return optional().orElseGet(r);
-            }
-
-            @Override
-            public void ifPresent(Consumer<? super R> consumer) {
-                this.r.subscribe(consumer);
-            }
-
-            @Override
-            public FluxResult<R> peek(Consumer<? super R> consumer) {
-                return new FluxResult<>(this.r.map(f -> {consumer.accept(f); return f;}));
-            }
-        }
-
-
-
-        @Slf4j
-        record StreamResult<R>(Stream<R> r) implements IResultTy<R> {
-
-            @Override
-            public Optional<R> optional() {
-                var l = r.toList();
-                if (l.size() > 1) {
-                    log.error("Called optional on stream result with more than one value. Returning first.");
-                }
-
-                return !l.isEmpty() ? Optional.of(l.getFirst()) : Optional.empty();
-            }
-
-            @Override
-            public <T> IResultTy<T> from(T r) {
-                return new StreamResult<>(Stream.ofNullable(r));
-            }
-
-            @Override
-            public <T> IResultTy<T> from(Optional<T> r) {
-                return new StreamResult<>(r.stream());
-            }
-
-            @Override
-            public Stream<R> stream() {
-                return r;
-            }
-
-            @Override
-            public Flux<R> flux() {
-                return Flux.fromStream(r);
-            }
-
-            @Override
-            public Mono<R> mono() {
-                List<R> streamList = this.r.toList();
-                return streamList.size() <= 1
-                        ? Mono.justOrEmpty(streamList.getFirst())
-                        : Mono.error(new RuntimeException("Called get Mono on list with more than 1."));
-            }
-
-            @Override
-            public IResultTy<R> filter(Predicate<R> p) {
-                return new StreamResult<>(r.filter(p));
-            }
-
-            @Override
-            public R get() {
-                return optional().get();
-            }
-
-            @Override
-            public <T> StreamResult<T> flatMap(Function<R, IResultTy<T>> toMap) {
-                return new StreamResult<>(
-                        r.map(toMap)
-                                .flatMap(IResultTy::stream)
-                );
-            }
-
-            @Override
-            public <T> IResultTy<T> map(Function<R, T> toMap) {
-                return new StreamResult<>(r.map(toMap));
-            }
-
-            @Override
-            public R orElse(R r) {
-                return optional().orElse(r);
-            }
-
-            @Override
-            public R orElseGet(Supplier<R> r) {
-                return optional().orElseGet(r);
-            }
-
-            @Override
-            public void ifPresent(Consumer<? super R> consumer) {
-                this.r.forEach(consumer);
-            }
-
-            @Override
-            public StreamResult<R> peek(Consumer<? super R> consumer) {
-                return new StreamResult<>(this.r.peek(consumer));
-            }
-        }
-
-        record ResultTyResult<R>(Optional<R> r) implements IResultTy<R> {
-            public <T> IResultTy<T> flatMap(Function<R, IResultTy<T>> toMap) {
-                if (r().isEmpty())
-                    return from(Optional.empty());
-                return toMap.apply(r().get());
-            }
-
-            public <T> IResultTy<T> map(Function<R, T> toMap) {
-                if (r().isEmpty())
-                    return from(Optional.empty());
-                return from(r().map(toMap));
-            }
-
-            @Override
-            public R orElse(R r) {
-                return this.r.orElse(r);
-            }
-
-            @Override
-            public R orElseGet(Supplier<R> r) {
-                return this.r.orElseGet(r);
-            }
-
-            @Override
-            public void ifPresent(Consumer<? super R> consumer) {
-                this.r.ifPresent(consumer);
-            }
-
-            @Override
-            public IResultTy<R> peek(Consumer<? super R> consumer) {
-                this.ifPresent(consumer);
-                return this;
-            }
-
-
-            @Override
-            public Stream<R> stream() {
-                return this.r.stream();
-            }
-
-            @Override
-            public Flux<R> flux() {
-                return Flux.fromStream(this.r.stream());
-            }
-
-            @Override
-            public Mono<R> mono() {
-                return Mono.justOrEmpty(this.r);
-            }
-
-            @Override
-            public Optional<R> optional() {
-                return r;
-            }
-
-            @Override
-            public <T> IResultTy<T> from(T r) {
-                return new ResultTyResult<>(Optional.ofNullable(r));
-            }
-
-            @Override
-            public <T> IResultTy<T> from(Optional<T> r) {
-                return new ResultTyResult<>(r);
-            }
-
-            @Override
-            public IResultTy<R> filter(Predicate<R> p) {
-                return from(this.r.filter(p));
-            }
-
-            @Override
-            public R get() {
-                return this.r.get();
-            }
-        }
-
-        default boolean isPresent() {
-            return optional().isPresent();
-        }
-    }
-
-
-    @EqualsAndHashCode(callSuper = true)
-    @Data
-    public static final class Ok<R> extends ResultTy<R> {
-
-        public Ok(R r) {
-            super(r);
-        }
-
-        @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-        public Ok(Optional<R> r) {
-            super(r);
-        }
-
-        public Ok(Stream<R> r) {
-            super(r);
-        }
-
-        public Ok(IResultTy<R> r) {
-            super(r);
-        }
-
-        public static <R> Ok<R> ok(R r) {
-            return new Ok<>(r);
-        }
-
-        public static <R> Ok<R> stream(Stream<R> r) {
-            return new Ok<>(r);
-        }
-
-        public static <R> Ok<R> ok(IResultTy<R> r) {
-            return new Ok<>(r);
-        }
-
-        public static <R> Ok<R> ok(Optional<R> r) {
-            return new Ok<>(r);
-        }
-
-        public static <R> Ok<R> empty() {
-            return new Ok<>(Optional.empty());
-        }
-
-        public <S> Ok<S> mapResult(Function<R, S> toMap) {
-            if (this.t.isPresent())
-                return Ok.ok(toMap.apply(t.get()));
-
-            return Ok.empty();
-        }
-
-        public <S> Ok<S> flatMapResult(Function<R, Ok<S>> toMap) {
-            if (this.t.isPresent())
-                return toMap.apply(t.get());
-
-            return Ok.empty();
-        }
-
-        public Ok<R> filterResult(Function<R, Boolean> b) {
-            if (this.t.isPresent() && b.apply(t.get())) {
-                return this;
-            }
-
-            return Ok.empty();
-        }
-
-        public <U> Ok<U> cast() {
-            if (t.isEmpty())
-                return Ok.empty();
-            try {
-                return this.mapResult(s -> (U) s);
-            } catch (ClassCastException c) {
-                return Ok.empty();
-            }
-        }
-
-        public R orElseRes(R orRes) {
-            return this.t.orElse(orRes);
-        }
-
-        public R orElseGetRes(Supplier<R> orRes) {
-            return this.t.orElseGet(orRes);
-        }
-
-        public Ok<R> orRes(Supplier<Ok<R>> orRes) {
-            if (this.t.isPresent())
-                return this;
-
-            return orRes.get();
-        }
-
-    }
-
-    @EqualsAndHashCode(callSuper = true)
-    @RequiredArgsConstructor
-    @Data
-    public static final class Err<R> extends ResultTy<R> {
-
-        public Err(R r) {
-            super(r);
-        }
-
-        @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-        public Err(Optional<R> r) {
-            super(r);
-        }
-
-        public static <R> Err<R> empty() {
-            return new Err<>(Optional.empty());
-        }
-
-        public static <R> Err<R> err(R r) {
-            return new Err<>(Optional.ofNullable(r));
-        }
-
-        public <S> Err<S> mapErr(Function<R, S> toMap) {
-            if (this.t.isPresent())
-                return Err.err(toMap.apply(t.get()));
-
-            return Err.empty();
-        }
-
-        public <S> Err<S> flatMapErr(Function<R, Err<S>> toMap) {
-            if (this.t.isPresent())
-                return toMap.apply(t.get());
-
-            return Err.empty();
-        }
-
-        public Err<R> filterErr(Function<R, Boolean> b) {
-            if (this.t.isPresent() && b.apply(t.get())) {
-                return this;
-            }
-
-            return Err.empty();
-        }
-
-        public <U> Err<U> cast() {
-            if (t.isEmpty())
-                return Err.empty();
-            try {
-                return this.mapErr(s -> (U) s);
-            } catch (ClassCastException c) {
-                return Err.empty();
-            }
-        }
-
-        public R orElseErr(R orRes) {
-            return this.t.orElse(orRes);
-        }
-
-        public R orElseGetErr(Supplier<R> orRes) {
-            return this.t.orElseGet(orRes);
-        }
-
-        public Err<R> orErr(Supplier<Err<R>> orRes) {
-            if (this.t.isPresent())
-                return this;
-
-            return orRes.get();
-        }
 
     }
 
@@ -895,19 +251,19 @@ public record Result<T, E>(Ok<T> r, Err<E> e) {
     public <U> Result<U, E> map(Function<T, U> mapper) {
         if (this.r.isPresent()) {
             var toRet = mapper.apply(this.r.get());
-            return Result.from(Ok.ok(toRet), this.e);
+            return Result.from(Responses.Ok.ok(toRet), this.e);
         }
 
         return this.cast();
     }
 
     public Result<T, E> peek(Consumer<T> mapper) {
-        return Result.from(Ok.ok(this.r.peek(mapper)), this.e);
+        return Result.from(Responses.Ok.ok(this.r.peek(mapper)), this.e);
     }
 
 
     public <U> Result<U, E> map(Function<T, U> mapper, Supplier<E> err) {
-        return r.<Result<U, E>>map(t -> Result.from(Ok.ok(mapper.apply(t)), this.e))
+        return r.<Result<U, E>>map(t -> Result.from(Responses.Ok.ok(mapper.apply(t)), this.e))
                 .orElse(Result.err(err.get()));
     }
 
@@ -961,7 +317,7 @@ public record Result<T, E>(Ok<T> r, Err<E> e) {
     }
 
     public static <E, T> Result<T, E> empty() {
-        return new Result<>(Ok.empty(), Err.empty());
+        return new Result<>(Responses.Ok.empty(), Err.empty());
     }
 
     public <E1> Result<T, E1> mapError(Function<E, E1> mapper, E1 defaultValue) {
@@ -1047,15 +403,15 @@ public record Result<T, E>(Ok<T> r, Err<E> e) {
         return Result.from(this.r, Err.empty());
     }
 
-    public Result<T, E> filterRes(Function<Ok<T>, Boolean> ty) {
+    public Result<T, E> filterRes(Function<Responses.Ok<T>, Boolean> ty) {
         if(this.r.isPresent() && ty.apply(this.r)) {
             return this;
         }
 
-        return Result.from(Ok.empty(), this.e);
+        return Result.from(Responses.Ok.empty(), this.e);
     }
 
-    public <U> Result<U, E> flatMapRes(Function<T, Ok<U>> mapper) {
+    public <U> Result<U, E> flatMapRes(Function<T, Responses.Ok<U>> mapper) {
         if (this.r.isEmpty()) {
             return this.cast();
         } else {
@@ -1076,7 +432,7 @@ public record Result<T, E>(Ok<T> r, Err<E> e) {
 
     public <U, E1> Result<U, E1> flatMapResultError(Function<T, Result<U, E1>> mapper) {
         if (this.r.isEmpty()) {
-            return Result.from(Ok.empty(), this.e.cast());
+            return Result.from(Responses.Ok.empty(), this.e.cast());
         }
         return mapper.apply(this.r.get());
     }
@@ -1150,12 +506,12 @@ public record Result<T, E>(Ok<T> r, Err<E> e) {
         return this.toEntryStream().collect(new StreamResultCollector<>());
     }
 
-    public Stream<Either<Result.Ok<T>, Result.Err<E>>> toEntryStream() {
-        List<Either<Result.Ok<T>, Result.Err<E>>> l = this.r.stream()
-                .map(t -> Either.<Ok<T>, Err<E>>from(Ok.ok(t), null))
+    public Stream<Either<Responses.Ok<T>, Err<E>>> toEntryStream() {
+        List<Either<Responses.Ok<T>, Err<E>>> l = this.r.stream()
+                .map(t -> Either.<Responses.Ok<T>, Err<E>>from(Responses.Ok.ok(t), null))
                 .collect(Collectors.toCollection(ArrayList::new));
-        List<Either<Result.Ok<T>, Result.Err<E>>> r = this.e.stream()
-                .map(t -> Either.<Ok<T>, Err<E>>from(null, Err.err(t)))
+        List<Either<Responses.Ok<T>, Err<E>>> r = this.e.stream()
+                .map(t -> Either.<Responses.Ok<T>, Err<E>>from(null, Err.err(t)))
                 .collect(Collectors.toCollection(() -> l));
 
         return r.stream();

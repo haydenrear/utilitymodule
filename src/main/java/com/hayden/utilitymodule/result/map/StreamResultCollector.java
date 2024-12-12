@@ -2,7 +2,8 @@ package com.hayden.utilitymodule.result.map;
 
 import com.hayden.utilitymodule.Either;
 import com.hayden.utilitymodule.result.Result;
-import com.hayden.utilitymodule.result.error.ErrorCollect;
+import com.hayden.utilitymodule.result.error.Err;
+import com.hayden.utilitymodule.result.agg.Responses;
 
 import java.util.*;
 import java.util.function.BiConsumer;
@@ -12,7 +13,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collector;
 
 public class StreamResultCollector<R, ERR>
-        implements Collector<Either<Result.Ok<R>, Result.Err<ERR>>, Result<List<R>, List<ERR>>, Result<List<R>, List<ERR>>> {
+        implements Collector<Either<Responses.Ok<R>, Err<ERR>>, Result<List<R>, List<ERR>>, Result<List<R>, List<ERR>>> {
 
     @Override
     public Supplier<Result<List<R>, List<ERR>>> supplier() {
@@ -20,7 +21,7 @@ public class StreamResultCollector<R, ERR>
     }
 
     @Override
-    public BiConsumer<Result<List<R>, List<ERR>>, Either<Result.Ok<R>, Result.Err<ERR>>> accumulator() {
+    public BiConsumer<Result<List<R>, List<ERR>>, Either<Responses.Ok<R>, Err<ERR>>> accumulator() {
         return (r, e) -> {
             Optional.ofNullable(e.getLeft())
                     .ifPresent(o -> r.r().get().add(o.get()));

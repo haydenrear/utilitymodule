@@ -1,14 +1,15 @@
-package com.hayden.utilitymodule.result.error;
+package com.hayden.utilitymodule.result.agg;
 
-import com.google.common.collect.Sets;
-import com.hayden.utilitymodule.result.Agg;
+import com.hayden.utilitymodule.result.error.ErrorCollect;
 
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public interface AggregateError extends ErrorCollect, Agg {
+public interface AggregateParamError<T extends ErrorCollect>
+        extends Agg.ParameterizedAgg<T>, ErrorCollect {
 
-    Set<ErrorCollect> errors();
+    Set<T> errors();
 
     default boolean isError() {
         return !errors().isEmpty();
@@ -19,13 +20,20 @@ public interface AggregateError extends ErrorCollect, Agg {
                 .collect(Collectors.toSet());
     }
 
-    @Override
     default String getMessage() {
         return String.join(", ", getMessages());
     }
 
-    default void add(Agg agg) {
-        if (agg instanceof AggregateError e) {
+    default void addItem(T toAdd) {
+        this.addError(toAdd);
+    }
+
+    default List<T> all() {
+        return errors().stream().toList();
+    }
+
+    default void addItem(Agg agg) {
+        if (agg instanceof AggregateParamError e) {
             this.errors().addAll(e.errors());
             this.getMessages().addAll(e.getMessages());
         } else {
@@ -34,11 +42,11 @@ public interface AggregateError extends ErrorCollect, Agg {
         }
     }
 
-    default void addError(ErrorCollect error) {
+    default void addError(T error) {
         errors().add(error);
     }
 
-    default void addError(Set<ErrorCollect> error) {
+    default void addError(Set<T> error) {
         errors().addAll(error);
     }
 
@@ -49,24 +57,4 @@ public interface AggregateError extends ErrorCollect, Agg {
                 """.formatted(errors().stream().map(ErrorCollect::toString).collect(Collectors.joining("\n\r")));
     }
 
-    record StandardAggregateError(Set<ErrorCollect> messages) implements AggregateError {
-
-        public StandardAggregateError(ErrorCollect error) {
-            this(Sets.newHashSet(error));
-        }
-
-        public StandardAggregateError(String message) {
-            this(Sets.newHashSet(ErrorCollect.fromMessage(message)));
-        }
-
-        public StandardAggregateError(Throwable message) {
-            this(Sets.newHashSet(ErrorCollect.fromE(message)));
-        }
-
-        @Override
-        public Set<ErrorCollect> errors() {
-            return messages;
-        }
-
-    }
 }
