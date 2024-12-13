@@ -11,6 +11,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -79,8 +80,8 @@ public final class Err<R> extends ResultTy<R> {
         return Err.empty();
     }
 
-    public Err<R> filterErr(Function<R, Boolean> b) {
-        if (this.t.isPresent() && b.apply(t.get())) {
+    public Err<R> filterErr(Predicate<R> b) {
+        if (this.t.isPresent() && b.test(t.get())) {
             return this;
         }
 

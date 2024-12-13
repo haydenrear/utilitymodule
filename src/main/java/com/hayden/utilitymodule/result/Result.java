@@ -94,6 +94,10 @@ public record Result<T, E>(Responses.Ok<T> r, Err<E> e) {
         return r.stream();
     }
 
+    public Stream<E> streamErr() {
+        return e.stream();
+    }
+
     public static <R, E> Result<R, E> ok(R r) {
         return new Result<>(new Responses.Ok<>(r), Err.empty());
     }
@@ -212,8 +216,10 @@ public record Result<T, E>(Responses.Ok<T> r, Err<E> e) {
         if (r.e.isPresent()) {
             if (result.e.isEmpty()) {
                 result.e.setT(r.e.t);
-            } else if (result.e.t.filter(e -> r.e.get() == e).isEmpty()) {
-                result.error().get().addError(r.e.get());
+            } else {
+                r.filterErr(Predicate.not(toFilter -> result.hasErr(re -> re == toFilter)))
+                        .streamErr()
+                        .forEach(result.error().get()::addError);
             }
         }
         return result;
@@ -266,6 +272,20 @@ public record Result<T, E>(Responses.Ok<T> r, Err<E> e) {
 
     public boolean isPresent() {
         return r.isPresent();
+    }
+
+    public boolean hasErr(Predicate<E> e) {
+        return switch(this.e.t)  {
+            case StreamResult<E> str -> {
+                var lst = str.stream().toList();
+                var is = lst.stream().anyMatch(e);
+                str.swap(lst.stream());
+
+                yield is;
+            }
+            default -> this.e.filterErr(e)
+                    .isPresent();
+        };
     }
 
     public <U> Result<U, E> map(Function<T, U> mapper) {
@@ -323,12 +343,38 @@ public record Result<T, E>(Responses.Ok<T> r, Err<E> e) {
         return s.get();
     }
 
-    public Result<T, E> filterResult(Predicate<T> b) {
-        if (r.isPresent() && b.test(r.get())) {
-            return this;
-        }
+    public Result<T, E> filterErr(Predicate<E> b) {
+        return switch(this.e.t) {
+            case StreamResult<E> st -> {
+                var filtered = st.filter(b);
 
-        return Result.empty();
+                yield Result.from(this.r, Err.err(filtered));
+            }
+            default -> {
+                if (e.isPresent() && b.test(e.get())) {
+                    yield this;
+                }
+
+                yield Result.from(this.r, Err.empty());
+            }
+        };
+    }
+
+    public Result<T, E> filterResult(Predicate<T> b) {
+        return switch(this.r.t) {
+            case StreamResult<T> st -> {
+                var filtered = st.filter(b);
+
+                yield Result.from(Responses.Ok.ok(filtered), this.e);
+            }
+            default -> {
+                if (r.isPresent() && b.test(r.get())) {
+                    yield this;
+                }
+
+                yield Result.<T, E>err(this.e);
+            }
+        };
     }
 
     public void close() {
@@ -424,14 +470,6 @@ public record Result<T, E>(Responses.Ok<T> r, Err<E> e) {
                     .orErr(Err::empty);
             return Result.from(this.r, mapped);
         }
-    }
-
-    public Result<T, E> filterRes(Function<Responses.Ok<T>, Boolean> ty) {
-        if(this.r.isPresent() && ty.apply(this.r)) {
-            return this;
-        }
-
-        return Result.from(Responses.Ok.empty(), this.e);
     }
 
     public <U> Result<U, E> flatMapResult(Function<T, Result<U, E>> mapper) {

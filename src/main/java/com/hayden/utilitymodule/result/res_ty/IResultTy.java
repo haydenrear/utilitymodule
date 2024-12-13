@@ -68,15 +68,15 @@ public interface IResultTy<R> extends Result.Monadic<R> {
 
     IResultTy<R> filter(Predicate<R> p);
 
-//    R get();
+    R get();
 
     <V> IResultTy<V> flatMap(Function<R, IResultTy<V>> toMap);
 
     <V> IResultTy<V> map(Function<R, V> toMap);
 
-//    R orElse(R r);
+    R orElse(R r);
 
-//    R orElseGet(Supplier<R> r);
+    R orElseGet(Supplier<R> r);
 
     void ifPresent(Consumer<? super R> consumer);
 
