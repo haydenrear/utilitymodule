@@ -31,7 +31,7 @@ public interface IResultTy<R> extends Result.Monadic<R> {
     }
 
 
-//    Optional<R> optional();
+    Optional<R> optional();
 
     <V> IResultTy<V> from(V r);
 
@@ -51,14 +51,6 @@ public interface IResultTy<R> extends Result.Monadic<R> {
 
     default boolean isZeroOrOneAbstraction() {
         return false;
-    }
-
-    default boolean isColdSubscription() {
-        throw new RuntimeException("How?");
-    }
-
-    default boolean isHotSubscription() {
-        throw new RuntimeException("How?");
     }
 
     default boolean isStream() {

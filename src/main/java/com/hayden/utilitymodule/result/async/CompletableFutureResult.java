@@ -1,6 +1,5 @@
 package com.hayden.utilitymodule.result.async;
 
-import com.google.common.collect.Lists;
 import com.hayden.utilitymodule.result.Result;
 import com.hayden.utilitymodule.result.res_ty.IResultTy;
 import com.hayden.utilitymodule.result.res_ty.ResultTyResult;
@@ -80,7 +79,7 @@ public record CompletableFutureResult<R>(CompletableFuture<R> r, AtomicBoolean f
     }
 
     @Override
-    public void subscribe(Consumer<? super R> consumer) {
+    public void doAsync(Consumer<? super R> consumer) {
         logAsync();
         var c = this.r.thenAcceptAsync(consumer);
         c.thenRun(() -> this.finished.set(true));
@@ -138,7 +137,7 @@ public record CompletableFutureResult<R>(CompletableFuture<R> r, AtomicBoolean f
 
     @Override
     public void ifPresent(Consumer<? super R> consumer) {
-        subscribe(consumer);
+        doAsync(consumer);
     }
 
     @Override

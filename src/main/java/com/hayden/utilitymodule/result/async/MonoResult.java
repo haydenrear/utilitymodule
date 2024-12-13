@@ -79,7 +79,7 @@ public record MonoResult<R>(Mono<R> r, AtomicBoolean finished) implements IAsync
     }
 
     @Override
-    public void subscribe(Consumer<? super R> consumer) {
+    public void doAsync(Consumer<? super R> consumer) {
         logAsync();
         this.r.doAfterTerminate(() -> this.finished.set(true))
                 .subscribe(consumer);
@@ -130,7 +130,7 @@ public record MonoResult<R>(Mono<R> r, AtomicBoolean finished) implements IAsync
 
     @Override
     public void ifPresent(Consumer<? super R> consumer) {
-        subscribe(consumer);
+        doAsync(consumer);
     }
 
     @Override

@@ -4,7 +4,6 @@ import com.google.common.collect.Lists;
 import com.hayden.utilitymodule.result.res_ty.IResultTy;
 import com.hayden.utilitymodule.result.res_ty.ResultTyResult;
 import lombok.extern.slf4j.Slf4j;
-import reactor.core.Fuseable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -75,7 +74,7 @@ public record FluxResult<R>(Flux<R> r, AtomicBoolean finished) implements IAsync
     }
 
     @Override
-    public void subscribe(Consumer<? super R> consumer) {
+    public void doAsync(Consumer<? super R> consumer) {
         logAsync();
         this.r.doOnComplete(() -> finished.set(true))
                 .subscribe(consumer);
@@ -158,7 +157,7 @@ public record FluxResult<R>(Flux<R> r, AtomicBoolean finished) implements IAsync
 
     @Override
     public void ifPresent(Consumer<? super R> consumer) {
-        subscribe(consumer);
+        doAsync(consumer);
     }
 
     @Override

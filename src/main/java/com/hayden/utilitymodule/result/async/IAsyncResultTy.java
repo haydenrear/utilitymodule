@@ -11,7 +11,7 @@ public interface IAsyncResultTy<R> extends IResultTy<R> {
 
     boolean didFinish();
 
-    void subscribe(Consumer<? super R> consumer);
+    void doAsync(Consumer<? super R> consumer);
 
     R block() throws ExecutionException, InterruptedException;
 
