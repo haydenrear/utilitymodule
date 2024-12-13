@@ -2,10 +2,10 @@ package com.hayden.utilitymodule.result.res_many;
 
 import com.hayden.utilitymodule.result.res_ty.IResultTy;
 import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -27,22 +27,11 @@ public class StreamResult<R> implements IStreamResultTy<R> {
         return new StreamResult<>(stream.flatMap(IResultTy::stream));
     }
 
-    public synchronized void swap(Stream<R> toSwap) {
-        this.r = toSwap;
-    }
-
-    // TODO: remove into res_single?
     @Override
-    public Optional<R> optional() {
-        var l = r.toList();
-        if (l.size() > 1) {
-            log.error("Called optional on stream result with more than one value. Returning first.");
-        }
-
-        swap(l.stream());
-
-        return !l.isEmpty() ? Optional.of(l.getFirst()) : Optional.empty();
+    public synchronized void swap(List<R> toSwap) {
+        this.r = toSwap.stream();
     }
+
 
     @Override
     public <T> IResultTy<T> from(T r) {
@@ -65,9 +54,9 @@ public class StreamResult<R> implements IStreamResultTy<R> {
     }
 
     @Override
-    public Mono<R> mono() {
+    public Mono<R> firstMono() {
         List<R> streamList = this.r.toList();
-        swap(streamList.stream());
+        swap(streamList);
         return streamList.size() <= 1
                ? Mono.justOrEmpty(streamList.getFirst())
                : Mono.error(new RuntimeException("Called get Mono on list with more than 1."));
@@ -80,7 +69,7 @@ public class StreamResult<R> implements IStreamResultTy<R> {
 
     @Override
     public R get() {
-        return optional().orElse(null);
+        return firstOptional().orElse(null);
     }
 
     @Override
@@ -98,12 +87,12 @@ public class StreamResult<R> implements IStreamResultTy<R> {
 
     @Override
     public R orElse(R r) {
-        return optional().orElse(r);
+        return firstOptional().orElse(r);
     }
 
     @Override
     public R orElseGet(Supplier<R> r) {
-        return optional().orElseGet(r);
+        return firstOptional().orElseGet(r);
     }
 
     @Override

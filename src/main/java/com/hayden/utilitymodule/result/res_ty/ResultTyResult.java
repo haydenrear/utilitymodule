@@ -63,12 +63,12 @@ public record ResultTyResult<R>(Optional<R> r) implements IResultTy<R> {
     }
 
     @Override
-    public Mono<R> mono() {
+    public Mono<R> firstMono() {
         return Mono.justOrEmpty(this.r);
     }
 
     @Override
-    public Optional<R> optional() {
+    public Optional<R> firstOptional() {
         return r;
     }
 

@@ -11,7 +11,6 @@ public interface IStreamResultTy<R> extends IManyResultTy<R> {
 
     Logger log = LoggerFactory.getLogger(IStreamResultTy.class);
 
-    void swap(Stream<R> toSwap);
 
     @Override
     default boolean isEmpty() {
@@ -22,7 +21,7 @@ public interface IStreamResultTy<R> extends IManyResultTy<R> {
         List<R> list = this.stream()
                 .toList();
         var isEmpty = list.isEmpty();
-        swap(list.stream());
+        swap(list);
         return isEmpty;
     }
 

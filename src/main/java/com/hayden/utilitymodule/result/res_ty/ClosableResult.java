@@ -49,14 +49,14 @@ public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable C
     }
 
     @Override
-    public Mono<R> mono() {
+    public Mono<R> firstMono() {
         // TODO: should this fail?
         log.warn("Calling close after terminate on mono for result AutoClosable.");
         return Mono.justOrEmpty(r).doAfterTerminate(this::doClose);
     }
 
     @Override
-    public Optional<R> optional() {
+    public Optional<R> firstOptional() {
         // TODO: should this fail?
         Result.logClosableMaybeNotClosed();
         return r();
@@ -108,7 +108,7 @@ public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable C
     public <T> IResultTy<T> flatMap(Function<R, IResultTy<T>> toMap) {
         return from(r.flatMap(t -> {
             var applied = toMap.apply(t);
-            return applied.optional();
+            return applied.firstOptional();
         }));
     }
 

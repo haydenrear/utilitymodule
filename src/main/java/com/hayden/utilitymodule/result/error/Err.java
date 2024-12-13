@@ -1,7 +1,9 @@
 package com.hayden.utilitymodule.result.error;
 
+import com.hayden.utilitymodule.result.Result;
 import com.hayden.utilitymodule.result.ResultTy;
 import com.hayden.utilitymodule.result.agg.Responses;
+import com.hayden.utilitymodule.result.res_many.StreamResult;
 import com.hayden.utilitymodule.result.res_ty.IResultTy;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -10,6 +12,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -64,6 +67,15 @@ public final class Err<R> extends ResultTy<R> {
 
     public static <R> Err<R> err(R r) {
         return new Err<>(Optional.ofNullable(r));
+    }
+
+    public synchronized <U> void extractError(Result<U, R> flattened) {
+        if (this.t != null) {
+            Stream.Builder<R> built = Stream.builder();
+            this.t.forEach(built::add);
+            flattened.e().t.forEach(built::add);
+            this.t = new StreamResult<>(built.build());
+        }
     }
 
     public <S> Err<S> mapErr(Function<R, S> toMap) {

@@ -36,7 +36,7 @@ public record CompletableFutureResult<R>(CompletableFuture<R> r, AtomicBoolean f
     }
 
     @Override
-    public Optional<R> optional() {
+    public Optional<R> firstOptional() {
         logThreadStarvation();
         try {
             var v = r.get();
@@ -60,7 +60,7 @@ public record CompletableFutureResult<R>(CompletableFuture<R> r, AtomicBoolean f
     @Override
     public Stream<R> stream() {
         logThreadStarvation();
-        return optional().stream();
+        return this.firstOptional().stream();
     }
 
     @Override
@@ -69,7 +69,7 @@ public record CompletableFutureResult<R>(CompletableFuture<R> r, AtomicBoolean f
     }
 
     @Override
-    public Mono<R> mono() {
+    public Mono<R> firstMono() {
         return Mono.fromFuture(this.r);
     }
 
@@ -103,7 +103,7 @@ public record CompletableFutureResult<R>(CompletableFuture<R> r, AtomicBoolean f
 
     @Override
     public IResultTy<R> filter(Predicate<R> p) {
-        return new MonoResult<>(mono())
+        return new MonoResult<>(firstMono())
                 .filter(p);
     }
 
@@ -111,12 +111,12 @@ public record CompletableFutureResult<R>(CompletableFuture<R> r, AtomicBoolean f
     public R get() {
         log.warn("Calling or else on closable. This probably means you have to close yourself...");
         Result.logClosableMaybeNotClosed();
-        return optional().orElse(null);
+        return this.firstOptional().orElse(null);
     }
 
     @Override
     public <T> IResultTy<T> flatMap(Function<R, IResultTy<T>> toMap) {
-        return new MonoResult<>(mono())
+        return new MonoResult<>(firstMono())
                 .flatMap(toMap);
     }
 
@@ -127,12 +127,12 @@ public record CompletableFutureResult<R>(CompletableFuture<R> r, AtomicBoolean f
 
     @Override
     public R orElse(R r) {
-        return optional().orElse(r);
+        return this.firstOptional().orElse(r);
     }
 
     @Override
     public R orElseGet(Supplier<R> r) {
-        return optional().orElseGet(r);
+        return this.firstOptional().orElseGet(r);
     }
 
     @Override
@@ -142,7 +142,7 @@ public record CompletableFutureResult<R>(CompletableFuture<R> r, AtomicBoolean f
 
     @Override
     public IResultTy<R> peek(Consumer<? super R> consumer) {
-        return new MonoResult<>(mono())
+        return new MonoResult<>(firstMono())
                 .peek(consumer);
     }
 }

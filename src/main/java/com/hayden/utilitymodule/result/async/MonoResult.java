@@ -34,7 +34,7 @@ public record MonoResult<R>(Mono<R> r, AtomicBoolean finished) implements IAsync
     }
 
     @Override
-    public Optional<R> optional() {
+    public Optional<R> firstOptional() {
         logThreadStarvation();
         var l = Lists.newArrayList(r.flux().toIterable());
         if (l.size() > 1) {
@@ -66,7 +66,7 @@ public record MonoResult<R>(Mono<R> r, AtomicBoolean finished) implements IAsync
     }
 
     @Override
-    public Mono<R> mono() {
+    public Mono<R> firstMono() {
         return flux().collectList()
                 .flatMap(l -> l.size() <= 1
                               ? Mono.justOrEmpty(l.getFirst())
@@ -105,12 +105,12 @@ public record MonoResult<R>(Mono<R> r, AtomicBoolean finished) implements IAsync
     public R get() {
         log.warn("Calling or else on closable. This probably means you have to close yourself...");
         Result.logClosableMaybeNotClosed();
-        return optional().orElse(null);
+        return this.firstOptional().orElse(null);
     }
 
     @Override
     public <T> IResultTy<T> flatMap(Function<R, IResultTy<T>> toMap) {
-        return new MonoResult<>(r.map(toMap).flatMap(IResultTy::mono));
+        return new MonoResult<>(r.map(toMap).flatMap(IResultTy::firstMono));
     }
 
     @Override
@@ -120,12 +120,12 @@ public record MonoResult<R>(Mono<R> r, AtomicBoolean finished) implements IAsync
 
     @Override
     public R orElse(R r) {
-        return optional().orElse(r);
+        return this.firstOptional().orElse(r);
     }
 
     @Override
     public R orElseGet(Supplier<R> r) {
-        return optional().orElseGet(r);
+        return this.firstOptional().orElseGet(r);
     }
 
     @Override

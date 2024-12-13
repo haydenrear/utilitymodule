@@ -4,9 +4,11 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.hayden.utilitymodule.Either;
 import com.hayden.utilitymodule.result.agg.AggregateError;
 import com.hayden.utilitymodule.result.agg.AggregateParamError;
+import com.hayden.utilitymodule.result.async.FluxResult;
 import com.hayden.utilitymodule.result.error.Err;
 import com.hayden.utilitymodule.result.map.StreamResultCollector;
 import com.hayden.utilitymodule.result.agg.Responses;
+import com.hayden.utilitymodule.result.res_many.IManyResultTy;
 import com.hayden.utilitymodule.result.res_ty.ClosableResult;
 import com.hayden.utilitymodule.result.res_ty.IResultTy;
 import com.hayden.utilitymodule.result.res_many.StreamResult;
@@ -114,7 +116,7 @@ public record Result<T, E>(Responses.Ok<T> r, Err<E> e) {
         Err<E> eErr = new Err<>();
         eErr.t = StreamResult.of(Stream.empty());
         var resp = r.map(res -> {
-                    res.extractError(eErr, res);
+                    eErr.extractError(res);
                     return res.r.t;
                 });
 
@@ -231,7 +233,7 @@ public record Result<T, E>(Responses.Ok<T> r, Err<E> e) {
         R get();
 
         Stream<R> stream();
-        Optional<R> optional();
+        Optional<R> firstOptional();
         IResultTy<R> filter(Predicate<R> p);
 
         <T> IResultTy<T> flatMap(Function<R, IResultTy<T>> toMap);
@@ -276,13 +278,14 @@ public record Result<T, E>(Responses.Ok<T> r, Err<E> e) {
 
     public boolean hasErr(Predicate<E> e) {
         return switch(this.e.t)  {
-            case StreamResult<E> str -> {
+            case IManyResultTy<E> str -> {
                 var lst = str.stream().toList();
                 var is = lst.stream().anyMatch(e);
-                str.swap(lst.stream());
+                str.swap(lst);
 
                 yield is;
             }
+
             default -> this.e.filterErr(e)
                     .isPresent();
         };
@@ -290,7 +293,7 @@ public record Result<T, E>(Responses.Ok<T> r, Err<E> e) {
 
     public <U> Result<U, E> map(Function<T, U> mapper) {
         return switch(this.r.t) {
-            case StreamResult<T> sr ->
+            case IManyResultTy<T> sr ->
                     Result.from(sr.map(mapper), this.e.t);
             default -> {
                 if (this.r.isPresent()) {
@@ -345,7 +348,7 @@ public record Result<T, E>(Responses.Ok<T> r, Err<E> e) {
 
     public Result<T, E> filterErr(Predicate<E> b) {
         return switch(this.e.t) {
-            case StreamResult<E> st -> {
+            case IManyResultTy<E> st -> {
                 var filtered = st.filter(b);
 
                 yield Result.from(this.r, Err.err(filtered));
@@ -362,7 +365,7 @@ public record Result<T, E>(Responses.Ok<T> r, Err<E> e) {
 
     public Result<T, E> filterResult(Predicate<T> b) {
         return switch(this.r.t) {
-            case StreamResult<T> st -> {
+            case IManyResultTy<T> st -> {
                 var filtered = st.filter(b);
 
                 yield Result.from(Responses.Ok.ok(filtered), this.e);
@@ -403,12 +406,12 @@ public record Result<T, E>(Responses.Ok<T> r, Err<E> e) {
 
     public <U> Result<U, E> flatMap(Function<T, Result<U, E>> mapper) {
         return switch(this.r.t) {
-            case StreamResult<T> sr -> {
+            case IManyResultTy<T> sr -> {
                 Err<E> e = Err.empty();
                 e.t = this.e.t;
-                StreamResult<U> f = sr.flatMap(s -> {
+                IManyResultTy<U> f = sr.flatMap(s -> {
                     var flattened = mapper.apply(s);
-                    extractError(e, flattened);
+                    e.extractError(flattened);
                     return flattened.r.t;
                 });
 
@@ -421,15 +424,6 @@ public record Result<T, E>(Responses.Ok<T> r, Err<E> e) {
                 yield this.cast();
             }
         };
-    }
-
-    public synchronized <U> void extractError(Err<E> e, Result<U, E> flattened) {
-        if (flattened.e.t != null) {
-            Stream.Builder<E> built = Stream.builder();
-            e.t.forEach(built::add);
-            flattened.e.t.forEach(built::add);
-            e.t = new StreamResult<>(built.build());
-        }
     }
 
     public T orElseRes(T or) {
@@ -474,7 +468,7 @@ public record Result<T, E>(Responses.Ok<T> r, Err<E> e) {
 
     public <U> Result<U, E> flatMapResult(Function<T, Result<U, E>> mapper) {
         return switch(this.r.t) {
-            case StreamResult<T> sr -> {
+            case IManyResultTy<T> sr -> {
                 var srt = sr.map(mapper);
                 yield Result.from(srt.stream());
             }
@@ -505,11 +499,11 @@ public record Result<T, E>(Responses.Ok<T> r, Err<E> e) {
     }
 
     public Optional<T> toOptional() {
-        return r.t.optional();
+        return r.t.firstOptional();
     }
 
     public Optional<T> optional() {
-        return r.t.optional();
+        return r.t.firstOptional();
     }
 
     public <U> Result<U, E> cast() {

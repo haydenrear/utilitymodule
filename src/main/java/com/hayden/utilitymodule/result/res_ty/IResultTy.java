@@ -1,14 +1,10 @@
 package com.hayden.utilitymodule.result.res_ty;
 
 import com.hayden.utilitymodule.result.Result;
-import jakarta.annotation.Nullable;
-import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -31,7 +27,11 @@ public interface IResultTy<R> extends Result.Monadic<R> {
     }
 
 
-    Optional<R> optional();
+    Optional<R> firstOptional();
+
+    default Optional<R> firstOptional(boolean keepAll) {
+        return firstOptional();
+    }
 
     <V> IResultTy<V> from(V r);
 
@@ -42,7 +42,7 @@ public interface IResultTy<R> extends Result.Monadic<R> {
 
     Flux<R> flux();
 
-    Mono<R> mono();
+    Mono<R> firstMono();
 
 
     default boolean isAsyncSub() {
@@ -79,11 +79,11 @@ public interface IResultTy<R> extends Result.Monadic<R> {
     }
 
     default boolean isEmpty() {
-        return optional().isEmpty();
+        return firstOptional().isEmpty();
     }
 
 
     default boolean isPresent() {
-        return optional().isPresent();
+        return firstOptional().isPresent();
     }
 }
