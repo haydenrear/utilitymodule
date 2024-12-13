@@ -3,6 +3,7 @@ package com.hayden.utilitymodule.result.error;
 import com.hayden.utilitymodule.result.Result;
 import com.hayden.utilitymodule.result.ResultTy;
 import com.hayden.utilitymodule.result.agg.Responses;
+import com.hayden.utilitymodule.result.res_many.IManyResultTy;
 import com.hayden.utilitymodule.result.res_many.StreamResult;
 import com.hayden.utilitymodule.result.res_ty.IResultTy;
 import lombok.Data;
@@ -43,6 +44,10 @@ public final class Err<R> extends ResultTy<R> {
         return new Err<>(r);
     }
 
+    public static <R> Err<R> emptyStream() {
+        return new Err<>(Stream.empty());
+    }
+
     public static <R> Err<R> err(IResultTy<R> r) {
         return new Err<>(r);
     }
@@ -79,25 +84,50 @@ public final class Err<R> extends ResultTy<R> {
     }
 
     public <S> Err<S> mapErr(Function<R, S> toMap) {
-        if (this.t.isPresent())
-            return Err.err(toMap.apply(t.get()));
+        return switch(this.t) {
+            case IManyResultTy<R> s ->
+                    Err.err(s.map(toMap));
+            default -> {
+                if (this.t.isPresent())
+                    yield Err.err(toMap.apply(t.get()));
 
-        return Err.empty();
+                yield Err.empty();
+            }
+
+        };
     }
 
     public <S> Err<S> flatMapErr(Function<R, Err<S>> toMap) {
-        if (this.t.isPresent())
-            return toMap.apply(t.get());
+        return switch(this.t) {
+            case IManyResultTy<R> s ->
+                    Err.err(s.flatMap(st-> {
+                        var mapped = toMap.apply(st);
+                        return mapped.t;
+                    }));
+            default -> {
+                if (this.t.isPresent())
+                    yield toMap.apply(t.get());
 
-        return Err.empty();
+                yield Err.empty();
+            }
+
+        };
     }
 
     public Err<R> filterErr(Predicate<R> b) {
-        if (this.t.isPresent() && b.test(t.get())) {
-            return this;
-        }
+        return switch(this.t) {
+            case IManyResultTy<R> s ->
+                    Err.err(s.filter(b));
+            default -> {
+                if (this.t.isPresent() && b.test(t.get())) {
+                    yield this;
+                }
 
-        return Err.empty();
+                yield Err.empty();
+            }
+
+        };
+
     }
 
     public <U> Err<U> cast() {
@@ -108,14 +138,6 @@ public final class Err<R> extends ResultTy<R> {
         } catch (ClassCastException c) {
             return Err.empty();
         }
-    }
-
-    public R orElseErr(R orRes) {
-        return this.t.orElse(orRes);
-    }
-
-    public R orElseGetErr(Supplier<R> orRes) {
-        return this.t.orElseGet(orRes);
     }
 
     public Err<R> orErr(Supplier<Err<R>> orRes) {

@@ -13,6 +13,7 @@ import java.util.stream.Stream;
 
 @Slf4j
 public record ResultTyResult<R>(Optional<R> r) implements IResultTy<R> {
+
     public <T> IResultTy<T> flatMap(Function<R, IResultTy<T>> toMap) {
         if (r().isEmpty())
             return from(Optional.empty());

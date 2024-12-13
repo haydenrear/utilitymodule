@@ -10,6 +10,7 @@ import reactor.core.publisher.Flux;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 public interface IManyResultTy<R> extends IResultTy<R>{
@@ -44,6 +45,14 @@ public interface IManyResultTy<R> extends IResultTy<R>{
             swap(l);
 
         return !l.isEmpty() ? Optional.of(l.getFirst()) : Optional.empty();
+    }
+
+    default boolean has(Predicate<R> e) {
+        var lst = toList();
+        var is = lst.stream().anyMatch(e);
+        swap(lst);
+
+        return is;
     }
 
     void swap(List<R> toSwap);

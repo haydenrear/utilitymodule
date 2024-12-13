@@ -1,6 +1,7 @@
 package com.hayden.utilitymodule.result.agg;
 
 import com.hayden.utilitymodule.result.ResultTy;
+import com.hayden.utilitymodule.result.res_many.IManyResultTy;
 import com.hayden.utilitymodule.result.res_ty.IResultTy;
 import com.hayden.utilitymodule.result.res_many.StreamResult;
 import lombok.Data;
@@ -72,20 +73,27 @@ public interface Responses {
         }
 
         public <S> Ok<S> mapResult(Function<R, S> toMap) {
-            if (this.t.isPresent())
-                return Ok.ok(toMap.apply(t.get()));
+            return switch(this.t) {
+                case IManyResultTy<R> s ->
+                        Ok.ok(s.map(toMap));
+                default -> {
+                    if (this.t.isPresent())
+                        yield Ok.ok(toMap.apply(t.get()));
 
-            return Ok.empty();
+                    yield Ok.empty();
+                }
+
+            };
+
         }
 
         public <S> Ok<S> flatMapResult(Function<R, Ok<S>> toMap) {
             return switch(this.t) {
-                case StreamResult<R> s -> {
-                    yield Ok.ok(s.map(st-> {
-                        var mapped = toMap.apply(st);
-                        return mapped.get();
-                    }));
-                }
+                case IManyResultTy<R> s ->
+                        Ok.ok(s.flatMap(st-> {
+                            var mapped = toMap.apply(st);
+                            return mapped.t;
+                        }));
                 default -> {
                     if (this.t.isPresent())
                         yield toMap.apply(t.get());
@@ -96,37 +104,24 @@ public interface Responses {
             };
         }
 
-        public Ok<R> filterResult(Function<R, Boolean> b) {
-            if (this.t.isPresent() && b.apply(t.get())) {
-                return this;
-            }
-
-            return Ok.empty();
-        }
-
         public <U> Ok<U> cast() {
-            if (t.isEmpty())
-                return Ok.empty();
-            try {
-                return this.mapResult(s -> (U) s);
-            } catch (ClassCastException c) {
-                return Ok.empty();
-            }
+            return switch (this.t) {
+                case IManyResultTy<R> s ->
+                        Ok.ok(s.map(r -> (U) r));
+                default -> {
+                    if (t.isEmpty())
+                        yield Ok.empty();
+                    try {
+                        yield this.mapResult(s -> (U) s);
+                    } catch (ClassCastException c) {
+                        yield Ok.empty();
+                    }
+                }
+            };
         }
 
         public R orElseRes(R orRes) {
             return this.t.orElse(orRes);
-        }
-
-        public R orElseGetRes(Supplier<R> orRes) {
-            return this.t.orElseGet(orRes);
-        }
-
-        public Ok<R> orRes(Supplier<Ok<R>> orRes) {
-            if (this.t.isPresent())
-                return this;
-
-            return orRes.get();
         }
 
     }

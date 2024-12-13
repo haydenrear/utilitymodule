@@ -113,8 +113,7 @@ public record Result<T, E>(Responses.Ok<T> r, Err<E> e) {
     }
 
     public static <R, E> Result<R, E> from(Stream<Result<R, E>> r) {
-        Err<E> eErr = new Err<>();
-        eErr.t = StreamResult.of(Stream.empty());
+        Err<E> eErr = Err.emptyStream();
         var resp = r.map(res -> {
                     eErr.extractError(res);
                     return res.r.t;
@@ -278,14 +277,8 @@ public record Result<T, E>(Responses.Ok<T> r, Err<E> e) {
 
     public boolean hasErr(Predicate<E> e) {
         return switch(this.e.t)  {
-            case IManyResultTy<E> str -> {
-                var lst = str.stream().toList();
-                var is = lst.stream().anyMatch(e);
-                str.swap(lst);
-
-                yield is;
-            }
-
+            case IManyResultTy<E> many ->
+                    many.has(e);
             default -> this.e.filterErr(e)
                     .isPresent();
         };
@@ -407,8 +400,7 @@ public record Result<T, E>(Responses.Ok<T> r, Err<E> e) {
     public <U> Result<U, E> flatMap(Function<T, Result<U, E>> mapper) {
         return switch(this.r.t) {
             case IManyResultTy<T> sr -> {
-                Err<E> e = Err.empty();
-                e.t = this.e.t;
+                Err<E> e = Err.err(this.e.t);
                 IManyResultTy<U> f = sr.flatMap(s -> {
                     var flattened = mapper.apply(s);
                     e.extractError(flattened);
