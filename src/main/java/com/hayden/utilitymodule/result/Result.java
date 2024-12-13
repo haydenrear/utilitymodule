@@ -5,10 +5,13 @@ import com.hayden.utilitymodule.Either;
 import com.hayden.utilitymodule.result.agg.AggregateError;
 import com.hayden.utilitymodule.result.agg.AggregateParamError;
 import com.hayden.utilitymodule.result.error.Err;
+import com.hayden.utilitymodule.result.map.ResultCollectors;
 import com.hayden.utilitymodule.result.map.StreamResultCollector;
 import com.hayden.utilitymodule.result.agg.Responses;
 import com.hayden.utilitymodule.result.res_ty.ClosableResult;
 import com.hayden.utilitymodule.result.res_ty.IResultTy;
+import com.hayden.utilitymodule.result.res_ty.ResultTyResult;
+import com.hayden.utilitymodule.result.res_ty.StreamResult;
 import jakarta.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
@@ -97,8 +100,23 @@ public record Result<T, E>(Responses.Ok<T> r, Err<E> e) {
         return new Result<>(new Responses.Ok<>(r), Err.empty());
     }
 
+    public static <R, E> Result<R, E> resOk(R r) {
+        return new Result<>(new Responses.Ok<>(r), Err.empty());
+    }
+
     public static <R, E> Result<R, E> ok(IResultTy<R> r) {
         return new Result<>(new Responses.Ok<>(r), Err.empty());
+    }
+
+    public static <R, E> Result<R, E> from(Stream<Result<R, E>> r) {
+        Err<E> eErr = new Err<>();
+        eErr.t = StreamResult.of(Stream.empty());
+        var resp = r.map(res -> {
+                    res.extractError(eErr, res);
+                    return res.r.t;
+                });
+
+        return new Result<>(new Responses.Ok<R>(StreamResult.of(resp)), eErr);
     }
 
     public static <R extends AutoCloseable, E> Result<R, E> ok(ClosableResult<R> r, Callable<Void> onClose) {
@@ -130,6 +148,10 @@ public record Result<T, E>(Responses.Ok<T> r, Err<E> e) {
     }
 
     public static <R, E> Result<R, E> from(R r, E e) {
+        return new Result<>(Responses.Ok.ok(r), Err.err(e));
+    }
+
+    public static <R, E> Result<R, E> from(IResultTy<R> r, IResultTy<E> e) {
         return new Result<>(Responses.Ok.ok(r), Err.err(e));
     }
 
@@ -249,13 +271,19 @@ public record Result<T, E>(Responses.Ok<T> r, Err<E> e) {
     }
 
     public <U> Result<U, E> map(Function<T, U> mapper) {
-        if (this.r.isPresent()) {
-            var toRet = mapper.apply(this.r.get());
-            return Result.from(Responses.Ok.ok(toRet), this.e);
-        }
+        return switch(this.r.t) {
+            case StreamResult<T> sr ->
+                    Result.from(sr.map(mapper), this.e.t);
+            default -> {
+                if (this.r.isPresent()) {
+                    var toRet = mapper.apply(this.r.get());
+                    yield Result.from(Responses.Ok.ok(toRet), this.e);
+                }
 
-        return this.cast();
-    }
+                yield this.cast();
+            }
+        };
+    };
 
     public Result<T, E> peek(Consumer<T> mapper) {
         return Result.from(Responses.Ok.ok(this.r.peek(mapper)), this.e);
@@ -330,10 +358,35 @@ public record Result<T, E>(Responses.Ok<T> r, Err<E> e) {
     }
 
     public <U> Result<U, E> flatMap(Function<T, Result<U, E>> mapper) {
-        if (this.r.isPresent())
-            return mapper.apply(this.r.get());
+        return switch(this.r.t) {
+            case StreamResult<T> sr -> {
+                Err<E> e = Err.empty();
+                e.t = this.e.t;
+                StreamResult<U> f = sr.flatMap(s -> {
+                    var flattened = mapper.apply(s);
+                    extractError(e, flattened);
 
-        return this.cast();
+                    return flattened.r.t;
+                });
+
+                yield Result.from(Responses.Ok.ok(f), e);
+            }
+            default -> {
+                if (this.r.isPresent())
+                    yield mapper.apply(this.r.get());
+
+                yield this.cast();
+            }
+        };
+    }
+
+    public synchronized <U> void extractError(Err<E> e, Result<U, E> flattened) {
+        if (flattened.e.t != null) {
+            Stream.Builder<E> built = Stream.builder();
+            e.t.forEach(built::add);
+            flattened.e.t.forEach(built::add);
+            e.t = new StreamResult<>(built.build());
+        }
     }
 
     public T orElseRes(T or) {
@@ -359,7 +412,6 @@ public record Result<T, E>(Responses.Ok<T> r, Err<E> e) {
         return or;
     }
 
-
     public <U> Result<U, E> flatMap(Function<T, Result<U, E>> mapper, Supplier<E> errorSupplier) {
         return r.map(mapper)
                 .filter(r -> r.r.isPresent())
@@ -377,32 +429,6 @@ public record Result<T, E>(Responses.Ok<T> r, Err<E> e) {
         }
     }
 
-    public Result<T, E> orElseGetErr(Supplier<Result<T, E>> s) {
-        if (this.e.isPresent())
-            return this;
-
-        var retrieved = s.get();
-        retrieved.r.t = this.r.t;
-        return retrieved;
-    }
-
-    public Result<T, E> orElseGetRes(Supplier<Result<T, E>> s) {
-        if (this.r.isPresent())
-            return this;
-
-        var retrieved = s.get();
-        retrieved.e.t = this.e.t;
-        return retrieved;
-    }
-
-    public Result<T, E> filterErr(Function<Err<E>, Boolean> ty) {
-        if(this.e.isPresent() && ty.apply(this.e)) {
-            return this;
-        }
-
-        return Result.from(this.r, Err.empty());
-    }
-
     public Result<T, E> filterRes(Function<Responses.Ok<T>, Boolean> ty) {
         if(this.r.isPresent() && ty.apply(this.r)) {
             return this;
@@ -411,48 +437,23 @@ public record Result<T, E>(Responses.Ok<T> r, Err<E> e) {
         return Result.from(Responses.Ok.empty(), this.e);
     }
 
-    public <U> Result<U, E> flatMapRes(Function<T, Responses.Ok<U>> mapper) {
-        if (this.r.isEmpty()) {
-            return this.cast();
-        } else {
-            var mapped =  this.r.flatMapResult(mapper);
-            return Result.from(mapped, this.e);
-        }
-    }
-
     public <U> Result<U, E> flatMapResult(Function<T, Result<U, E>> mapper) {
-        if (this.r.isEmpty()) {
-            return this.cast();
-        } else {
-            var mapped =  mapper.apply(this.r.get());
-            mapped.e.t = this.e.t;
-            return mapped;
-        }
-    }
+        return switch(this.r.t) {
+            case StreamResult<T> sr -> {
+                var srt = sr.map(mapper);
+                yield Result.from(srt.stream());
+            }
+            default -> {
+                if (this.r.isEmpty()) {
+                    yield this.cast();
+                } else {
 
-    public <U, E1> Result<U, E1> flatMapResultError(Function<T, Result<U, E1>> mapper) {
-        if (this.r.isEmpty()) {
-            return Result.from(Responses.Ok.empty(), this.e.cast());
-        }
-        return mapper.apply(this.r.get());
-    }
-
-    public <E1> Result<T, E1> flatMapErr(Function<E, Result<T, E1>> mapper) {
-        if (this.e.isEmpty()) {
-            return this.castError();
-        } else {
-            var mapped =  mapper.apply(this.e.get());
-            mapped.r.t = this.r.t;
-            return mapped;
-        }
-    }
-
-    private boolean isNotEmpty() {
-        return r.isPresent() || e.isPresent();
-    }
-
-    private boolean isErr() {
-        return e.isEmpty();
+                    var mapped =  mapper.apply(this.r.get());
+                    mapped.e.t = this.e.t;
+                    yield mapped;
+                }
+            }
+        };
     }
 
     public boolean isOk() {

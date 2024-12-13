@@ -4,6 +4,7 @@ import com.hayden.utilitymodule.result.agg.AggregateError;
 import com.hayden.utilitymodule.result.error.Err;
 import com.hayden.utilitymodule.result.error.ErrorCollect;
 import lombok.SneakyThrows;
+import org.assertj.core.api.ErrorCollector;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -41,10 +42,32 @@ public class ResultTest {
     }
 
     @Test
-    public void stream() throws InterruptedException {
+    public void doStream() {
+        var collected = Result.from(Stream.of(Result.ok("hello"), Result.ok("hello"), Result.err(ErrorCollect.fromMessage("hello"))))
+                .collectList();
+        System.out.println(collected);
+    }
+
+    @Test
+    public void stream() {
         Result.stream(Stream.of("one", "two", "three"))
                 .peek(System.out::println)
                 .ifPresent(System.out::println);
+
+        AtomicInteger i = new AtomicInteger(0);
+        var found = Result.stream(Stream.of("one", "two", "three", "four"))
+                .peek(System.out::println)
+                .flatMapResult(e -> {
+                    if (i.getAndIncrement() % 2 == 0) {
+                        return Result.ok(e);
+                    }
+
+                    return Result.err(ErrorCollect.fromE(new RuntimeException()));
+                })
+                .collectList();
+
+        assertThat(found.r().get().size()).isEqualTo(2);
+        assertThat(found.e().get().size()).isEqualTo(2);
     }
 
     @Test

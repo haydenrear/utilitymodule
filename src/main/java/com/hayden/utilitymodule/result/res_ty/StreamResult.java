@@ -15,6 +15,20 @@ import java.util.stream.Stream;
 @Slf4j
 public record StreamResult<R>(Stream<R> r) implements IResultTy<R> {
 
+    public static <R> StreamResult<R> of(Stream<IResultTy<R>> stream) {
+        return new StreamResult<>(stream.flatMap(IResultTy::stream));
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return r.findFirst().isEmpty();
+    }
+
+    @Override
+    public boolean isPresent() {
+        return r.findFirst().isPresent();
+    }
+
     @Override
     public Optional<R> optional() {
         var l = r.toList();
@@ -65,20 +79,20 @@ public record StreamResult<R>(Stream<R> r) implements IResultTy<R> {
 
     @Override
     public R get() {
-        return optional().get();
+        return optional().orElse(null);
     }
 
     @Override
-    public <T> com.hayden.utilitymodule.result.res_ty.StreamResult<T> flatMap(Function<R, IResultTy<T>> toMap) {
-        return new com.hayden.utilitymodule.result.res_ty.StreamResult<>(
+    public <T> StreamResult<T> flatMap(Function<R, IResultTy<T>> toMap) {
+        return new StreamResult<>(
                 r.map(toMap)
                         .flatMap(IResultTy::stream)
         );
     }
 
     @Override
-    public <T> IResultTy<T> map(Function<R, T> toMap) {
-        return new com.hayden.utilitymodule.result.res_ty.StreamResult<>(r.map(toMap));
+    public <T> StreamResult<T> map(Function<R, T> toMap) {
+        return new StreamResult<>(r.map(toMap));
     }
 
     @Override
@@ -97,7 +111,7 @@ public record StreamResult<R>(Stream<R> r) implements IResultTy<R> {
     }
 
     @Override
-    public com.hayden.utilitymodule.result.res_ty.StreamResult<R> peek(Consumer<? super R> consumer) {
-        return new com.hayden.utilitymodule.result.res_ty.StreamResult<>(this.r.peek(consumer));
+    public StreamResult<R> peek(Consumer<? super R> consumer) {
+        return new StreamResult<>(this.r.peek(consumer));
     }
 }

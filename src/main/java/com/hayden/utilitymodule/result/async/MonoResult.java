@@ -8,7 +8,9 @@ import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -20,11 +22,6 @@ import static com.hayden.utilitymodule.result.Result.logThreadStarvation;
 
 @Slf4j
 public record MonoResult<R>(Mono<R> r) implements IAsyncResultTy<R> {
-
-    @Override
-    public boolean isAsyncSub() {
-        return true;
-    }
 
     @Override
     public boolean isZeroOrOneAbstraction() {
@@ -73,12 +70,24 @@ public record MonoResult<R>(Mono<R> r) implements IAsyncResultTy<R> {
 
     @Override
     public void subscribe(Consumer<? super R> consumer) {
+        logAsync();
         this.r.subscribe(consumer);
     }
 
     @Override
+    public R block() throws ExecutionException, InterruptedException {
+        logThreadStarvation();
+        return r.block();
+    }
+
+    @Override
+    public R block(Duration wait) throws ExecutionException, InterruptedException {
+        return this.r.block(wait);
+    }
+
+    @Override
     public IResultTy<R> filter(Predicate<R> p) {
-        return new com.hayden.utilitymodule.result.async.MonoResult<>(r.filter(p));
+        return new MonoResult<>(r.filter(p));
     }
 
     @Override
@@ -89,16 +98,13 @@ public record MonoResult<R>(Mono<R> r) implements IAsyncResultTy<R> {
     }
 
     @Override
-    public <T> com.hayden.utilitymodule.result.async.MonoResult<T> flatMap(Function<R, IResultTy<T>> toMap) {
-        return new com.hayden.utilitymodule.result.async.MonoResult<>(
-                r.map(toMap)
-                        .flatMap(IResultTy::mono)
-        );
+    public <T> IResultTy<T> flatMap(Function<R, IResultTy<T>> toMap) {
+        return new MonoResult<>(r.map(toMap).flatMap(IResultTy::mono));
     }
 
     @Override
     public <T> IResultTy<T> map(Function<R, T> toMap) {
-        return new com.hayden.utilitymodule.result.async.MonoResult<>(r.map(toMap));
+        return new MonoResult<>(r.map(toMap));
     }
 
     @Override
@@ -118,10 +124,7 @@ public record MonoResult<R>(Mono<R> r) implements IAsyncResultTy<R> {
     }
 
     @Override
-    public com.hayden.utilitymodule.result.async.MonoResult<R> peek(Consumer<? super R> consumer) {
-        return new com.hayden.utilitymodule.result.async.MonoResult<>(this.r.map(f -> {
-            consumer.accept(f);
-            return f;
-        }));
+    public IResultTy<R> peek(Consumer<? super R> consumer) {
+        return new MonoResult<>(this.r.doOnNext(consumer));
     }
 }

@@ -1,6 +1,7 @@
 package com.hayden.utilitymodule.result.async;
 
 import com.google.common.collect.Lists;
+import com.hayden.utilitymodule.result.Result;
 import com.hayden.utilitymodule.result.res_ty.IResultTy;
 import com.hayden.utilitymodule.result.res_ty.ResultTyResult;
 import lombok.extern.slf4j.Slf4j;
@@ -8,9 +9,11 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
-import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -21,22 +24,23 @@ import static com.hayden.utilitymodule.result.Result.logAsync;
 import static com.hayden.utilitymodule.result.Result.logThreadStarvation;
 
 @Slf4j
-public record FluxResult<R>(Flux<R> r) implements IAsyncResultTy<R> {
+public record CompletableFutureResult<R>(CompletableFuture<R> r) implements IAsyncResultTy<R> {
 
     @Override
     public boolean isZeroOrOneAbstraction() {
-        return false;
+        return true;
     }
 
     @Override
     public Optional<R> optional() {
         logThreadStarvation();
-        var l = Lists.newArrayList(r.toIterable());
-        if (l.size() > 1) {
-            log.error("Called optional on stream result with more than one value. Returning first.");
+        try {
+            var v = r.get();
+            return Optional.ofNullable(v);
+        } catch (InterruptedException |
+                 ExecutionException e) {
+            throw new RuntimeException(e);
         }
-
-        return !l.isEmpty() ? Optional.of(l.getFirst()) : Optional.empty();
     }
 
     @Override
@@ -51,92 +55,63 @@ public record FluxResult<R>(Flux<R> r) implements IAsyncResultTy<R> {
 
     @Override
     public Stream<R> stream() {
-        logAsync();
-        return r.toStream();
+        logThreadStarvation();
+        return optional().stream();
     }
 
     @Override
     public Flux<R> flux() {
-        return r;
+        return Flux.fromStream(stream());
     }
 
     @Override
     public Mono<R> mono() {
-        return r.collectList()
-                .flatMap(l -> l.size() <= 1
-                              ? Mono.justOrEmpty(l.getFirst())
-                              : Mono.error(new RuntimeException("Called Mono on stream result with more than one value.")));
+        return Mono.fromFuture(this.r);
     }
 
     @Override
     public void subscribe(Consumer<? super R> consumer) {
         logAsync();
-        this.r.subscribe(consumer);
+        var c = this.r.thenAcceptAsync(consumer);
     }
 
     @Override
     public R block() throws ExecutionException, InterruptedException {
-        return blockFirst();
-    }
-
-    @Override
-    public R blockFirst() {
-        logFluxSingle();
         logThreadStarvation();
-        return r.blockFirst();
-    }
-
-    @Override
-    public R blockLast() {
-        logFluxSingle();
-        logThreadStarvation();
-        return r.blockLast();
-    }
-
-    @Override
-    public List<R> blockAll() {
-        logThreadStarvation();
-        return r.collectList().block();
-    }
-
-    @Override
-    public List<R> blockAll(Duration duration)  {
-        logThreadStarvation();
-        return r.buffer(duration)
-                .blockFirst();
+        return r.get();
     }
 
     @Override
     public R block(Duration wait) throws ExecutionException, InterruptedException {
-        logFluxSingle();
-        return this.r.blockFirst(wait);
-    }
-
-    private static void logFluxSingle() {
-        log.warn("Calling block single on Flux. Could mean that multiple will not be returned.");
+        try {
+            return this.r.get(wait.getSeconds(), TimeUnit.SECONDS);
+        } catch (TimeoutException t) {
+            throw new ExecutionException(t);
+        }
     }
 
     @Override
     public IResultTy<R> filter(Predicate<R> p) {
-        return new com.hayden.utilitymodule.result.async.FluxResult<>(r.filter(p));
+        return new MonoResult<>(mono())
+                .filter(p);
     }
 
     @Override
     public R get() {
+        log.warn("Calling or else on closable. This probably means you have to close yourself...");
+        Result.logClosableMaybeNotClosed();
         return optional().orElse(null);
     }
 
     @Override
     public <T> IResultTy<T> flatMap(Function<R, IResultTy<T>> toMap) {
-        return new com.hayden.utilitymodule.result.async.FluxResult<>(
-                r.map(toMap)
-                        .flatMap(IResultTy::flux)
-        );
+        return new MonoResult<>(mono())
+                .flatMap(toMap);
     }
 
     @Override
     public <T> IResultTy<T> map(Function<R, T> toMap) {
-        return new com.hayden.utilitymodule.result.async.FluxResult<>(r.map(toMap));
+        return new CompletableFutureResult<>(r.thenApply(toMap));
     }
 
     @Override
@@ -152,11 +127,12 @@ public record FluxResult<R>(Flux<R> r) implements IAsyncResultTy<R> {
     @Override
     public void ifPresent(Consumer<? super R> consumer) {
         logAsync();
-        this.r.subscribe(consumer);
+        this.r.thenAccept(consumer);
     }
 
     @Override
     public IResultTy<R> peek(Consumer<? super R> consumer) {
-        return new FluxResult<>(this.r.doOnNext(consumer));
+        return new MonoResult<>(mono())
+                .peek(consumer);
     }
 }

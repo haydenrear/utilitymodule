@@ -38,17 +38,34 @@ public abstract class ResultCollectors<
     }
 
     public static <
-            T extends Responses.ParamAggregateResponse,
-            E extends AggregateParamError,
+            T extends Responses.ParamAggregateResponse<R>,
+            R,
+            E extends AggregateParamError<E1>,
             R1, E1 extends ErrorCollect
             >
     ResultCollectors<T, E, Result<R1, E1>, R1, E1> from(
             T t,
             E e,
+            ResultMapper<R1, E1, R> result,
+            ErrorMapper<R1, E1, E1> error
+    ) {
+        return new ParameterizedResultCollectors.AggregateMappingParamResultCollector<>(t, e, result, error);
+    }
+
+    public static <
+            T extends Responses.ParamAggregateResponse<R>,
+            R,
+            E extends AggregateParamError<E1>,
+            R1,
+            E1 extends ErrorCollect
+            >
+    ResultCollectors<T, E, Result<R1, E1>, R1, E1> aggParamFrom(
+            T t,
+            E e,
             ResultMapper<R1, E1, T> result,
             ErrorMapper<R1, E1, E> error
     ) {
-        return new ParameterizedResultCollectors.AggregateMappingParamResultCollector<>(t, e, result, error);
+        return new ParameterizedResultCollectors.AggregateMappingParamAggResultCollector<>(t, e, result, error);
     }
 
     public static <
@@ -86,18 +103,4 @@ public abstract class ResultCollectors<
     ) {
         return ParameterizedResultCollectors.AggregateParamResultCollector.fromValues(t, e);
     }
-
-    public static <
-            T extends Responses.ParamAggregateResponse<R>,
-            R,
-            Er extends AggregateParamError<InE>,
-            InE extends ErrorCollect
-            >
-    ResultCollectors<T, Er, Result<R, InE>, R, InE> from(
-            T t, Er e,
-            AggResultMapper resMapper, AggErrorMapper errorMapper
-    ) {
-        return new ParameterizedResultCollectors.AggregateMappingParamResultCollector(t, e, resMapper, errorMapper);
-    }
-
 }

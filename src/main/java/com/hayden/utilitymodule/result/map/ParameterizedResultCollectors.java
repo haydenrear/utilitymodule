@@ -87,12 +87,12 @@ public interface ParameterizedResultCollectors {
         protected final T aggregateResponse;
         protected final E aggregateError;
 
-        private final Function<Result<R1, E1>, Optional<T>> mapResult;
-        private final Function<Result<R1, E1>, Optional<E>> mapError;
+        private final Function<Result<R1, E1>, Optional<U>> mapResult;
+        private final Function<Result<R1, E1>, Optional<E1>> mapError;
 
         public AggregateMappingParamResultCollector(T t, E e,
-                                                    Function<Result<R1, E1>, Optional<T>> result,
-                                                    Function<Result<R1, E1>, Optional<E>> error) {
+                                                    Function<Result<R1, E1>, Optional<U>> result,
+                                                    Function<Result<R1, E1>, Optional<E1>> error) {
             this.aggregateResponse = t;
             this.aggregateError = e;
             this.mapResult = result;
@@ -135,4 +135,60 @@ public interface ParameterizedResultCollectors {
             return Set.of();
         }
     }
+
+    class AggregateMappingParamAggResultCollector<T extends Responses.ParamAggregateResponse<U>, U, E extends AggregateParamError<E1>, R1, E1 extends ErrorCollect>
+            extends ResultCollectors<T, E, Result<R1, E1>, R1, E1> {
+
+        protected final T aggregateResponse;
+        protected final E aggregateError;
+
+        private final Function<Result<R1, E1>, Optional<T>> mapResult;
+        private final Function<Result<R1, E1>, Optional<E>> mapError;
+
+        public AggregateMappingParamAggResultCollector(T t, E e,
+                                                       Function<Result<R1, E1>, Optional<T>> result,
+                                                       Function<Result<R1, E1>, Optional<E>> error) {
+            this.aggregateResponse = t;
+            this.aggregateError = e;
+            this.mapResult = result;
+            this.mapError = error;
+        }
+
+        @Override
+        public Supplier<Result<T, E>> supplier() {
+            return () -> Result.from(this.aggregateResponse, this.aggregateError);
+        }
+
+        @Override
+        public BiConsumer<Result<T, E>, Result<R1, E1>> accumulator() {
+            return (r1, r2) -> {
+                mapResult.apply(r2)
+                        .ifPresent(a -> r1
+                                .ifPresent(b -> b.addItem(a)));
+                mapError.apply(r2)
+                        .ifPresent(a -> r1.error()
+                                .ifPresent(b -> b.addItem(a)));
+            };
+        }
+
+        @Override
+        public BinaryOperator<Result<T, E>> combiner() {
+            return (r1, r2) -> {
+                r2.ifPresent(aggregateResponse::addItem);
+                Optional.ofNullable(r2.error().get()).map(E::errors).ifPresent(aggregateError::addError);
+                return Result.from(aggregateResponse, aggregateError);
+            };
+        }
+
+        @Override
+        public Function<Result<T, E>, Result<T, E>> finisher() {
+            return r1 -> Result.from(aggregateResponse, aggregateError);
+        }
+
+        @Override
+        public Set<Characteristics> characteristics() {
+            return Set.of();
+        }
+    }
+
 }

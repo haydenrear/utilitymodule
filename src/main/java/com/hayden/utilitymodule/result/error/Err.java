@@ -1,18 +1,52 @@
 package com.hayden.utilitymodule.result.error;
 
 import com.hayden.utilitymodule.result.ResultTy;
+import com.hayden.utilitymodule.result.agg.Responses;
+import com.hayden.utilitymodule.result.res_ty.IResultTy;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.RequiredArgsConstructor;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 @EqualsAndHashCode(callSuper = true)
 @RequiredArgsConstructor
 @Data
 public final class Err<R> extends ResultTy<R> {
+
+    public Err(Stream<R> r) {
+        super(r);
+    }
+
+    public Err(IResultTy<R> r) {
+        super(r);
+    }
+
+    public Err(Mono<R> r) {
+        super(r);
+    }
+
+    public Err(Flux<R> r) {
+        super(r);
+    }
+
+    public static <R> Err<R> stream(Stream<R> r) {
+        return new Err<>(r);
+    }
+
+    public static <R> Err<R> err(IResultTy<R> r) {
+        return new Err<>(r);
+    }
+
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    public static <R> Err<R> err(Optional<R> r) {
+        return new Err<>(r);
+    }
 
     public Err(R r) {
         super(r);

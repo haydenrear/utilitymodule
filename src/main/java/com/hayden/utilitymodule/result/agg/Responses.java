@@ -2,6 +2,7 @@ package com.hayden.utilitymodule.result.agg;
 
 import com.hayden.utilitymodule.result.ResultTy;
 import com.hayden.utilitymodule.result.res_ty.IResultTy;
+import com.hayden.utilitymodule.result.res_ty.StreamResult;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import reactor.core.publisher.Flux;
@@ -78,10 +79,21 @@ public interface Responses {
         }
 
         public <S> Ok<S> flatMapResult(Function<R, Ok<S>> toMap) {
-            if (this.t.isPresent())
-                return toMap.apply(t.get());
+            return switch(this.t) {
+                case StreamResult<R> s -> {
+                    yield Ok.ok(s.map(st-> {
+                        var mapped = toMap.apply(st);
+                        return mapped.get();
+                    }));
+                }
+                default -> {
+                    if (this.t.isPresent())
+                        yield toMap.apply(t.get());
 
-            return Ok.empty();
+                    yield Ok.empty();
+                }
+
+            };
         }
 
         public Ok<R> filterResult(Function<R, Boolean> b) {
