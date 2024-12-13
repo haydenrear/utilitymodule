@@ -4,6 +4,7 @@ import com.google.common.collect.Lists;
 import com.hayden.utilitymodule.result.res_ty.IResultTy;
 import com.hayden.utilitymodule.result.res_ty.ResultTyResult;
 import lombok.extern.slf4j.Slf4j;
+import reactor.core.Fuseable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -11,6 +12,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -21,11 +23,10 @@ import static com.hayden.utilitymodule.result.Result.logAsync;
 import static com.hayden.utilitymodule.result.Result.logThreadStarvation;
 
 @Slf4j
-public record FluxResult<R>(Flux<R> r) implements IAsyncResultTy<R> {
+public record FluxResult<R>(Flux<R> r, AtomicBoolean finished) implements IAsyncResultTy<R> {
 
-    @Override
-    public boolean isZeroOrOneAbstraction() {
-        return false;
+    public FluxResult(Flux<R> r) {
+        this(r, new AtomicBoolean(false));
     }
 
     @Override
@@ -69,9 +70,15 @@ public record FluxResult<R>(Flux<R> r) implements IAsyncResultTy<R> {
     }
 
     @Override
+    public boolean didFinish() {
+        return finished.get();
+    }
+
+    @Override
     public void subscribe(Consumer<? super R> consumer) {
         logAsync();
-        this.r.subscribe(consumer);
+        this.r.doOnComplete(() -> finished.set(true))
+                .subscribe(consumer);
     }
 
     @Override
@@ -118,7 +125,7 @@ public record FluxResult<R>(Flux<R> r) implements IAsyncResultTy<R> {
 
     @Override
     public IResultTy<R> filter(Predicate<R> p) {
-        return new com.hayden.utilitymodule.result.async.FluxResult<>(r.filter(p));
+        return new FluxResult<>(r.filter(p));
     }
 
     @Override
@@ -128,7 +135,7 @@ public record FluxResult<R>(Flux<R> r) implements IAsyncResultTy<R> {
 
     @Override
     public <T> IResultTy<T> flatMap(Function<R, IResultTy<T>> toMap) {
-        return new com.hayden.utilitymodule.result.async.FluxResult<>(
+        return new FluxResult<>(
                 r.map(toMap)
                         .flatMap(IResultTy::flux)
         );
@@ -136,7 +143,7 @@ public record FluxResult<R>(Flux<R> r) implements IAsyncResultTy<R> {
 
     @Override
     public <T> IResultTy<T> map(Function<R, T> toMap) {
-        return new com.hayden.utilitymodule.result.async.FluxResult<>(r.map(toMap));
+        return new FluxResult<>(r.map(toMap));
     }
 
     @Override
@@ -151,8 +158,7 @@ public record FluxResult<R>(Flux<R> r) implements IAsyncResultTy<R> {
 
     @Override
     public void ifPresent(Consumer<? super R> consumer) {
-        logAsync();
-        this.r.subscribe(consumer);
+        subscribe(consumer);
     }
 
     @Override

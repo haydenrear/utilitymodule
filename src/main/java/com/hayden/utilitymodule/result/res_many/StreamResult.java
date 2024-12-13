@@ -1,5 +1,6 @@
-package com.hayden.utilitymodule.result.res_ty;
+package com.hayden.utilitymodule.result.res_many;
 
+import com.hayden.utilitymodule.result.res_ty.IResultTy;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -13,22 +14,23 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 @Slf4j
-public record StreamResult<R>(Stream<R> r) implements IResultTy<R> {
+public class StreamResult<R> implements IStreamResultTy<R> {
+
+    private Stream<R> r;
+
+    public StreamResult(Stream<R> r) {
+        this.r = r;
+    }
 
     public static <R> StreamResult<R> of(Stream<IResultTy<R>> stream) {
         return new StreamResult<>(stream.flatMap(IResultTy::stream));
     }
 
-    @Override
-    public boolean isEmpty() {
-        return r.findFirst().isEmpty();
+    public synchronized void swap(Stream<R> toSwap) {
+        this.r = toSwap;
     }
 
-    @Override
-    public boolean isPresent() {
-        return r.findFirst().isPresent();
-    }
-
+    // TODO: remove into res_single?
     @Override
     public Optional<R> optional() {
         var l = r.toList();
@@ -36,17 +38,19 @@ public record StreamResult<R>(Stream<R> r) implements IResultTy<R> {
             log.error("Called optional on stream result with more than one value. Returning first.");
         }
 
+        swap(l.stream());
+
         return !l.isEmpty() ? Optional.of(l.getFirst()) : Optional.empty();
     }
 
     @Override
     public <T> IResultTy<T> from(T r) {
-        return new com.hayden.utilitymodule.result.res_ty.StreamResult<>(Stream.ofNullable(r));
+        return new StreamResult<>(Stream.ofNullable(r));
     }
 
     @Override
     public <T> IResultTy<T> from(Optional<T> r) {
-        return new com.hayden.utilitymodule.result.res_ty.StreamResult<>(r.stream());
+        return new StreamResult<>(r.stream());
     }
 
     @Override
@@ -62,19 +66,15 @@ public record StreamResult<R>(Stream<R> r) implements IResultTy<R> {
     @Override
     public Mono<R> mono() {
         List<R> streamList = this.r.toList();
+        swap(streamList.stream());
         return streamList.size() <= 1
                ? Mono.justOrEmpty(streamList.getFirst())
                : Mono.error(new RuntimeException("Called get Mono on list with more than 1."));
     }
 
     @Override
-    public boolean isStream() {
-        return true;
-    }
-
-    @Override
     public IResultTy<R> filter(Predicate<R> p) {
-        return new com.hayden.utilitymodule.result.res_ty.StreamResult<>(r.filter(p));
+        return new StreamResult<>(r.filter(p));
     }
 
     @Override
@@ -114,4 +114,9 @@ public record StreamResult<R>(Stream<R> r) implements IResultTy<R> {
     public StreamResult<R> peek(Consumer<? super R> consumer) {
         return new StreamResult<>(this.r.peek(consumer));
     }
+
+    public Stream<R> r() {
+        return r;
+    }
+
 }

@@ -9,6 +9,8 @@ import com.hayden.utilitymodule.result.res_ty.IResultTy;
 
 public interface IAsyncResultTy<R> extends IResultTy<R> {
 
+    boolean didFinish();
+
     void subscribe(Consumer<? super R> consumer);
 
     R block() throws ExecutionException, InterruptedException;

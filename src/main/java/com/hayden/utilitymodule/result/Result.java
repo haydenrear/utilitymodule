@@ -5,13 +5,11 @@ import com.hayden.utilitymodule.Either;
 import com.hayden.utilitymodule.result.agg.AggregateError;
 import com.hayden.utilitymodule.result.agg.AggregateParamError;
 import com.hayden.utilitymodule.result.error.Err;
-import com.hayden.utilitymodule.result.map.ResultCollectors;
 import com.hayden.utilitymodule.result.map.StreamResultCollector;
 import com.hayden.utilitymodule.result.agg.Responses;
 import com.hayden.utilitymodule.result.res_ty.ClosableResult;
 import com.hayden.utilitymodule.result.res_ty.IResultTy;
-import com.hayden.utilitymodule.result.res_ty.ResultTyResult;
-import com.hayden.utilitymodule.result.res_ty.StreamResult;
+import com.hayden.utilitymodule.result.res_many.StreamResult;
 import jakarta.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
@@ -365,7 +363,6 @@ public record Result<T, E>(Responses.Ok<T> r, Err<E> e) {
                 StreamResult<U> f = sr.flatMap(s -> {
                     var flattened = mapper.apply(s);
                     extractError(e, flattened);
-
                     return flattened.r.t;
                 });
 

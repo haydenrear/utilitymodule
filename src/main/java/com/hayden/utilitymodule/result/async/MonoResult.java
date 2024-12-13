@@ -11,6 +11,7 @@ import reactor.core.publisher.Mono;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -21,7 +22,11 @@ import static com.hayden.utilitymodule.result.Result.logAsync;
 import static com.hayden.utilitymodule.result.Result.logThreadStarvation;
 
 @Slf4j
-public record MonoResult<R>(Mono<R> r) implements IAsyncResultTy<R> {
+public record MonoResult<R>(Mono<R> r, AtomicBoolean finished) implements IAsyncResultTy<R> {
+
+    public MonoResult(Mono<R> r) {
+        this(r, new AtomicBoolean(false));
+    }
 
     @Override
     public boolean isZeroOrOneAbstraction() {
@@ -69,9 +74,15 @@ public record MonoResult<R>(Mono<R> r) implements IAsyncResultTy<R> {
     }
 
     @Override
+    public boolean didFinish() {
+        return finished.get();
+    }
+
+    @Override
     public void subscribe(Consumer<? super R> consumer) {
         logAsync();
-        this.r.subscribe(consumer);
+        this.r.doAfterTerminate(() -> this.finished.set(true))
+                .subscribe(consumer);
     }
 
     @Override
@@ -119,8 +130,7 @@ public record MonoResult<R>(Mono<R> r) implements IAsyncResultTy<R> {
 
     @Override
     public void ifPresent(Consumer<? super R> consumer) {
-        logAsync();
-        this.r.subscribe(consumer);
+        subscribe(consumer);
     }
 
     @Override

@@ -14,6 +14,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -24,7 +25,11 @@ import static com.hayden.utilitymodule.result.Result.logAsync;
 import static com.hayden.utilitymodule.result.Result.logThreadStarvation;
 
 @Slf4j
-public record CompletableFutureResult<R>(CompletableFuture<R> r) implements IAsyncResultTy<R> {
+public record CompletableFutureResult<R>(CompletableFuture<R> r, AtomicBoolean finished) implements IAsyncResultTy<R> {
+
+    public CompletableFutureResult(CompletableFuture<R> r) {
+        this(r, new AtomicBoolean(false));
+    }
 
     @Override
     public boolean isZeroOrOneAbstraction() {
@@ -70,15 +75,22 @@ public record CompletableFutureResult<R>(CompletableFuture<R> r) implements IAsy
     }
 
     @Override
+    public boolean didFinish() {
+        return finished.get();
+    }
+
+    @Override
     public void subscribe(Consumer<? super R> consumer) {
         logAsync();
         var c = this.r.thenAcceptAsync(consumer);
+        c.thenRun(() -> this.finished.set(true));
     }
 
     @Override
     public R block() throws ExecutionException, InterruptedException {
         logThreadStarvation();
-        return r.get();
+        var gotten = r.get();
+        return gotten;
     }
 
     @Override
@@ -126,8 +138,7 @@ public record CompletableFutureResult<R>(CompletableFuture<R> r) implements IAsy
 
     @Override
     public void ifPresent(Consumer<? super R> consumer) {
-        logAsync();
-        this.r.thenAccept(consumer);
+        subscribe(consumer);
     }
 
     @Override

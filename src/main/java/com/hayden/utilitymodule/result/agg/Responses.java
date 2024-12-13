@@ -2,7 +2,7 @@ package com.hayden.utilitymodule.result.agg;
 
 import com.hayden.utilitymodule.result.ResultTy;
 import com.hayden.utilitymodule.result.res_ty.IResultTy;
-import com.hayden.utilitymodule.result.res_ty.StreamResult;
+import com.hayden.utilitymodule.result.res_many.StreamResult;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import reactor.core.publisher.Flux;

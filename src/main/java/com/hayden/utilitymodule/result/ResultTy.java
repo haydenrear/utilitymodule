@@ -5,7 +5,7 @@ import com.hayden.utilitymodule.result.async.MonoResult;
 import com.hayden.utilitymodule.result.res_ty.ClosableResult;
 import com.hayden.utilitymodule.result.res_ty.IResultTy;
 import com.hayden.utilitymodule.result.res_ty.ResultTyResult;
-import com.hayden.utilitymodule.result.res_ty.StreamResult;
+import com.hayden.utilitymodule.result.res_many.StreamResult;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
