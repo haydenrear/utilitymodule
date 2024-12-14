@@ -112,6 +112,15 @@ public record Result<T, E>(Responses.Ok<T> r, Err<E> e) {
         return new Result<>(new Responses.Ok<>(r), Err.empty());
     }
 
+    public static <R, E> Result<R, E> from(Stream<Result<R, E>> r, Err<E> err) {
+        var resp = r.map(res -> {
+            err.extractError(res);
+            return res.r.t;
+        });
+
+        return new Result<>(new Responses.Ok<R>(StreamResult.of(resp)), err);
+    }
+
     public static <R, E> Result<R, E> from(Stream<Result<R, E>> r) {
         Err<E> eErr = Err.emptyStream();
         var resp = r.map(res -> {
@@ -310,12 +319,18 @@ public record Result<T, E>(Responses.Ok<T> r, Err<E> e) {
     }
 
     public <E1> Result<T, E1> mapError(Function<E, E1> mapper) {
-        if (this.e.isPresent()) {
-            Err<E1> r1 = this.e.mapErr(mapper);
-            return Result.from(this.r, r1);
-        }
+        return switch(this.e.t) {
+            case IManyResultTy<E> st ->
+                    Result.from(this.r, Err.err(st.map(mapper)));
+            default -> {
+                if (this.e.isPresent()) {
+                    Err<E1> r1 = this.e.mapErr(mapper);
+                    yield Result.from(this.r, r1);
+                }
 
-        return this.castError();
+                yield this.castError();
+            }
+        };
     }
 
     public Result<T, E> orErrorRes(Supplier<Result<T, E>> s) {
@@ -389,12 +404,18 @@ public record Result<T, E>(Responses.Ok<T> r, Err<E> e) {
     }
 
     public <E1> Result<T, E1> mapError(Function<E, E1> mapper, E1 defaultValue) {
-        var err = this.mapError(mapper);
-        if (err.e().isEmpty()) {
-            return Result.from(r, Err.err(defaultValue));
-        } else {
-            return mapError(mapper).orError(() -> Err.err(defaultValue));
-        }
+        return switch(this.e.t) {
+            case IManyResultTy<E> st ->
+                    Result.from(this.r, Err.err(st.map(mapper)));
+            default -> {
+                var err = this.mapError(mapper);
+                if (err.e().isEmpty()) {
+                    yield Result.from(r, Err.err(defaultValue));
+                } else {
+                    yield mapError(mapper).orError(() -> Err.err(defaultValue));
+                }
+            }
+        };
     }
 
     public <U> Result<U, E> flatMap(Function<T, Result<U, E>> mapper) {
@@ -462,7 +483,7 @@ public record Result<T, E>(Responses.Ok<T> r, Err<E> e) {
         return switch(this.r.t) {
             case IManyResultTy<T> sr -> {
                 var srt = sr.map(mapper);
-                yield Result.from(srt.stream());
+                yield Result.from(srt.stream(), this.e);
             }
             default -> {
                 if (this.r.isEmpty()) {
