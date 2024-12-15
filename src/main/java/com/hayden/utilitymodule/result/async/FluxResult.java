@@ -143,6 +143,16 @@ public class FluxResult<R> implements IAsyncResultTy<R>, IManyResultTy<R> {
     }
 
     @Override
+    public IManyResultTy<R> add(R r) {
+        return new FluxResult<>(Flux.concat(this.r, Flux.just(r)));
+    }
+
+    @Override
+    public IManyResultTy<R> concat(IManyResultTy<R> r) {
+        return new FluxResult<>(Flux.concat(this.r, r.flux()));
+    }
+
+    @Override
     public <T> IResultTy<T> map(Function<R, T> toMap) {
         return new FluxResult<>(r.map(toMap));
     }

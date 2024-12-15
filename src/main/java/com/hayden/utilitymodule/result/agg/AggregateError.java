@@ -9,8 +9,6 @@ public interface AggregateError<T extends ErrorCollect> extends ErrorCollect, Ag
 
     interface StdAggregateError extends AggregateError<ErrorCollect> {}
 
-//    Set<ErrorCollect> errors();
-
     default void addItem(T o) {
         this.addError(o);
     }

@@ -5,13 +5,11 @@ import com.hayden.utilitymodule.result.res_ty.IResultTy;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import reactor.core.publisher.Flux;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.stream.Stream;
 
 public interface IManyResultTy<R> extends IResultTy<R>{
 
@@ -28,6 +26,20 @@ public interface IManyResultTy<R> extends IResultTy<R>{
     default Optional<R> firstOptional(boolean keepAll) {
         return getFirst(keepAll);
     }
+
+    /**
+     * Forfeits operations
+     * @param r
+     * @return
+     */
+    IManyResultTy<R> add(R r);
+
+    /**
+     * Forfeits operations
+     * @param r
+     * @return
+     */
+    IManyResultTy<R> concat(IManyResultTy<R> r);
 
     // TODO: remove into res_single?
     @Override

@@ -15,8 +15,7 @@ public interface IResultTy<R> extends Result.Monadic<R> {
 
     static <V> IResultTy<V> toRes(V v) {
         if (v instanceof AutoCloseable a) {
-            throw new RuntimeException("Did not implement for auto-closable! Probably something to do with scopes to prove only one can be left open and any cannot be accessed twice without knowing.");
-//                return (IResultTy<T>) new ClosableResult<>(Optional.of(a));
+            return (IResultTy<V>) new ClosableResult<>(Optional.of(a));
         }
 
         return new ResultTyResult<>(Optional.ofNullable(v));

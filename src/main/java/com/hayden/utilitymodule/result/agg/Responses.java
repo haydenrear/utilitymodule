@@ -1,15 +1,22 @@
 package com.hayden.utilitymodule.result.agg;
 
+import com.hayden.utilitymodule.result.Result;
 import com.hayden.utilitymodule.result.ResultTy;
+import com.hayden.utilitymodule.result.error.Err;
 import com.hayden.utilitymodule.result.res_many.IManyResultTy;
+import com.hayden.utilitymodule.result.res_many.ListResult;
 import com.hayden.utilitymodule.result.res_ty.IResultTy;
 import com.hayden.utilitymodule.result.res_many.StreamResult;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.Setter;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Stream;

@@ -35,12 +35,12 @@ public class TypeReferenceDelegate<T> {
     }
 
     public static <T> Optional<TypeReferenceDelegate<T>> create(Class<?> clzz) {
-            try {
-                    return Optional.of(new TypeReferenceDelegate<T>((Class<T>) clzz, new ParameterizedTypeReference<T>() {}));
-            } catch (ClassCastException c) {
-                    log.error("Error attempting to create type reference delegate for {} with error {}.", clzz.getSimpleName(), c.getMessage());
-                    return Optional.empty();
-            }
+        try {
+            return Optional.of(new TypeReferenceDelegate<T>((Class<T>) clzz, new ParameterizedTypeReference<T>() {}));
+        } catch (ClassCastException c) {
+            log.error("Error attempting to create type reference delegate for {} with error {}.", clzz.getSimpleName(), c.getMessage());
+            return Optional.empty();
+        }
     }
 
     @Delegate

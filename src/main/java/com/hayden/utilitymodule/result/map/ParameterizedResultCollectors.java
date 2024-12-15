@@ -57,7 +57,7 @@ public interface ParameterizedResultCollectors {
         public BiConsumer<Result<T, E>, Result<R, InE>> accumulator() {
             return (r1, r2) -> {
                 r2.ifPresent(aggregateResponse::addItem);
-                r2.error().ifPresent(aggregateError::addError);
+                r2.e().ifPresent(aggregateError::addError);
             };
         }
 
@@ -65,7 +65,7 @@ public interface ParameterizedResultCollectors {
         public BinaryOperator<Result<T, E>> combiner() {
             return (r1, r2) -> {
                 r2.ifPresent(aggregateResponse::addItem);
-                r2.error().map(E::errors).ifPresent(aggregateError::addError);
+                r2.e().map(E::errors).ifPresent(aggregateError::addError);
                 return Result.from(aggregateResponse, aggregateError);
             };
         }
@@ -111,7 +111,7 @@ public interface ParameterizedResultCollectors {
                         .ifPresent(a -> r1
                                 .ifPresent(b -> b.addItem(a)));
                 mapError.apply(r2)
-                        .ifPresent(a -> r1.error()
+                        .ifPresent(a -> r1.e()
                             .ifPresent(b -> b.addItem(a)));
             };
         }
@@ -120,7 +120,7 @@ public interface ParameterizedResultCollectors {
         public BinaryOperator<Result<T, E>> combiner() {
             return (r1, r2) -> {
                 r2.ifPresent(aggregateResponse::addItem);
-                Optional.ofNullable(r2.error().get()).map(E::errors).ifPresent(aggregateError::addError);
+                r2.e().map(E::errors).ifPresent(aggregateError::addError);
                 return Result.from(aggregateResponse, aggregateError);
             };
         }
@@ -166,7 +166,7 @@ public interface ParameterizedResultCollectors {
                         .ifPresent(a -> r1
                                 .ifPresent(b -> b.addItem(a)));
                 mapError.apply(r2)
-                        .ifPresent(a -> r1.error()
+                        .ifPresent(a -> r1.e()
                                 .ifPresent(b -> b.addItem(a)));
             };
         }
@@ -175,7 +175,7 @@ public interface ParameterizedResultCollectors {
         public BinaryOperator<Result<T, E>> combiner() {
             return (r1, r2) -> {
                 r2.ifPresent(aggregateResponse::addItem);
-                Optional.ofNullable(r2.error().get()).map(E::errors).ifPresent(aggregateError::addError);
+                r2.e().map(E::errors).ifPresent(aggregateError::addError);
                 return Result.from(aggregateResponse, aggregateError);
             };
         }

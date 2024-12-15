@@ -4,14 +4,19 @@ import com.hayden.utilitymodule.result.Result;
 import com.hayden.utilitymodule.result.ResultTy;
 import com.hayden.utilitymodule.result.agg.Responses;
 import com.hayden.utilitymodule.result.res_many.IManyResultTy;
+import com.hayden.utilitymodule.result.res_many.ListResult;
 import com.hayden.utilitymodule.result.res_many.StreamResult;
 import com.hayden.utilitymodule.result.res_ty.IResultTy;
+import com.hayden.utilitymodule.result.res_ty.ResultTyResult;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.RequiredArgsConstructor;
+import org.checkerframework.checker.units.qual.A;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -22,7 +27,7 @@ import java.util.stream.Stream;
 @EqualsAndHashCode(callSuper = true)
 @RequiredArgsConstructor
 @Data
-public final class Err<R> extends ResultTy<R> {
+public class Err<R> extends ResultTy<R> {
 
     public Err(Stream<R> r) {
         super(r);
@@ -66,21 +71,28 @@ public final class Err<R> extends ResultTy<R> {
         super(r);
     }
 
+    public void addError(Err<R> e) {
+        switch(this.t) {
+            case IManyResultTy<R> many -> e.stream().forEach(many::add);
+            default -> {
+            }
+        }
+    }
+
+    public void addError(R e) {
+        switch(this.t) {
+            case IManyResultTy<R> many -> many.add(e);
+            default -> {
+            }
+        }
+    }
+
     public static <R> Err<R> empty() {
         return new Err<>(Optional.empty());
     }
 
     public static <R> Err<R> err(R r) {
         return new Err<>(Optional.ofNullable(r));
-    }
-
-    public synchronized <U> void extractError(Result<U, R> flattened) {
-        if (this.t != null) {
-            Stream.Builder<R> built = Stream.builder();
-            this.t.forEach(built::add);
-            flattened.e().t.forEach(built::add);
-            this.t = new StreamResult<>(built.build());
-        }
     }
 
     public <S> Err<S> mapErr(Function<R, S> toMap) {

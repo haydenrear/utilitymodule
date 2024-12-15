@@ -34,14 +34,14 @@ class AggregateResultCollectorsTest {
                             ab -> ab.toOptional().map(o -> new ResultTestModel.TestRes(Set.of(o))),
                             b -> {
                                 if (b.isError()) {
-                                    return Optional.of(new ResultTestModel.TestAgg(Sets.newHashSet(b.error().get())));
+                                    return Optional.of(new ResultTestModel.TestAgg(Sets.newHashSet(b.e().get())));
                                 }
                                 return Optional.empty();
                             }
                     ));
             assertAll(
                     () -> assertThat(collected.r().get().values()).hasSameElementsAs(List.of("well", "how")),
-                    () -> assertThat(collected.error().get().getMessages()).hasSameElementsAs(List.of("hello", "goodbye"))
+                    () -> assertThat(collected.e().get().getMessages()).hasSameElementsAs(List.of("hello", "goodbye"))
             );
 
 
@@ -67,9 +67,9 @@ class AggregateResultCollectorsTest {
             var collected = c.stream().collect(ResultCollectors.from(new ResultTestModel.TestRes(new HashSet<>()), new ResultTestModel.TestAgg(new HashSet<>())));
             assertAll(
                     () -> assertThat(all.r().get().values()).hasSameElementsAs(List.of("hello", "hello1", "hello2")),
-                    () -> assertThat(all.error().get().getMessages()).hasSameElementsAs(List.of("goodbye1", "goodbye2", "goodbye3")),
+                    () -> assertThat(all.e().get().getMessages()).hasSameElementsAs(List.of("goodbye1", "goodbye2", "goodbye3")),
                     () -> assertThat(collected.r().get().values()).hasSameElementsAs(List.of("hello", "hello1", "hello2")),
-                    () -> assertThat(collected.error().get().getMessages()).hasSameElementsAs(List.of("goodbye1", "goodbye2", "goodbye3"))
+                    () -> assertThat(collected.e().get().getMessages()).hasSameElementsAs(List.of("goodbye1", "goodbye2", "goodbye3"))
             );
 
 
@@ -81,10 +81,10 @@ class AggregateResultCollectorsTest {
 
         assertAll(
                 () -> assertThat(all3.r().get().values()).hasSameElementsAs(List.of("hello")),
-                () -> assertThat(all3.error().isEmpty()).isTrue(),
+                () -> assertThat(all3.e().isEmpty()).isTrue(),
                 () -> assertThat(collected3.r().get().values()).hasSameElementsAs(List.of("hello")),
-                () -> assertThat(collected3.error().isPresent()).isTrue(),
-                () -> assertThat(collected3.error().get().errors().size()).isZero()
+                () -> assertThat(collected3.e().isPresent()).isTrue(),
+                () -> assertThat(collected3.e().get().errors().size()).isZero()
         );
 
         var all2 = Result.all(List.<Result<ResultTestModel.TestRes, ResultTestModel.TestAgg>>of());
@@ -92,8 +92,8 @@ class AggregateResultCollectorsTest {
 
         assertAll(
                 () -> assertThat(all2).isNull(),
-                () -> assertThat(collected2.error().isPresent()).isTrue(),
-                () -> assertThat(collected2.error().get().errors().size()).isZero()
+                () -> assertThat(collected2.e().isPresent()).isTrue(),
+                () -> assertThat(collected2.e().get().errors().size()).isZero()
         );
 
         errorAndMessage2 = ResultTestModel.errorAndMessage2();
@@ -103,9 +103,9 @@ class AggregateResultCollectorsTest {
 
         assertAll(
                 () -> assertThat(all4.r().get().values()).hasSameElementsAs(List.of("hello2")),
-                () -> assertThat(all4.error().get().getMessages()).hasSameElementsAs(List.of("goodbye3")),
+                () -> assertThat(all4.e().get().getMessages()).hasSameElementsAs(List.of("goodbye3")),
                 () -> assertThat(collected4.r().get().values()).hasSameElementsAs(List.of("hello2")),
-                () -> assertThat(collected4.error().get().getMessages()).hasSameElementsAs(List.of("goodbye3"))
+                () -> assertThat(collected4.e().get().getMessages()).hasSameElementsAs(List.of("goodbye3"))
         );
 
         singleError = ResultTestModel.withSingleError();
@@ -115,28 +115,28 @@ class AggregateResultCollectorsTest {
 
         assertAll(
                 () -> assertThat(all5.r().isEmpty()).isTrue(),
-                () -> assertThat(all5.error().get().getMessages()).hasSameElementsAs(List.of("goodbye2")),
+                () -> assertThat(all5.e().get().getMessages()).hasSameElementsAs(List.of("goodbye2")),
                 () -> assertThat(collected5.r().isEmpty()).isFalse(),
                 () -> assertThat(collected5.r().get().values().isEmpty()).isTrue(),
-                () -> assertThat(collected5.error().get().getMessages()).hasSameElementsAs(List.of("goodbye2"))
+                () -> assertThat(collected5.e().get().getMessages()).hasSameElementsAs(List.of("goodbye2"))
         );
 
 
         assertAll(
                 () -> assertThat(multipleErrors.r().isEmpty()).isTrue(),
-                () -> assertThat(multipleErrors.error().get().getMessages()).hasSameElementsAs(List.of("goodbye9", "goodbye10"))
+                () -> assertThat(multipleErrors.e().get().getMessages()).hasSameElementsAs(List.of("goodbye9", "goodbye10"))
         );
 
 
         assertAll(
                 () -> assertThat(multipleMessage.r().get().values()).hasSameElementsAs(List.of("hello9", "hello10", "hello11")),
-                () -> assertThat(multipleMessage.error().isPresent()).isFalse()
+                () -> assertThat(multipleMessage.e().isPresent()).isFalse()
         );
 
 
         assertAll(
                 () -> assertThat(multipleMessageMultipleError.r().get().values()).hasSameElementsAs(List.of("hello12", "hello13", "hello14")),
-                () -> assertThat(multipleMessageMultipleError.error().get().getMessages()).hasSameElementsAs(List.of("goodbye11", "goodbye12"))
+                () -> assertThat(multipleMessageMultipleError.e().get().getMessages()).hasSameElementsAs(List.of("goodbye11", "goodbye12"))
         );
     }
 

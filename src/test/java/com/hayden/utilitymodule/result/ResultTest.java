@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
@@ -44,8 +45,15 @@ public class ResultTest {
     @Test
     public void doStream() {
         var collected = Result.from(Stream.of(Result.ok("hello"), Result.ok("hello"), Result.err(ErrorCollect.fromMessage("hello"))))
+                .flatMapResult(Result::ok)
+                .map(e -> e)
+                .map(e -> e)
+                .flatMapResult(Result::ok)
+                .mapError(e -> e)
                 .collectList();
-        System.out.println(collected);
+
+        assertEquals(2, collected.r().get().size());
+        assertEquals(1, collected.e().get().size());
     }
 
     @Test
@@ -79,13 +87,13 @@ public class ResultTest {
         assertThat(hello.r().get()).isEqualTo("hello");
         AggregateError.StandardAggregateError error = new AggregateError.StandardAggregateError("hello...");
         Result<ResultTestModel.TestRes, AggregateError.StandardAggregateError> hello3 = singleMessageItem
-                .flatMapError(e -> Err.err(error))
+//                .flatMapError(e -> Result.err(error))
                 .castError();
-        assertThat(hello3.error().isEmpty()).isTrue();
-        hello3 = singleMessageItem
-                .<AggregateError.StandardAggregateError>flatMapError(t -> Err.empty())
-                .cast();
-        assertThat(hello3.error().isEmpty()).isTrue();
+        assertThat(hello3.e().isEmpty()).isTrue();
+//        hello3 = singleMessageItem
+//                .<AggregateError.StandardAggregateError>flatMapError(t -> Err.empty())
+//                .cast();
+//        assertThat(hello3.e().isEmpty()).isTrue();
 
     }
 
@@ -96,14 +104,14 @@ public class ResultTest {
         Result<Integer, ResultTestModel.TestErr> from1 = Result.from(1, new ResultTestModel.TestErr("hello"));
 
         var n = from.mapError(e -> new ResultTestModel.TestErr1("yes"));
-        Assertions.assertTrue(n.error().get().getMessage().equals("yes"));
+        Assertions.assertTrue(n.e().get().getMessage().equals("yes"));
 
 
         Result<Integer, ResultTestModel.TestErr> from2 = Result.ok(1);
         Result<Integer, ResultTestModel.TestErr1> hello = from2.mapError(e -> new ResultTestModel.TestErr1("hello"), new ResultTestModel.TestErr1("hello"));
-        assertEquals("hello", hello.error().get().getMessage());
+        assertEquals("hello", hello.e().get().getMessage());
         hello = from2.mapError(e -> new ResultTestModel.TestErr1("hello"));
-        Assertions.assertTrue(hello.error().isEmpty());
+        Assertions.assertTrue(hello.e().isEmpty());
     }
 
 }

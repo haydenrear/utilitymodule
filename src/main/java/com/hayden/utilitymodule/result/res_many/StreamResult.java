@@ -1,8 +1,11 @@
 package com.hayden.utilitymodule.result.res_many;
 
+import com.hayden.utilitymodule.result.CachableStream;
+import com.hayden.utilitymodule.result.Result;
+import com.hayden.utilitymodule.result.StreamResultOptions;
+import com.hayden.utilitymodule.result.StreamWrapper;
 import com.hayden.utilitymodule.result.res_ty.IResultTy;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -15,12 +18,19 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 @Slf4j
-public class StreamResult<R> implements IStreamResultTy<R> {
+public class StreamResult<R> implements IStreamResultTy<R>, CachableStream<R, StreamResult<R>> {
 
-    private Stream<R> r;
+    private ResultTyStreamWrapper<R> r;
+
+    private static class ResultTyStreamWrapper<R> extends StreamWrapper<StreamResult<R>, R> {
+
+        public ResultTyStreamWrapper(StreamResultOptions options, Stream<R> underlying) {
+            super(options, underlying, ResultTyStreamWrapperOperation.class);
+        }
+    }
 
     public StreamResult(Stream<R> r) {
-        this.r = r;
+        this.r = new ResultTyStreamWrapper<>(StreamResultOptions.builder().cache(true).build(), r);
     }
 
     public static <R> StreamResult<R> of(Stream<IResultTy<R>> stream) {
@@ -29,9 +39,16 @@ public class StreamResult<R> implements IStreamResultTy<R> {
 
     @Override
     public synchronized void swap(List<R> toSwap) {
-        this.r = toSwap.stream();
+        this.swap(toSwap.stream());
     }
 
+    @Override
+    public StreamResult<R> swap(Stream<R> toCache) {
+        var cached = toCache.toList();
+        this.r.swap(cached);
+
+        return new StreamResult<>(cached.stream());
+    }
 
     @Override
     public <T> IResultTy<T> from(T r) {
@@ -78,6 +95,16 @@ public class StreamResult<R> implements IStreamResultTy<R> {
                 r.map(toMap)
                         .flatMap(IResultTy::stream)
         );
+    }
+
+    @Override
+    public IManyResultTy<R> add(R r) {
+        return new StreamResult<>(Stream.concat(this.r, Stream.of(r)));
+    }
+
+    @Override
+    public IManyResultTy<R> concat(IManyResultTy<R> r) {
+        return new StreamResult<>(Stream.concat(r.stream(), this.r));
     }
 
     @Override

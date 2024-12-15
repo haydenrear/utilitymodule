@@ -44,7 +44,7 @@ public interface AggregateResultCollectors {
         public BiConsumer<Result<T, E>, Result<T, E>> accumulator() {
             return (r1, r2) -> {
                 r2.ifPresent(aggregateResponse::addAgg);
-                r2.error().map(E::errors).ifPresent(aggregateError::addError);
+                r2.e().map(E::errors).ifPresent(aggregateError::addError);
             };
         }
 
@@ -52,7 +52,7 @@ public interface AggregateResultCollectors {
         public BinaryOperator<Result<T, E>> combiner() {
             return (r1, r2) -> {
                 r2.ifPresent(aggregateResponse::addAgg);
-                r2.error().map(E::errors).ifPresent(aggregateError::addError);
+                r2.e().map(E::errors).ifPresent(aggregateError::addError);
                 return Result.from(aggregateResponse, aggregateError);
             };
         }
@@ -95,7 +95,7 @@ public interface AggregateResultCollectors {
         public BiConsumer<Result<T, E>, Result<R1, E1>> accumulator() {
             return (r1, r2) -> {
                 mapResult.apply(r2).ifPresent(a -> r1.ifPresent(b -> b.addAgg(a)));
-                mapError.apply(r2).ifPresent(a -> r1.error().ifPresent(b -> b.addError(a)));
+                mapError.apply(r2).ifPresent(a -> r1.e().ifPresent(b -> b.addError(a)));
             };
         }
 
@@ -103,7 +103,7 @@ public interface AggregateResultCollectors {
         public BinaryOperator<Result<T, E>> combiner() {
             return (r1, r2) -> {
                 r2.ifPresent(aggregateResponse::addAgg);
-                Optional.ofNullable(r2.error().get()).map(E::errors).ifPresent(aggregateError::addError);
+                r2.e().map(E::errors).ifPresent(aggregateError::addError);
                 return Result.from(aggregateResponse, aggregateError);
             };
         }
