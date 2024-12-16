@@ -15,6 +15,7 @@ class StreamWrapperTest {
         public TestResultStreamWrapper(StreamResultOptions options, Stream<Result<R, E>> underlying, StreamResult<R, E> res) {
             super(options, underlying, CachingOperations.ResultStreamCacheOperation.class, res);
         }
+
     }
 
     @Test

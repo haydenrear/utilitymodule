@@ -64,11 +64,11 @@ class AggregateResultCollectorsTest {
 
         for (var c : combinations) {
             var all = Result.all(c);
-//            var collected = c.stream().collect(ResultCollectors.from(new ResultTestModel.TestRes(new HashSet<>()), new ResultTestModel.TestAgg(new HashSet<>())));
-//            assertThat(all.r().get().values()).hasSameElementsAs(List.of("hello", "hello1", "hello2"));
+            var collected = c.stream().collect(ResultCollectors.from(new ResultTestModel.TestRes(new HashSet<>()), new ResultTestModel.TestAgg(new HashSet<>())));
+            assertThat(all.r().get().values()).hasSameElementsAs(List.of("hello", "hello1", "hello2"));
             assertThat(all.e().get().getMessages()).hasSameElementsAs(List.of("goodbye1", "goodbye2", "goodbye3"));
-//            assertThat(collected.r().get().values()).hasSameElementsAs(List.of("hello", "hello1", "hello2"));
-//            assertThat(collected.e().get().getMessages()).hasSameElementsAs(List.of("goodbye1", "goodbye2", "goodbye3"));
+            assertThat(collected.r().get().values()).hasSameElementsAs(List.of("hello", "hello1", "hello2"));
+            assertThat(collected.e().get().getMessages()).hasSameElementsAs(List.of("goodbye1", "goodbye2", "goodbye3"));
         }
         singleMessage = ResultTestModel.singleMessage();
 

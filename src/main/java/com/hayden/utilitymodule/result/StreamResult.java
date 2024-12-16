@@ -43,15 +43,18 @@ public class StreamResult<R, E> implements Result<R, E>, CachableStream<Result<R
         }
 
         public Responses.Ok<R> getOk() {
-            return this.get(TypeReferenceDelegate.<CachingOperations.RetrieveRes<R, E>>create(CachingOperations.RetrieveRes.class).get());
+            return this.get(TypeReferenceDelegate.<CachingOperations.RetrieveRes<R, E>>create(CachingOperations.RetrieveRes.class).get())
+                    .get();
         }
 
         public Err<E> getErr() {
-            return this.get(TypeReferenceDelegate.<CachingOperations.RetrieveError<R, E>>create(CachingOperations.RetrieveError.class).get());
+            return this.get(TypeReferenceDelegate.<CachingOperations.RetrieveError<R, E>>create(CachingOperations.RetrieveError.class).get())
+                    .get();
         }
 
         public Result<R, E> first() {
-            return this.get(TypeReferenceDelegate.<CachingOperations.RetrieveFirstRes<R, E>>create(CachingOperations.RetrieveFirstRes.class).get());
+            return this.get(TypeReferenceDelegate.<CachingOperations.RetrieveFirstRes<R, E>>create(CachingOperations.RetrieveFirstRes.class).get())
+                    .get();
         }
 
         @Override
@@ -149,6 +152,13 @@ public class StreamResult<R, E> implements Result<R, E>, CachableStream<Result<R
     }
 
     @Override
+    public StreamResult<R, E> copy() {
+        var toCopy = r.underlying.toList();
+        r.underlying = toCopy.stream();
+        return new StreamResult<>(toCopy.stream());
+    }
+
+    @Override
     public Result<R, E> or(Supplier<Result<R, E>> s) {
         if (!this.r.hasAnyResult(this))  {
             return s.get();
@@ -218,7 +228,7 @@ public class StreamResult<R, E> implements Result<R, E>, CachableStream<Result<R
     }
 
     private R retrieveResIfExists() {
-        Responses.Ok<R> r = (Responses.Ok<R>) this.r.get(CachingOperations.RetrieveRes.class);
+        Responses.Ok<R> r = (Responses.Ok<R>) this.r.get(CachingOperations.RetrieveRes.class).get();
         return Optional.ofNullable(r)
                 .flatMap(ResultTy::firstOptional)
                 .orElseThrow(RuntimeException::new);

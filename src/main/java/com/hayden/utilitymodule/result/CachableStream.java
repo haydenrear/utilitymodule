@@ -8,5 +8,6 @@ public interface CachableStream<R, SELF extends CachableStream<R, SELF>> {
 
     SELF swap(Stream<R> toCache);
 
+    SELF copy();
 
 }

@@ -8,12 +8,18 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 public interface CachingOperations {
+
     interface CachedOperation<T, U> extends Function<T, U> {}
+
+    interface InfiniteOperation<T, U> extends CachedOperation<T, U> {}
+
+    record StreamCacheResult<T, U>(CachedOperation<T, U> predicateType,
+                                   U cachedResult) {}
 
     sealed interface StreamCacheOperation<T, U> extends Function<T, U>
             permits
-            CachingOperations.ResultTyStreamWrapperOperation,
-            CachingOperations.ResultStreamCacheOperation { }
+                CachingOperations.ResultTyStreamWrapperOperation,
+                CachingOperations.ResultStreamCacheOperation { }
 
     sealed interface ResultTyStreamWrapperOperation<T, U> extends StreamCacheOperation<T, U>
                         permits CachingOperations.ResultTyPredicate, CachingOperations.ResultTyStreamCacheFunction { }
@@ -31,6 +37,34 @@ public interface CachingOperations {
 
     sealed interface ResultTyStreamCacheFunction<T, U> extends StreamCacheFunction<T, U>, ResultTyStreamWrapperOperation<T, U>
             permits CachingOperations.RetrieveFirstTy { }
+
+    record RetrieveFirstTy<T>() implements ResultTyStreamCacheFunction<T, T> {
+        @Override
+        public T apply(T teResult) {
+            return teResult;
+        }
+    }
+
+    record RetrieveError<T, E>() implements ResultStreamCacheFunction<Result<T, E>, Err<E>> {
+        @Override
+        public Err<E> apply(Result<T, E> teResult) {
+            return teResult.e();
+        }
+    }
+
+    record RetrieveRes<T, E>() implements ResultStreamCacheFunction<Result<T, E>, Responses.Ok<T>>{
+        @Override
+        public Responses.Ok<T> apply(Result<T, E> teResult) {
+            return teResult.r();
+        }
+    }
+
+    record RetrieveFirstRes<T, E>() implements ResultStreamCacheFunction<Result<T, E>, Result<T, E>>{
+        @Override
+        public Result<T, E> apply(Result<T, E> teResult) {
+            return teResult;
+        }
+    }
 
     interface StreamCachePredicate<T> extends Predicate<T>, CachedOperation<T, Boolean>{
 
@@ -67,36 +101,6 @@ public interface CachingOperations {
 
     interface PersistentCacheResult  {}
 
-    record RetrieveFirstTy<T>() implements ResultTyStreamCacheFunction<T, T> {
-        @Override
-        public T apply(T teResult) {
-            return null;
-        }
-    }
-
-    record RetrieveError<T, E>() implements ResultStreamCacheFunction<Result<T, E>, Err<E>> {
-        @Override
-        public Err<E> apply(Result<T, E> teResult) {
-            return teResult.e();
-        }
-    }
-
-    record RetrieveRes<T, E>() implements ResultStreamCacheFunction<Result<T, E>, Responses.Ok<T>>{
-        @Override
-        public Responses.Ok<T> apply(Result<T, E> teResult) {
-            return teResult.r();
-        }
-    }
-
-    record RetrieveFirstRes<T, E>() implements ResultStreamCacheFunction<Result<T, E>, Result<T, E>>{
-        @Override
-        public Result<T, E> apply(Result<T, E> teResult) {
-            return teResult;
-        }
-    }
-
-    record StreamCacheResult<T, U>(CachedOperation<T, U> predicateType,
-                                   U cachedResult) {}
 
     record IsAnyNonNull() implements StreamCachePredicate.Any, ResultStreamCachePredicate, ResultTyPredicate, PersistentCacheResult {
         @Override

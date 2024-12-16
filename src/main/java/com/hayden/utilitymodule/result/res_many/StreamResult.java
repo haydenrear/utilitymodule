@@ -32,7 +32,8 @@ public class StreamResult<R> implements IStreamResultTy<R>, CachableStream<R, St
         }
 
         public R first() {
-            return this.get(TypeReferenceDelegate.<CachingOperations.RetrieveFirstTy<R>>create(CachingOperations.RetrieveFirstTy.class).get());
+            return this.get(TypeReferenceDelegate.<CachingOperations.RetrieveFirstTy<R>>create(CachingOperations.RetrieveFirstTy.class).get())
+                    .get();
         }
 
         @Override
@@ -67,6 +68,12 @@ public class StreamResult<R> implements IStreamResultTy<R>, CachableStream<R, St
         this.r.swap(cached);
 
         return new StreamResult<>(cached.stream());
+    }
+
+    @Override
+    public StreamResult<R> copy() {
+        var found = this.r.toList();
+        return null;
     }
 
     @Override
