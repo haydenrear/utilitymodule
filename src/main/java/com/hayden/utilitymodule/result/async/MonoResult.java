@@ -45,6 +45,11 @@ public record MonoResult<R>(Mono<R> r, AtomicBoolean finished) implements IAsync
     }
 
     @Override
+    public Stream<R> detachedStream() {
+        throw new RuntimeException();
+    }
+
+    @Override
     public <T> IResultTy<T> from(T r) {
         return new ResultTyResult<>(Optional.ofNullable(r));
     }

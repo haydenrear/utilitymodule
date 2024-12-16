@@ -28,6 +28,8 @@ public interface IResultTy<R> extends Result.Monadic<R> {
 
     Optional<R> firstOptional();
 
+    Stream<R> detachedStream();
+
     default Optional<R> firstOptional(boolean keepAll) {
         return firstOptional();
     }

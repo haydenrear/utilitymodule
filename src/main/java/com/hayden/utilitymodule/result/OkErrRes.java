@@ -200,6 +200,11 @@ public record OkErrRes<T, E>(Responses.Ok<T> r, Err<E> e) implements Result<T, E
         return this.r.stream();
     }
 
+    @Override
+    public Stream<T> detachedStream() {
+        return this.r.stream();
+    }
+
     public T orElseRes(T or) {
         if (this.r.isPresent())
             return this.r.get();

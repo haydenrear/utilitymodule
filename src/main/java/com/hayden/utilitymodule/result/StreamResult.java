@@ -6,9 +6,10 @@ import com.hayden.utilitymodule.reflection.TypeReferenceDelegate;
 import com.hayden.utilitymodule.result.agg.Responses;
 import com.hayden.utilitymodule.result.error.Err;
 import com.hayden.utilitymodule.result.map.StreamResultCollector;
-import com.hayden.utilitymodule.result.res_many.IManyResultTy;
 import com.hayden.utilitymodule.result.res_ty.IResultTy;
+import com.hayden.utilitymodule.result.stream_cache.CachingOperations;
 import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 import java.util.function.Consumer;
@@ -29,21 +30,39 @@ public class StreamResult<R, E> implements Result<R, E>, CachableStream<Result<R
 
     @Override
     public Stream<Result<R, E>> stream() {
-        return r;
+        return r.underlying;
     }
 
     private static class ResultStreamWrapper<R, E> extends StreamWrapper<StreamResult<R, E>, Result<R, E>> {
 
-        public ResultStreamWrapper(StreamResultOptions options, Stream<Result<R, E>> underlying) {
-            super(options, underlying, ResultStreamCacheOperation.class);
+        StreamResult<R, E> res;
+
+        public ResultStreamWrapper(StreamResultOptions options, Stream<Result<R, E>> underlying,
+                                   StreamResult<R, E> res) {
+            super(options, underlying, CachingOperations.ResultStreamCacheOperation.class, res);
         }
 
         public Responses.Ok<R> getOk() {
-            return this.get(TypeReferenceDelegate.<StreamWrapper.RetrieveRes<R, E>>create(StreamWrapper.RetrieveRes.class).get());
+            return this.get(TypeReferenceDelegate.<CachingOperations.RetrieveRes<R, E>>create(CachingOperations.RetrieveRes.class).get());
         }
 
         public Err<E> getErr() {
-            return this.get(TypeReferenceDelegate.<RetrieveError<R, E>>create(RetrieveError.class).get());
+            return this.get(TypeReferenceDelegate.<CachingOperations.RetrieveError<R, E>>create(CachingOperations.RetrieveError.class).get());
+        }
+
+        public Result<R, E> first() {
+            return this.get(TypeReferenceDelegate.<CachingOperations.RetrieveFirstRes<R, E>>create(CachingOperations.RetrieveFirstRes.class).get());
+        }
+
+        @Override
+        public @NotNull Optional<Result<R, E>> findAny() {
+            cacheResultsIfNotCached();
+            return Optional.ofNullable(first());
+        }
+
+        @Override
+        public @NotNull Optional<Result<R, E>> findFirst() {
+            return findAny();
         }
     }
 
@@ -54,11 +73,8 @@ public class StreamResult<R, E> implements Result<R, E>, CachableStream<Result<R
     }
 
     public StreamResult(Stream<Result<R, E>> r, StreamResultOptions options) {
-        this.r = new ResultStreamWrapper<>(options, r);
-        if (options.cache())
-            this.r.cacheResults(this);
+        this.r = new ResultStreamWrapper<>(options, r, this);
     }
-
 
     public static <T, E> StreamResult<T, E> stream(Stream<T> o) {
         try {
@@ -179,7 +195,10 @@ public class StreamResult<R, E> implements Result<R, E>, CachableStream<Result<R
     }
 
     public <U> StreamResult<U, E> flatMap(Function<R, Result<U, E>> mapper) {
-        return new StreamResult<>(this.r.map(res -> res.flatMap(mapper)));
+        return new StreamResult<>(
+                this.r.map(res -> {
+                    return res.flatMap(mapper);
+                }));
     }
 
     public R orElseRes(R or) {
@@ -195,11 +214,11 @@ public class StreamResult<R, E> implements Result<R, E>, CachableStream<Result<R
             return retrieveResIfExists();
         }
 
-        return or.apply((Err<E>) this.r.get(StreamWrapper.RetrieveError.class));
+        return or.apply((Err<E>) this.r.get(CachingOperations.RetrieveError.class));
     }
 
     private R retrieveResIfExists() {
-        Responses.Ok<R> r = (Responses.Ok<R>) this.r.get(StreamWrapper.RetrieveRes.class);
+        Responses.Ok<R> r = (Responses.Ok<R>) this.r.get(CachingOperations.RetrieveRes.class);
         return Optional.ofNullable(r)
                 .flatMap(ResultTy::firstOptional)
                 .orElseThrow(RuntimeException::new);
@@ -221,7 +240,7 @@ public class StreamResult<R, E> implements Result<R, E>, CachableStream<Result<R
 
     @Override
     public StreamResult<R, E> orError(Supplier<Err<E>> s) {
-        if (this.r.get(StreamWrapper.RetrieveError.class) == null)
+        if (this.r.get(CachingOperations.RetrieveError.class) == null)
             return new StreamResult<>(Stream.concat(this.stream(), Stream.of(Result.err(s.get()))));
 
         return this;
@@ -288,6 +307,13 @@ public class StreamResult<R, E> implements Result<R, E>, CachableStream<Result<R
     @Override
     public Stream<R> toStream() {
         return this.r.flatMap(r -> r.r().stream());
+    }
+
+    @Override
+    public Stream<R> detachedStream() {
+        var swapped = swap(this.r);
+        return swapped.stream()
+                .flatMap(Result::detachedStream);
     }
 
 

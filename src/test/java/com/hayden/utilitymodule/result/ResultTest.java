@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
@@ -65,6 +66,8 @@ public class ResultTest {
         AtomicInteger i = new AtomicInteger(0);
         var found = Result.stream(Stream.of("one", "two", "three", "four"))
                 .peek(System.out::println)
+                .map(e -> e)
+                .mapError(e -> e)
                 .flatMapResult(e -> {
                     if (i.getAndIncrement() % 2 == 0) {
                         return Result.ok(e);

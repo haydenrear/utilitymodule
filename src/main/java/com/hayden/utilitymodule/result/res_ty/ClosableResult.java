@@ -63,6 +63,11 @@ public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable C
     }
 
     @Override
+    public Stream<R> detachedStream() {
+        return this.stream();
+    }
+
+    @Override
     public <T> IResultTy<T> from(T r) {
         if (r instanceof AutoCloseable a) {
             return (IResultTy<T>) new ClosableResult<>(Optional.of(a));

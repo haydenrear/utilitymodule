@@ -2,6 +2,7 @@ package com.hayden.utilitymodule.result.map;
 
 import com.hayden.utilitymodule.Either;
 import com.hayden.utilitymodule.result.Result;
+import com.hayden.utilitymodule.result.ResultTy;
 import com.hayden.utilitymodule.result.error.Err;
 import com.hayden.utilitymodule.result.agg.Responses;
 
@@ -24,9 +25,15 @@ public class StreamResultCollector<R, ERR>
     public BiConsumer<Result<List<R>, List<ERR>>, Either<Responses.Ok<R>, Err<ERR>>> accumulator() {
         return (r, e) -> {
             Optional.ofNullable(e.getLeft())
-                    .ifPresent(o -> r.r().get().add(o.get()));
+                    .stream()
+                    .flatMap(ResultTy::stream)
+                    .filter(Objects::nonNull)
+                    .forEach(o -> r.r().get().add(o));
             Optional.ofNullable(e.getRight())
-                    .ifPresent(o -> r.e().get().add(o.get()));
+                    .stream()
+                    .flatMap(ResultTy::stream)
+                    .filter(Objects::nonNull)
+                    .forEach(o -> r.e().get().add(o));
         };
     }
 

@@ -6,6 +6,7 @@ import com.hayden.utilitymodule.result.error.ErrorCollect;
 import com.hayden.utilitymodule.result.agg.Responses;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
@@ -43,8 +44,14 @@ public interface AggregateResultCollectors {
         @Override
         public BiConsumer<Result<T, E>, Result<T, E>> accumulator() {
             return (r1, r2) -> {
-                r2.ifPresent(aggregateResponse::addAgg);
-                r2.e().map(E::errors).ifPresent(aggregateError::addError);
+                List<T> list = r2.r().stream().toList();
+                for (var res : list) {
+                    aggregateResponse.addAgg(res);
+                }
+                var list2 = r2.e().stream().toList();
+                for (var res : list2) {
+                    aggregateError.addAgg(res);
+                }
             };
         }
 

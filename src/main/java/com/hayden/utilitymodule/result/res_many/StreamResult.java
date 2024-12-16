@@ -1,15 +1,18 @@
 package com.hayden.utilitymodule.result.res_many;
 
+import com.hayden.utilitymodule.reflection.TypeReferenceDelegate;
 import com.hayden.utilitymodule.result.CachableStream;
-import com.hayden.utilitymodule.result.Result;
 import com.hayden.utilitymodule.result.StreamResultOptions;
 import com.hayden.utilitymodule.result.StreamWrapper;
 import com.hayden.utilitymodule.result.res_ty.IResultTy;
+import com.hayden.utilitymodule.result.stream_cache.CachingOperations;
 import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -24,13 +27,29 @@ public class StreamResult<R> implements IStreamResultTy<R>, CachableStream<R, St
 
     private static class ResultTyStreamWrapper<R> extends StreamWrapper<StreamResult<R>, R> {
 
-        public ResultTyStreamWrapper(StreamResultOptions options, Stream<R> underlying) {
-            super(options, underlying, ResultTyStreamWrapperOperation.class);
+        public ResultTyStreamWrapper(StreamResultOptions options, Stream<R> underlying, StreamResult<R> res) {
+            super(options, underlying, CachingOperations.ResultTyStreamWrapperOperation.class, res);
         }
+
+        public R first() {
+            return this.get(TypeReferenceDelegate.<CachingOperations.RetrieveFirstTy<R>>create(CachingOperations.RetrieveFirstTy.class).get());
+        }
+
+        @Override
+        public @NotNull Optional<R> findAny() {
+            cacheResultsIfNotCached();
+            return Optional.ofNullable(first());
+        }
+
+        @Override
+        public @NotNull Optional<R> findFirst() {
+            return findAny();
+        }
+
     }
 
     public StreamResult(Stream<R> r) {
-        this.r = new ResultTyStreamWrapper<>(StreamResultOptions.builder().cache(true).build(), r);
+        this.r = new ResultTyStreamWrapper<>(StreamResultOptions.builder().build(), r, this);
     }
 
     public static <R> StreamResult<R> of(Stream<IResultTy<R>> stream) {
@@ -51,6 +70,12 @@ public class StreamResult<R> implements IStreamResultTy<R>, CachableStream<R, St
     }
 
     @Override
+    public Stream<R> detachedStream() {
+        var swapped = swap(this.r);
+        return swapped.r;
+    }
+
+    @Override
     public <T> IResultTy<T> from(T r) {
         return new StreamResult<>(Stream.ofNullable(r));
     }
@@ -62,7 +87,7 @@ public class StreamResult<R> implements IStreamResultTy<R>, CachableStream<R, St
 
     @Override
     public Stream<R> stream() {
-        return r;
+        return r.filter(Objects::nonNull);
     }
 
     @Override

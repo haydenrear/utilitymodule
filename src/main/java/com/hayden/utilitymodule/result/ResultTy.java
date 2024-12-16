@@ -27,11 +27,6 @@ public abstract class ResultTy<U> {
 
     @Delegate
     protected IResultTy<U> t;
-
-    public void set(U u) {
-        this.t = from(u);
-    }
-
     public ResultTy(Stream<U> t) {
         this.t = new StreamResult<>(t);
     }
@@ -67,5 +62,13 @@ public abstract class ResultTy<U> {
             this.t = new ResultTyResult<>(Optional.ofNullable(t));
         }
     }
+
+
+    public void set(U u) {
+        this.t = from(u);
+    }
+
+    public abstract Stream<U> detachedStream();
+
 
 }

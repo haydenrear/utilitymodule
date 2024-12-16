@@ -42,6 +42,11 @@ public class FluxResult<R> implements IAsyncResultTy<R>, IManyResultTy<R> {
 
 
     @Override
+    public Stream<R> detachedStream() {
+        throw new RuntimeException();
+    }
+
+    @Override
     public <T> IResultTy<T> from(T r) {
         return new ResultTyResult<>(Optional.ofNullable(r));
     }

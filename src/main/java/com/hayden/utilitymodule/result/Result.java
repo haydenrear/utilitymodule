@@ -209,7 +209,7 @@ public interface Result<T, E> {
                         .streamErr()
                         .toList();
 
-                return Result.from(result.r(), result.e().addErrors(errs));
+                errs.forEach(result.e().get()::addError);
             }
         }
         return result;
@@ -243,6 +243,8 @@ public interface Result<T, E> {
     Responses.Ok<T> r();
 
     Stream<T> toStream();
+
+    Stream<T> detachedStream();
 
     default Result<List<T>, List<E>> collectList() {
         return toResultLists();

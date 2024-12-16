@@ -48,6 +48,11 @@ public record CompletableFutureResult<R>(CompletableFuture<R> r, AtomicBoolean f
     }
 
     @Override
+    public Stream<R> detachedStream() {
+        return stream();
+    }
+
+    @Override
     public <T> IResultTy<T> from(T r) {
         return new ResultTyResult<>(Optional.ofNullable(r));
     }

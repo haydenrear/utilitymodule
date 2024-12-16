@@ -33,6 +33,11 @@ public class ListResult<R> implements IStreamResultTy<R> {
 
 
     @Override
+    public Stream<R> detachedStream() {
+        return this.r.stream();
+    }
+
+    @Override
     public <T> IResultTy<T> from(T r) {
         return new ListResult<>(Optional.ofNullable(r).stream().toList());
     }

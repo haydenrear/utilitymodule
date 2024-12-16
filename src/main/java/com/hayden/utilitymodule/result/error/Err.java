@@ -12,6 +12,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -60,24 +61,21 @@ public class Err<R> extends ResultTy<R> {
         super(r);
     }
 
+    @Override
+    public Stream<R> detachedStream() {
+        return this.t.detachedStream();
+    }
+
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public Err(Optional<R> r) {
         super(r);
     }
 
     public Err<R> addError(Err<R> e) {
-        return switch(this.t) {
-            case IManyResultTy<R> many -> {
-                List<R> list = Lists.newArrayList();
-                many.stream().forEach(list::add);
-                yield Err.err(new ListResult<>(list));
-            }
-            default -> {
-                List<R> list = Lists.newArrayList();
-                list.addAll(List.of(this.t.get(), e.get()));
-                yield Err.err(new ListResult<>(list));
-            }
-        };
+        List<R> list = Lists.newArrayList();
+        this.stream().filter(Objects::nonNull).forEach(list::add);
+        e.forEach(list::add);
+        return Err.err(new ListResult<>(list));
     }
 
     public Err<R> addError(R e) {

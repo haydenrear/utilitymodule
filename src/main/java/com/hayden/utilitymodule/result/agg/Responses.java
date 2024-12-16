@@ -131,5 +131,11 @@ public interface Responses {
             return this.t.orElse(orRes);
         }
 
+        @Override
+        public Stream<R> detachedStream() {
+            return this.t.detachedStream();
+        }
+
+
     }
 }
