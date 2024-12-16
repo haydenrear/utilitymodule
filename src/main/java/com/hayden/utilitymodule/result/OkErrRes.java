@@ -186,9 +186,8 @@ public record OkErrRes<T, E>(Responses.Ok<T> r, Err<E> e) implements Result<T, E
             default -> {
                 if (this.r.isPresent()) {
                     var applied = mapper.apply(this.r.get());
-                    applied.e().addError(this.e);
-
-                    yield applied;
+                    Err<E> e1 = applied.e();
+                    yield Result.from(applied.r(), e1.addError(this.e));
                 }
 
                 yield this.cast();

@@ -1,5 +1,6 @@
 package com.hayden.utilitymodule.result;
 
+import com.hayden.utilitymodule.MapFunctions;
 import com.hayden.utilitymodule.reflection.TypeReferenceDelegate;
 import com.hayden.utilitymodule.result.agg.Responses;
 import com.hayden.utilitymodule.result.error.Err;
@@ -32,16 +33,32 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
     protected Class<? extends StreamWrapper.StreamCacheOperation> provider;
 
     public StreamWrapper(StreamResultOptions options, Stream<ST> underlying,
-                         Class<? extends StreamWrapper.StreamCacheOperation> provider) {
+                         Class<? extends StreamWrapper.StreamCacheOperation> provider,
+                         StreamWrapper<C, ST> other) {
         this.options = options;
         this.underlying = underlying;
         this.provider = provider;
+        Optional.ofNullable(other)
+                .ifPresent(this::setCachedResultsFrom);
+    }
+
+    public StreamWrapper(StreamResultOptions options, Stream<ST> underlying,
+                         Class<? extends StreamWrapper.StreamCacheOperation> provider) {
+        this(options, underlying, provider, null);
     }
 
     public synchronized void swap(List<ST> to) {
         underlying = to.stream();
         if (options.cache())
             this.resetCache();
+    }
+
+    public void setCachedResultsFrom(StreamWrapper<C, ST> from) {
+        CACHED_RESULTS.putAll(
+            MapFunctions.CollectMap(
+                    from.CACHED_RESULTS.entrySet()
+                            .stream()
+                            .filter(co -> co.getValue().predicateType instanceof PersistentCacheResult)));
     }
 
     <T extends StreamWrapper.StreamCacheOperation<RE, V>, RE, V> V get(Class<T> t) {
@@ -92,49 +109,54 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
                     k -> new StreamWrapper.StreamCacheResult<>(e, options.empty()));
         }
 
-        if (options.isInfinite()) {
-            return new ArrayList<>();
-        }
-
         var streamCacheOperations = new AtomicReference<>(
                 predicateTypes(provider).stream()
                         .filter(Predicate.not(s -> CACHED_RESULTS.containsKey(s.getClass())))
                         .toList());
 
-        streamed.stream().forEach(res -> {
-                    var nextOps = streamCacheOperations.get();
-                    streamCacheOperations.set(
-                            nextOps.stream().filter(op -> switch (op) {
-                                        case StreamWrapper.StreamCachePredicate.Any n -> {
-                                            if (n.test(res)) {
-                                                CACHED_RESULTS.computeIfAbsent(n.getClass(),
-                                                        k -> new StreamWrapper.StreamCacheResult<>(n, true));
-                                                yield false;
-                                            }
-                                            yield true;
-                                        }
-                                        case StreamWrapper.StreamCachePredicate.All p -> {
-                                            if (p.test(res)) {
-                                                yield true;
-                                            } else {
-                                                CACHED_RESULTS.computeIfAbsent(p.getClass(),
-                                                        k -> new StreamWrapper.StreamCacheResult<>(p, false));
-                                                yield false;
-                                            }
+        if (options.isInfinite()) {
+//            underlying = underlying.peek(c -> doOps(c, streamCacheOperations));
+            throw new RuntimeException("");
+        }
 
-                                        }
-                                        case StreamWrapper.StreamCacheFunction fun -> {
-                                            CACHED_RESULTS.compute(fun.getClass(),
-                                                    (key, prev) -> new StreamWrapper.StreamCacheResult(fun, fun.apply(res)));
-
-                                            yield false;
-                                        }
-                                    })
-                                    .toList()
-                    );
-                });
+        streamed.stream().forEach(res -> doOps(res, streamCacheOperations));
 
         return streamCacheOperations.get();
+    }
+
+    private void doOps(ST res, AtomicReference<List<StreamCacheOperation>> streamCacheOperations) {
+        var nextOps = streamCacheOperations.get();
+        streamCacheOperations.set(
+                nextOps.stream().filter(op -> switch (op) {
+                            case StreamCachePredicate.Any n -> {
+                                if (n.test(res)) {
+                                    CACHED_RESULTS.computeIfAbsent(n.getClass(),
+                                            k -> new StreamCacheResult<>(n, true));
+                                    yield false;
+                                }
+                                yield true;
+                            }
+                            case StreamCachePredicate.All p -> {
+                                if (p.test(res)) {
+                                    yield true;
+                                } else {
+                                    CACHED_RESULTS.computeIfAbsent(p.getClass(),
+                                            k -> new StreamCacheResult<>(p, false));
+                                    yield false;
+                                }
+
+                            }
+                            case StreamWrapper.StreamCacheFunction fun ->
+                                    Optional.ofNullable(fun.apply(res))
+                                            .map(app -> {
+                                                CACHED_RESULTS.compute(fun.getClass(),
+                                                        (key, prev) -> new StreamCacheResult(fun, app));
+                                                return false;
+                                            })
+                                            .orElse(true);
+                        })
+                        .toList()
+        );
     }
 
     private Stream<Class<? extends StreamWrapper.StreamCacheOperation>> predicateTypesHierarchy(Class<? extends StreamWrapper.StreamCacheOperation> anyClass) {
@@ -188,6 +210,22 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
             cacheResults(streamResult);
 
         return (boolean) get(StreamWrapper.IsCompletelyEmpty.class);
+    }
+
+    synchronized boolean hasAnyResult(C streamResult) {
+        Assert.notNull(streamResult, "streamResult must not be null");
+        if (!cached)
+            cacheResults(streamResult);
+
+        return (boolean) get(StreamWrapper.HasResult.class);
+    }
+
+    synchronized boolean hasAnyError(C streamResult) {
+        Assert.notNull(streamResult, "streamResult must not be null");
+        if (!cached)
+            cacheResults(streamResult);
+
+        return (boolean) get(StreamWrapper.HasErr.class);
     }
 
     private interface CachedOperation<T, U> extends Function<T, U> {}
@@ -271,28 +309,30 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
     private record StreamCacheResult<T, U>(CachedOperation<T, U> predicateType,
                                            U cachedResult) {}
 
-    record IsAnyNonNull() implements StreamCachePredicate.Any, ResultStreamCachePredicate, ResultTyPredicate {
+    public interface PersistentCacheResult  {}
+
+    record IsAnyNonNull() implements StreamCachePredicate.Any, ResultStreamCachePredicate, ResultTyPredicate, PersistentCacheResult {
         @Override
         public boolean test(Object o) {
             return o != null;
         }
     }
 
-    record IsCompletelyEmpty() implements StreamCachePredicate.All, ResultStreamCachePredicate, ResultTyPredicate {
+    record IsCompletelyEmpty() implements StreamCachePredicate.All, ResultStreamCachePredicate, ResultTyPredicate, PersistentCacheResult {
         @Override
         public boolean test(Object o) {
             return false;
         }
     }
 
-    record HasResult<R, E>() implements StreamCachePredicate.Any<Result<R, E>>, ResultStreamCachePredicate<Result<R, E>> {
+    record HasResult<R, E>() implements StreamCachePredicate.Any<Result<R, E>>, ResultStreamCachePredicate<Result<R, E>>, PersistentCacheResult {
         @Override
         public boolean test(Result<R, E> o) {
             return false;
         }
     }
 
-    record HasErr<R, E>() implements StreamCachePredicate.Any<Result<R, E>>, ResultStreamCachePredicate<Result<R, E>> {
+    record HasErr<R, E>() implements StreamCachePredicate.Any<Result<R, E>>, ResultStreamCachePredicate<Result<R, E>>, PersistentCacheResult {
         @Override
         public boolean test(Result<R, E> o) {
 

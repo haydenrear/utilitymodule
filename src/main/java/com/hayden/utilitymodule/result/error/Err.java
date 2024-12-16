@@ -1,24 +1,18 @@
 package com.hayden.utilitymodule.result.error;
 
-import com.hayden.utilitymodule.result.Result;
 import com.hayden.utilitymodule.result.ResultTy;
-import com.hayden.utilitymodule.result.agg.Responses;
 import com.hayden.utilitymodule.result.res_many.IManyResultTy;
 import com.hayden.utilitymodule.result.res_many.ListResult;
-import com.hayden.utilitymodule.result.res_many.StreamResult;
 import com.hayden.utilitymodule.result.res_ty.IResultTy;
-import com.hayden.utilitymodule.result.res_ty.ResultTyResult;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.RequiredArgsConstructor;
-import org.checkerframework.checker.units.qual.A;
+import org.apache.commons.compress.utils.Lists;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -71,20 +65,27 @@ public class Err<R> extends ResultTy<R> {
         super(r);
     }
 
-    public void addError(Err<R> e) {
-        switch(this.t) {
-            case IManyResultTy<R> many -> e.stream().forEach(many::add);
-            default -> {
+    public Err<R> addError(Err<R> e) {
+        return switch(this.t) {
+            case IManyResultTy<R> many -> {
+                List<R> list = Lists.newArrayList();
+                many.stream().forEach(list::add);
+                yield Err.err(new ListResult<>(list));
             }
-        }
+            default -> {
+                List<R> list = Lists.newArrayList();
+                list.addAll(List.of(this.t.get(), e.get()));
+                yield Err.err(new ListResult<>(list));
+            }
+        };
     }
 
-    public void addError(R e) {
-        switch(this.t) {
-            case IManyResultTy<R> many -> many.add(e);
-            default -> {
-            }
-        }
+    public Err<R> addError(R e) {
+        return addError(Err.err(e));
+    }
+
+    public Err<R> addErrors(List<R> e) {
+        return this.addError(new Err<>(new ListResult<>(e)));
     }
 
     public static <R> Err<R> empty() {

@@ -113,10 +113,6 @@ public interface Result<T, E> {
         return new StreamResult<>(r);
     }
 
-    static <R extends AutoCloseable, E> Result<R, E> ok(ClosableResult<R> r, Callable<Void> onClose) {
-        return new OkErrRes<>(new Responses.Ok<>(r), Err.empty());
-    }
-
     static <R, E> Result<R, E> ok(Mono<R> r) {
         return new OkErrRes<>(new Responses.Ok<>(r), Err.empty());
     }
@@ -209,9 +205,11 @@ public interface Result<T, E> {
             if (result.e().isEmpty()) {
                 result.e().setT(r.e().t);
             } else {
-                r.filterErr(Predicate.not(toFilter -> result.hasErr(re -> re == toFilter)))
+                var errs = r.filterErr(Predicate.not(toFilter -> result.hasErr(re -> re == toFilter)))
                         .streamErr()
-                        .forEach(result.e()::addError);
+                        .toList();
+
+                return Result.from(result.r(), result.e().addErrors(errs));
             }
         }
         return result;
@@ -341,9 +339,9 @@ public interface Result<T, E> {
     default Result<T, E> or(Supplier<Result<T, E>> s) {
         if (this.r().isPresent())
             return this;
+
         Result<T, E> teResult = s.get();
-        teResult.e().addError(this.e());
-        return teResult;
+        return Result.from(teResult.r(), teResult.e().addError(this.e()));
     }
     default T orElseRes(T or) {
         if (this.r().isPresent())
