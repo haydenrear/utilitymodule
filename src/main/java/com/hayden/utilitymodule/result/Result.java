@@ -14,6 +14,7 @@ import com.hayden.utilitymodule.result.res_ty.IResultTy;
 import jakarta.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.Assert;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -201,6 +202,7 @@ public interface Result<T, E> {
     }
 
     static <T extends Responses.AggregateResponse, E extends AggregateParamError> Result<T, E> addErrors(Result<T, E> r, Result<T, E> result) {
+        Assert.isTrue(!(result.e().t instanceof IManyResultTy<E>), "Result was of wrong type.");
         if (r.e().isPresent()) {
             if (result.e().isEmpty()) {
                 result.e().setT(r.e().t);
@@ -210,6 +212,9 @@ public interface Result<T, E> {
                         .toList();
 
                 errs.forEach(result.e().get()::addError);
+//                if (result.e().t instanceof IManyResultTy<E> res) {
+//                    res!!!!!!!!!!
+//                }
             }
         }
         return result;
