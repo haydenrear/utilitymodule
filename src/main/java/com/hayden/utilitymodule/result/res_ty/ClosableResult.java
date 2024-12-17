@@ -16,9 +16,7 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 /**
- * If R is AutoClosable, assumes there is a terminating operation:
- * ifPresent(...)
- * ifPresentOrElse(..., ...)
+ *
  *
  * @param r
  * @param <R>
