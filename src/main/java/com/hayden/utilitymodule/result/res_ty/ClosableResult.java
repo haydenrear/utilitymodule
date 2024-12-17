@@ -1,7 +1,7 @@
 package com.hayden.utilitymodule.result.res_ty;
 
 import com.hayden.utilitymodule.result.Result;
-import com.hayden.utilitymodule.result.res_single.ISingleResultTy;
+import com.hayden.utilitymodule.result.res_single.ISingleResultItem;
 import jakarta.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
@@ -25,7 +25,7 @@ import java.util.stream.Stream;
  */
 @Slf4j
 public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable Callable<Void> onClose)
-        implements ISingleResultTy<R> {
+        implements ISingleResultItem<R> {
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public ClosableResult(Optional<R> r) {
@@ -69,12 +69,12 @@ public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable C
     }
 
     @Override
-    public <T> IResultTy<T> from(T r) {
+    public <T> IResultItem<T> from(T r) {
         if (r instanceof AutoCloseable a) {
-            return (IResultTy<T>) new ClosableResult<>(Optional.of(a));
+            return (IResultItem<T>) new ClosableResult<>(Optional.of(a));
         }
 
-        return (IResultTy<T>) new ClosableResult<>(Optional.empty());
+        return (IResultItem<T>) new ClosableResult<>(Optional.empty());
     }
 
     @Override
@@ -83,14 +83,14 @@ public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable C
     }
 
     @Override
-    public <T> IResultTy<T> from(Optional<T> r) {
+    public <T> IResultItem<T> from(Optional<T> r) {
         if (r.isEmpty())
-            return (IResultTy<T>) new ClosableResult<>(Optional.empty());
+            return (IResultItem<T>) new ClosableResult<>(Optional.empty());
         else if (r.get() instanceof AutoCloseable a) {
-            return (IResultTy<T>) new ClosableResult<>(Optional.of(a));
+            return (IResultItem<T>) new ClosableResult<>(Optional.of(a));
         }
 
-        return (IResultTy<T>) new ClosableResult<>(Optional.empty());
+        return (IResultItem<T>) new ClosableResult<>(Optional.empty());
     }
 
     @Override
@@ -99,7 +99,7 @@ public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable C
     }
 
     @Override
-    public IResultTy<R> filter(Predicate<R> p) {
+    public IResultItem<R> filter(Predicate<R> p) {
         return from(r.filter(p));
     }
 
@@ -111,7 +111,7 @@ public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable C
     }
 
     @Override
-    public <T> IResultTy<T> flatMap(Function<R, IResultTy<T>> toMap) {
+    public <T> IResultItem<T> flatMap(Function<R, IResultItem<T>> toMap) {
         return from(r.flatMap(t -> {
             var applied = toMap.apply(t);
             return applied.firstOptional();
@@ -119,7 +119,7 @@ public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable C
     }
 
     @Override
-    public <T> IResultTy<T> map(Function<R, T> toMap) {
+    public <T> IResultItem<T> map(Function<R, T> toMap) {
         return from(r.map(toMap));
     }
 
@@ -176,5 +176,15 @@ public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable C
     public ClosableResult<R> peek(Consumer<? super R> consumer) {
         r.ifPresent(consumer);
         return this;
+    }
+
+    @Override
+    public boolean isMany() {
+        return false;
+    }
+
+    @Override
+    public boolean isOne() {
+        return true;
     }
 }

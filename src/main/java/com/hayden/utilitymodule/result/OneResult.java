@@ -1,9 +1,7 @@
 package com.hayden.utilitymodule.result;
 
-import com.google.common.collect.Lists;
 import com.hayden.utilitymodule.result.error.Err;
-import com.hayden.utilitymodule.result.res_many.IManyResultTy;
-import com.hayden.utilitymodule.result.res_many.ListResult;
+import com.hayden.utilitymodule.result.res_support.many.stream.StreamResult;
 
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -54,11 +52,11 @@ public interface OneResult<R, E> extends Result<R, E>, ManyResult<R, E> {
     }
 
     default Optional<R> toOptional() {
-        return r().t.firstOptional();
+        return r().firstOptional();
     }
 
     default Optional<R> optional() {
-        return r().t.firstOptional();
+        return r().firstOptional();
     }
 
     default Result<R, E> orError(Supplier<Err<E>> s) {

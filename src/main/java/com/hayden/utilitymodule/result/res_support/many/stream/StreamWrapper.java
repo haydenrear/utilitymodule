@@ -1,8 +1,11 @@
-package com.hayden.utilitymodule.result;
+package com.hayden.utilitymodule.result.res_support.many.stream;
 
 import com.hayden.utilitymodule.reflection.TypeReferenceDelegate;
-import com.hayden.utilitymodule.result.error.ErrorCollect;
-import com.hayden.utilitymodule.result.stream_cache.CachingOperations;
+import com.hayden.utilitymodule.result.OneResult;
+import com.hayden.utilitymodule.result.Result;
+import com.hayden.utilitymodule.result.error.SingleError;
+import com.hayden.utilitymodule.result.res_support.many.stream.stream_cache.CachableStream;
+import com.hayden.utilitymodule.result.res_support.many.stream.stream_cache.CachingOperations;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
@@ -102,22 +105,22 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
         default @NotNull CacheFilterResult<ST> cacheFilter(C streamed,
                                                            StreamResultOptions opts,
                                                            Consumer<? super ST> terminalOp) {
-            if (opts.empty() || opts.isNonEmpty()) {
+            if (opts.empty()) {
                 var e = new CachingOperations.IsCompletelyEmpty();
                 CACHED_RESULTS().computeIfAbsent((Class<? extends T>) e.getClass(),
-                        k -> new CachingOperations.StreamCacheResult<>(e, opts.empty()));
+                        k -> new CachingOperations.StreamCacheResult<>(e, true));
             }
 
             if (opts.hasRes()) {
                 var e = new CachingOperations.HasResult<>();
                 CACHED_RESULTS().computeIfAbsent((Class<? extends T>) e.getClass(),
-                        k -> new CachingOperations.StreamCacheResult<>(e, opts.empty()));
+                        k -> new CachingOperations.StreamCacheResult<>(e, true));
             }
 
             if (opts.hasErr()) {
                 var e = new CachingOperations.HasErr<>();
                 CACHED_RESULTS().computeIfAbsent((Class<? extends T>) e.getClass(),
-                        k -> new CachingOperations.StreamCacheResult<>(e, opts.empty()));
+                        k -> new CachingOperations.StreamCacheResult<>(e, true));
             }
 
             var streamCacheOperations = new AtomicReference<>(
@@ -157,7 +160,6 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
                                                 k -> new CachingOperations.StreamCacheResult<>(p, false));
                                         yield false;
                                     }
-
                                 }
                                 case CachingOperations.StreamCacheFunction fun ->
                                         Optional.ofNullable(fun.apply(res))
@@ -172,22 +174,22 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
             );
         }
 
-        default <W extends CachingOperations.CachedOperation<U, V>, U, V> OneResult<V, ErrorCollect.StandardError> get(Class<W> clazz) {
+        default <W extends CachingOperations.CachedOperation<U, V>, U, V> OneResult<V, SingleError.StandardError> get(Class<W> clazz) {
             return Result.fromOpt(
                             TypeReferenceDelegate.<W>create(clazz),
-                            new ErrorCollect.StandardError("Failed to cast to type ref for %s".formatted(clazz.getName()))
+                            new SingleError.StandardError("Failed to cast to type ref for %s".formatted(clazz.getName()))
                     )
                     .flatMapResult(this::get)
                     .one();
         }
 
-        default <W extends CachingOperations.CachedOperation<U, V>, U, V> OneResult<V, ErrorCollect.StandardError> get(TypeReferenceDelegate<W> clazz) {
+        default <W extends CachingOperations.CachedOperation<U, V>, U, V> OneResult<V, SingleError.StandardError> get(TypeReferenceDelegate<W> clazz) {
             try {
                 return Optional.ofNullable(CACHED_RESULTS().get(clazz.underlying()))
-                        .map(cachedRes -> Result.<V, ErrorCollect.StandardError>ok((V) cachedRes.cachedResult()))
-                        .orElseGet(() -> Result.err(new ErrorCollect.StandardError("Infinite operation did not exist.")));
+                        .map(cachedRes -> Result.<V, SingleError.StandardError>ok((V) cachedRes.cachedResult()))
+                        .orElseGet(() -> Result.err(new SingleError.StandardError("Infinite operation did not exist.")));
             } catch (ClassCastException castingException) {
-                return Result.err(new ErrorCollect.StandardError(castingException));
+                return Result.err(new SingleError.StandardError(castingException));
             }
         }
 
@@ -348,19 +350,19 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
         underlying = to.stream();
     }
 
-    <T extends CachingOperations.CachedOperation<RE, V>, RE, V> OneResult<V, ErrorCollect.StandardError> get(Class<T> t) {
+    protected <T extends CachingOperations.CachedOperation<RE, V>, RE, V> OneResult<V, SingleError.StandardError> get(Class<T> t) {
         return cached.get(t);
     }
 
-    protected <T extends CachingOperations.CachedOperation<RE, V>, RE, V> Result<V, ErrorCollect.StandardError> get(TypeReferenceDelegate<T> t) {
+    protected <T extends CachingOperations.CachedOperation<RE, V>, RE, V> Result<V, SingleError.StandardError> get(TypeReferenceDelegate<T> t) {
         return cached.get(t);
     }
 
-    synchronized void resetCache() {
+    public synchronized void resetCache() {
         this.cached.resetCache();
     }
 
-     synchronized boolean isAnyNonNull(C streamResult) {
+     public synchronized boolean isAnyNonNull(C streamResult) {
         Assert.notNull(streamResult, "streamResult must not be null");
         cacheResultsIfNotCached();
 
@@ -370,7 +372,7 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
                 .get();
     }
 
-    synchronized boolean isCompletelyEmpty(C streamResult) {
+    public synchronized boolean isCompletelyEmpty(C streamResult) {
         Assert.notNull(streamResult, "streamResult must not be null");
         cacheResultsIfNotCached();
 
@@ -380,7 +382,7 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
                 .get();
     }
 
-    synchronized boolean hasAnyResult(C streamResult) {
+    public synchronized boolean hasAnyResult(C streamResult) {
         Assert.notNull(streamResult, "streamResult must not be null");
         cacheResultsIfNotCached();
 
@@ -390,7 +392,7 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
                 .orElseRes(false);
     }
 
-    synchronized boolean hasAnyError(C streamResult) {
+    public synchronized boolean hasAnyError(C streamResult) {
         Assert.notNull(streamResult, "streamResult must not be null");
         cacheResultsIfNotCached();
 

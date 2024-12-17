@@ -1,17 +1,13 @@
 package com.hayden.utilitymodule.result;
 
 import com.hayden.utilitymodule.result.agg.AggregateError;
-import com.hayden.utilitymodule.result.error.Err;
-import com.hayden.utilitymodule.result.error.ErrorCollect;
+import com.hayden.utilitymodule.result.error.SingleError;
 import lombok.SneakyThrows;
-import org.assertj.core.api.ErrorCollector;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -26,7 +22,7 @@ public class ResultTest {
     @Test
     public void autoClosable() throws InterruptedException {
         AtomicInteger i = new AtomicInteger(0);
-        Result.<FileInputStream, ErrorCollect>tryFrom(
+        Result.<FileInputStream, SingleError>tryFrom(
                         new FileInputStream("build.gradle.kts"),
                         () -> {
                             i.getAndIncrement();
@@ -46,7 +42,7 @@ public class ResultTest {
 
     @Test
     public void doStream() {
-        var collected = Result.from(Stream.of(Result.ok("hello"), Result.ok("hello"), Result.err(ErrorCollect.fromMessage("hello"))))
+        var collected = Result.from(Stream.of(Result.ok("hello"), Result.ok("hello"), Result.err(SingleError.fromMessage("hello"))))
                 .flatMapResult(Result::ok)
                 .map(e -> e)
                 .map(e -> e)
@@ -68,7 +64,7 @@ public class ResultTest {
         assertEquals(1, collected1.r().get().size());
         assertEquals(0, collected1.e().get().size());
 
-        var collected2 = Result.from(Stream.of(Result.err(new ErrorCollect.StandardError("i"))))
+        var collected2 = Result.from(Stream.of(Result.err(new SingleError.StandardError("i"))))
                 .flatMapResult(Result::ok)
                 .map(e -> e)
                 .map(e -> e)
@@ -84,7 +80,7 @@ public class ResultTest {
                         return Result.ok("hello");
                     }
 
-                    return Result.err(new ErrorCollect.StandardError("i"));
+                    return Result.err(new SingleError.StandardError("i"));
                 }))
                 .flatMapResult(Result::ok)
                 .map(e -> e)
@@ -101,7 +97,7 @@ public class ResultTest {
                 return Result.ok("hello");
             }
 
-            return Result.err(new ErrorCollect.StandardError("i"));
+            return Result.err(new SingleError.StandardError("i"));
         }));
 
 
@@ -128,7 +124,7 @@ public class ResultTest {
                         return Result.ok(e);
                     }
 
-                    return Result.err(ErrorCollect.fromE(new RuntimeException()));
+                    return Result.err(SingleError.fromE(new RuntimeException()));
                 })
                 .collectList();
 

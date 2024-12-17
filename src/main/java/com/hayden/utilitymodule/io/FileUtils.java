@@ -1,6 +1,6 @@
 package com.hayden.utilitymodule.io;
 
-import com.hayden.utilitymodule.result.error.ErrorCollect;
+import com.hayden.utilitymodule.result.error.SingleError;
 import com.hayden.utilitymodule.result.Result;
 import jakarta.annotation.Nonnull;
 import lombok.extern.slf4j.Slf4j;
@@ -211,14 +211,14 @@ public class FileUtils {
         log.error("Could not delete {}.", p);
     }
 
-    public static @Nonnull Result<String, ErrorCollect> readToString(File f) {
+    public static @Nonnull Result<String, SingleError> readToString(File f) {
         try (
                 FileReader fileReader = new FileReader(f);
                 BufferedReader bf = new BufferedReader(fileReader)
         ) {
             return Result.ok(bf.lines().collect(Collectors.joining(System.lineSeparator())));
         } catch (IOException e) {
-            return Result.err(ErrorCollect.fromE(e));
+            return Result.err(SingleError.fromE(e));
         }
     }
 }

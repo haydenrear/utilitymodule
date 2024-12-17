@@ -1,12 +1,10 @@
 package com.hayden.utilitymodule.result.async;
 
-import com.google.common.collect.Lists;
-import com.hayden.utilitymodule.result.res_many.IManyResultTy;
-import com.hayden.utilitymodule.result.res_single.ISingleResultTy;
-import com.hayden.utilitymodule.result.res_ty.IResultTy;
+import com.hayden.utilitymodule.result.res_many.IManyResultItem;
+import com.hayden.utilitymodule.result.res_single.ISingleResultItem;
+import com.hayden.utilitymodule.result.res_ty.IResultItem;
 import com.hayden.utilitymodule.result.res_ty.ResultTyResult;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -26,7 +24,7 @@ import static com.hayden.utilitymodule.result.Result.logAsync;
 import static com.hayden.utilitymodule.result.Result.logThreadStarvation;
 
 @Slf4j
-public class FluxResult<R> implements IAsyncManyResultTy<R> {
+public class FluxResult<R> implements IAsyncManyResultItem<R> {
 
     private final AtomicBoolean finished = new AtomicBoolean(false);
 
@@ -48,12 +46,12 @@ public class FluxResult<R> implements IAsyncManyResultTy<R> {
     }
 
     @Override
-    public <T> IResultTy<T> from(T r) {
+    public <T> IResultItem<T> from(T r) {
         return new ResultTyResult<>(Optional.ofNullable(r));
     }
 
     @Override
-    public <T> IResultTy<T> from(Optional<T> r) {
+    public <T> IResultItem<T> from(Optional<T> r) {
         return new ResultTyResult<>(r);
     }
 
@@ -77,7 +75,7 @@ public class FluxResult<R> implements IAsyncManyResultTy<R> {
     }
 
     @Override
-    public ISingleResultTy<R> single() {
+    public ISingleResultItem<R> single() {
         logThreadStarvation();
         var created = this.r.toStream().toList();
 
@@ -145,7 +143,7 @@ public class FluxResult<R> implements IAsyncManyResultTy<R> {
     }
 
     @Override
-    public IResultTy<R> filter(Predicate<R> p) {
+    public IResultItem<R> filter(Predicate<R> p) {
         return new FluxResult<>(r.filter(p));
     }
 
@@ -155,25 +153,25 @@ public class FluxResult<R> implements IAsyncManyResultTy<R> {
     }
 
     @Override
-    public <T> IManyResultTy<T> flatMap(Function<R, IResultTy<T>> toMap) {
+    public <T> IManyResultItem<T> flatMap(Function<R, IResultItem<T>> toMap) {
         return new FluxResult<>(
                 r.map(toMap)
-                        .flatMap(IResultTy::flux)
+                        .flatMap(IResultItem::flux)
         );
     }
 
     @Override
-    public IManyResultTy<R> add(R r) {
+    public IManyResultItem<R> add(R r) {
         return new FluxResult<>(Flux.concat(this.r, Flux.just(r)));
     }
 
     @Override
-    public IManyResultTy<R> concat(IManyResultTy<R> r) {
+    public IManyResultItem<R> concat(IManyResultItem<R> r) {
         return new FluxResult<>(Flux.concat(this.r, r.flux()));
     }
 
     @Override
-    public <T> IResultTy<T> map(Function<R, T> toMap) {
+    public <T> IResultItem<T> map(Function<R, T> toMap) {
         return new FluxResult<>(r.map(toMap));
     }
 
@@ -193,8 +191,18 @@ public class FluxResult<R> implements IAsyncManyResultTy<R> {
     }
 
     @Override
-    public IResultTy<R> peek(Consumer<? super R> consumer) {
+    public IResultItem<R> peek(Consumer<? super R> consumer) {
         return new FluxResult<>(this.r.doOnNext(consumer));
+    }
+
+    @Override
+    public boolean isMany() {
+        return true;
+    }
+
+    @Override
+    public boolean isOne() {
+        return false;
     }
 
     @Override

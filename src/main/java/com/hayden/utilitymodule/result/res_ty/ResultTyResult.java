@@ -1,6 +1,6 @@
 package com.hayden.utilitymodule.result.res_ty;
 
-import com.hayden.utilitymodule.result.res_single.ISingleResultTy;
+import com.hayden.utilitymodule.result.res_single.ISingleResultItem;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -13,15 +13,15 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 @Slf4j
-public record ResultTyResult<R>(Optional<R> r) implements ISingleResultTy<R> {
+public record ResultTyResult<R>(Optional<R> r) implements ISingleResultItem<R> {
 
-    public <T> IResultTy<T> flatMap(Function<R, IResultTy<T>> toMap) {
+    public <T> IResultItem<T> flatMap(Function<R, IResultItem<T>> toMap) {
         if (r().isEmpty())
             return from(Optional.empty());
         return toMap.apply(r().get());
     }
 
-    public <T> IResultTy<T> map(Function<R, T> toMap) {
+    public <T> IResultItem<T> map(Function<R, T> toMap) {
         if (r().isEmpty())
             return from(Optional.empty());
         return from(r().map(toMap));
@@ -58,9 +58,19 @@ public record ResultTyResult<R>(Optional<R> r) implements ISingleResultTy<R> {
     }
 
     @Override
-    public IResultTy<R> peek(Consumer<? super R> consumer) {
+    public IResultItem<R> peek(Consumer<? super R> consumer) {
         this.ifPresent(consumer);
         return this;
+    }
+
+    @Override
+    public boolean isMany() {
+        return false;
+    }
+
+    @Override
+    public boolean isOne() {
+        return true;
     }
 
     @Override
@@ -79,7 +89,7 @@ public record ResultTyResult<R>(Optional<R> r) implements ISingleResultTy<R> {
     }
 
     @Override
-    public ISingleResultTy<R> single() {
+    public ISingleResultItem<R> single() {
         return this;
     }
 
@@ -89,17 +99,17 @@ public record ResultTyResult<R>(Optional<R> r) implements ISingleResultTy<R> {
     }
 
     @Override
-    public <T> IResultTy<T> from(T r) {
+    public <T> IResultItem<T> from(T r) {
         return new ResultTyResult<>(Optional.ofNullable(r));
     }
 
     @Override
-    public <T> IResultTy<T> from(Optional<T> r) {
+    public <T> IResultItem<T> from(Optional<T> r) {
         return new ResultTyResult<>(r);
     }
 
     @Override
-    public IResultTy<R> filter(Predicate<R> p) {
+    public IResultItem<R> filter(Predicate<R> p) {
         return from(this.r.filter(p));
     }
 

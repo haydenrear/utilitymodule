@@ -1,11 +1,13 @@
 package com.hayden.utilitymodule.result.res_many;
 
 import com.hayden.utilitymodule.reflection.TypeReferenceDelegate;
-import com.hayden.utilitymodule.result.*;
-import com.hayden.utilitymodule.result.res_single.ISingleResultTy;
-import com.hayden.utilitymodule.result.res_ty.IResultTy;
+import com.hayden.utilitymodule.result.res_single.ISingleResultItem;
+import com.hayden.utilitymodule.result.res_support.many.stream.ResultStreamWrapper;
+import com.hayden.utilitymodule.result.res_support.many.stream.StreamResultOptions;
+import com.hayden.utilitymodule.result.res_support.many.stream.stream_cache.CachableStream;
+import com.hayden.utilitymodule.result.res_ty.IResultItem;
 import com.hayden.utilitymodule.result.res_ty.ResultTyResult;
-import com.hayden.utilitymodule.result.stream_cache.CachingOperations;
+import com.hayden.utilitymodule.result.res_support.many.stream.stream_cache.CachingOperations;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import reactor.core.publisher.Flux;
@@ -21,13 +23,13 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 @Slf4j
-public class StreamResult<R> implements IStreamResultTy<R>, CachableStream<R, StreamResult<R>> {
+public class StreamResultItem<R> implements IStreamResultItem<R>, CachableStream<R, StreamResultItem<R>> {
 
     private ResultTyStreamWrapper<R> r;
 
-    private static class ResultTyStreamWrapper<R> extends ResultStreamWrapper<StreamResult<R>, R> {
+    private static class ResultTyStreamWrapper<R> extends ResultStreamWrapper<StreamResultItem<R>, R> {
 
-        public ResultTyStreamWrapper(StreamResultOptions options, Stream<R> underlying, StreamResult<R> res) {
+        public ResultTyStreamWrapper(StreamResultOptions options, Stream<R> underlying, StreamResultItem<R> res) {
             super(options, underlying, CachingOperations.ResultTyStreamWrapperOperation.class, res);
         }
 
@@ -50,12 +52,12 @@ public class StreamResult<R> implements IStreamResultTy<R>, CachableStream<R, St
 
     }
 
-    public StreamResult(Stream<R> r) {
+    public StreamResultItem(Stream<R> r) {
         this.r = new ResultTyStreamWrapper<>(StreamResultOptions.builder().build(), r, this);
     }
 
-    public static <R> StreamResult<R> of(Stream<IResultTy<R>> stream) {
-        return new StreamResult<>(stream.flatMap(IResultTy::stream));
+    public static <R> StreamResultItem<R> of(Stream<IResultItem<R>> stream) {
+        return new StreamResultItem<>(stream.flatMap(IResultItem::stream));
     }
 
     @Override
@@ -64,17 +66,11 @@ public class StreamResult<R> implements IStreamResultTy<R>, CachableStream<R, St
     }
 
     @Override
-    public StreamResult<R> swap(Stream<R> toCache) {
+    public StreamResultItem<R> swap(Stream<R> toCache) {
         var cached = toCache.toList();
         this.r.swap(cached);
 
-        return new StreamResult<>(cached.stream());
-    }
-
-    @Override
-    public StreamResult<R> copy() {
-        var found = this.r.toList();
-        return null;
+        return new StreamResultItem<>(cached.stream());
     }
 
     @Override
@@ -84,13 +80,13 @@ public class StreamResult<R> implements IStreamResultTy<R>, CachableStream<R, St
     }
 
     @Override
-    public <T> IResultTy<T> from(T r) {
-        return new StreamResult<>(Stream.ofNullable(r));
+    public <T> IResultItem<T> from(T r) {
+        return new StreamResultItem<>(Stream.ofNullable(r));
     }
 
     @Override
-    public <T> IResultTy<T> from(Optional<T> r) {
-        return new StreamResult<>(r.stream());
+    public <T> IResultItem<T> from(Optional<T> r) {
+        return new StreamResultItem<>(r.stream());
     }
 
     @Override
@@ -117,7 +113,7 @@ public class StreamResult<R> implements IStreamResultTy<R>, CachableStream<R, St
     }
 
     @Override
-    public ISingleResultTy<R> single() {
+    public ISingleResultItem<R> single() {
         var last = this.r.cacheResultsIfNotCachedWithList(c -> {});
         if (last.size() > 1) {
             log.warn("Called one() on StreamResult with size greater than 1. Discarding all other.");
@@ -132,8 +128,8 @@ public class StreamResult<R> implements IStreamResultTy<R>, CachableStream<R, St
     }
 
     @Override
-    public IResultTy<R> filter(Predicate<R> p) {
-        return new StreamResult<>(r.filter(p));
+    public IResultItem<R> filter(Predicate<R> p) {
+        return new StreamResultItem<>(r.filter(p));
     }
 
     @Override
@@ -142,26 +138,26 @@ public class StreamResult<R> implements IStreamResultTy<R>, CachableStream<R, St
     }
 
     @Override
-    public <T> StreamResult<T> flatMap(Function<R, IResultTy<T>> toMap) {
-        return new StreamResult<>(
+    public <T> StreamResultItem<T> flatMap(Function<R, IResultItem<T>> toMap) {
+        return new StreamResultItem<>(
                 r.map(toMap)
-                        .flatMap(IResultTy::stream)
+                        .flatMap(IResultItem::stream)
         );
     }
 
     @Override
-    public IManyResultTy<R> add(R r) {
-        return new StreamResult<>(Stream.concat(this.r, Stream.of(r)));
+    public IManyResultItem<R> add(R r) {
+        return new StreamResultItem<>(Stream.concat(this.r, Stream.of(r)));
     }
 
     @Override
-    public IManyResultTy<R> concat(IManyResultTy<R> r) {
-        return new StreamResult<>(Stream.concat(r.stream(), this.r));
+    public IManyResultItem<R> concat(IManyResultItem<R> r) {
+        return new StreamResultItem<>(Stream.concat(r.stream(), this.r));
     }
 
     @Override
-    public <T> StreamResult<T> map(Function<R, T> toMap) {
-        return new StreamResult<>(r.map(toMap));
+    public <T> StreamResultItem<T> map(Function<R, T> toMap) {
+        return new StreamResultItem<>(r.map(toMap));
     }
 
     @Override
@@ -180,8 +176,18 @@ public class StreamResult<R> implements IStreamResultTy<R>, CachableStream<R, St
     }
 
     @Override
-    public StreamResult<R> peek(Consumer<? super R> consumer) {
-        return new StreamResult<>(this.r.peek(consumer));
+    public StreamResultItem<R> peek(Consumer<? super R> consumer) {
+        return new StreamResultItem<>(this.r.peek(consumer));
+    }
+
+    @Override
+    public boolean isMany() {
+        return true;
+    }
+
+    @Override
+    public boolean isOne() {
+        return false;
     }
 
     public Stream<R> r() {

@@ -1,9 +1,9 @@
 package com.hayden.utilitymodule.result.error;
 
-import com.hayden.utilitymodule.result.ResultTy;
-import com.hayden.utilitymodule.result.res_many.IManyResultTy;
-import com.hayden.utilitymodule.result.res_many.ListResult;
-import com.hayden.utilitymodule.result.res_ty.IResultTy;
+import com.hayden.utilitymodule.result.res_support.one.ResultTy;
+import com.hayden.utilitymodule.result.res_many.IManyResultItem;
+import com.hayden.utilitymodule.result.res_many.ListResultItem;
+import com.hayden.utilitymodule.result.res_ty.IResultItem;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +28,7 @@ public class Err<R> extends ResultTy<R> {
         super(r);
     }
 
-    public Err(IResultTy<R> r) {
+    public Err(IResultItem<R> r) {
         super(r);
     }
 
@@ -48,7 +48,7 @@ public class Err<R> extends ResultTy<R> {
         return new Err<>(Stream.empty());
     }
 
-    public static <R> Err<R> err(IResultTy<R> r) {
+    public static <R> Err<R> err(IResultItem<R> r) {
         return new Err<>(r);
     }
 
@@ -75,7 +75,7 @@ public class Err<R> extends ResultTy<R> {
         List<R> list = Lists.newArrayList();
         this.stream().filter(Objects::nonNull).forEach(list::add);
         e.forEach(list::add);
-        return Err.err(new ListResult<>(list));
+        return Err.err(new ListResultItem<>(list));
     }
 
     public Err<R> addError(R e) {
@@ -83,7 +83,7 @@ public class Err<R> extends ResultTy<R> {
     }
 
     public Err<R> addErrors(List<R> e) {
-        return this.addError(new Err<>(new ListResult<>(e)));
+        return this.addError(new Err<>(new ListResultItem<>(e)));
     }
 
     public static <R> Err<R> empty() {
@@ -96,7 +96,7 @@ public class Err<R> extends ResultTy<R> {
 
     public <S> Err<S> mapErr(Function<R, S> toMap) {
         return switch(this.t) {
-            case IManyResultTy<R> s ->
+            case IManyResultItem<R> s ->
                     Err.err(s.map(toMap));
             default -> {
                 if (this.t.isPresent())
@@ -110,7 +110,7 @@ public class Err<R> extends ResultTy<R> {
 
     public <S> Err<S> flatMapErr(Function<R, Err<S>> toMap) {
         return switch(this.t) {
-            case IManyResultTy<R> s ->
+            case IManyResultItem<R> s ->
                     Err.err(s.flatMap(st-> {
                         var mapped = toMap.apply(st);
                         return mapped.t;
@@ -127,7 +127,7 @@ public class Err<R> extends ResultTy<R> {
 
     public Err<R> filterErr(Predicate<R> b) {
         return switch(this.t) {
-            case IManyResultTy<R> s ->
+            case IManyResultItem<R> s ->
                     Err.err(s.filter(b));
             default -> {
                 if (this.t.isPresent() && b.test(t.get())) {

@@ -2,7 +2,7 @@ package com.hayden.utilitymodule.result.map;
 
 import com.hayden.utilitymodule.result.Result;
 import com.hayden.utilitymodule.result.agg.AggregateError;
-import com.hayden.utilitymodule.result.error.ErrorCollect;
+import com.hayden.utilitymodule.result.error.SingleError;
 import com.hayden.utilitymodule.result.agg.Responses;
 
 import java.util.Collections;
@@ -75,7 +75,7 @@ public interface AggregateResultCollectors {
         }
     }
 
-    class AggregateMappingResultCollector<T extends Responses.AggregateResponse, E extends AggregateError, R1, E1 extends ErrorCollect>
+    class AggregateMappingResultCollector<T extends Responses.AggregateResponse, E extends AggregateError, R1, E1 extends SingleError>
             extends ResultCollectors<T, E, Result<R1, E1>, R1, E1> {
 
         protected final T aggregateResponse;

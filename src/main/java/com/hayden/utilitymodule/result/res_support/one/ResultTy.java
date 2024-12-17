@@ -1,11 +1,11 @@
-package com.hayden.utilitymodule.result;
+package com.hayden.utilitymodule.result.res_support.one;
 
 import com.hayden.utilitymodule.result.async.FluxResult;
 import com.hayden.utilitymodule.result.async.MonoResult;
 import com.hayden.utilitymodule.result.res_ty.ClosableResult;
-import com.hayden.utilitymodule.result.res_ty.IResultTy;
+import com.hayden.utilitymodule.result.res_ty.IResultItem;
 import com.hayden.utilitymodule.result.res_ty.ResultTyResult;
-import com.hayden.utilitymodule.result.res_many.StreamResult;
+import com.hayden.utilitymodule.result.res_many.StreamResultItem;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -26,9 +26,10 @@ import java.util.stream.Stream;
 public abstract class ResultTy<U> {
 
     @Delegate
-    protected IResultTy<U> t;
+    protected IResultItem<U> t;
+
     public ResultTy(Stream<U> t) {
-        this.t = new StreamResult<>(t);
+        this.t = new StreamResultItem<>(t);
     }
 
     public ResultTy(Mono<U> t) {
@@ -47,7 +48,7 @@ public abstract class ResultTy<U> {
             var to = t.get();
 
             if (to instanceof AutoCloseable a) {
-                this.t = (IResultTy<U>) new ClosableResult<>(Optional.of(a));
+                this.t = (IResultItem<U>) new ClosableResult<>(Optional.of(a));
             } else {
                 this.t = new ResultTyResult<>(Optional.of(to));
             }
@@ -57,7 +58,7 @@ public abstract class ResultTy<U> {
 
     public ResultTy(U t) {
         if (t instanceof AutoCloseable a) {
-            this.t = (IResultTy<U>) new ClosableResult<>(Optional.of(a));
+            this.t = (IResultItem<U>) new ClosableResult<>(Optional.of(a));
         } else {
             this.t = new ResultTyResult<>(Optional.ofNullable(t));
         }

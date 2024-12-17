@@ -1,14 +1,12 @@
 package com.hayden.utilitymodule.result.async;
 
 import java.time.Duration;
-import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 
-import com.hayden.utilitymodule.result.res_single.ISingleResultTy;
-import com.hayden.utilitymodule.result.res_ty.IResultTy;
+import com.hayden.utilitymodule.result.res_ty.IResultItem;
 
-public interface IAsyncResultTy<R> extends IResultTy<R> {
+public interface IAsyncResultItem<R> extends IResultItem<R> {
 
     boolean didFinish();
 
@@ -24,8 +22,8 @@ public interface IAsyncResultTy<R> extends IResultTy<R> {
         return true;
     }
 
-    default IAsyncManyResultTy<R> many() {
-        if (this instanceof IAsyncManyResultTy<R> t) {
+    default IAsyncManyResultItem<R> many() {
+        if (this instanceof IAsyncManyResultItem<R> t) {
             return t;
         }
 

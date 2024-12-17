@@ -1,11 +1,11 @@
 package com.hayden.utilitymodule.result.res_single;
 
-import com.hayden.utilitymodule.result.res_ty.IResultTy;
+import com.hayden.utilitymodule.result.res_ty.IResultItem;
 
 import java.util.Optional;
 import java.util.function.Supplier;
 
-public interface ISingleResultTy<R> extends IResultTy<R> {
+public interface ISingleResultItem<R> extends IResultItem<R> {
 
 
     Optional<R> optional();
@@ -22,7 +22,7 @@ public interface ISingleResultTy<R> extends IResultTy<R> {
         return optional().isPresent();
     }
 
-    default ISingleResultTy<R> single() {
+    default ISingleResultItem<R> single() {
         return this;
     }
 

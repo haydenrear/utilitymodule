@@ -3,7 +3,7 @@ package com.hayden.utilitymodule.result.map;
 import com.hayden.utilitymodule.result.Result;
 import com.hayden.utilitymodule.result.agg.AggregateError;
 import com.hayden.utilitymodule.result.agg.AggregateParamError;
-import com.hayden.utilitymodule.result.error.ErrorCollect;
+import com.hayden.utilitymodule.result.error.SingleError;
 import com.hayden.utilitymodule.result.agg.Responses;
 
 import java.util.Collections;
@@ -16,7 +16,7 @@ import java.util.function.Supplier;
 
 public interface ParameterizedResultCollectors {
 
-    class AggregateParamResultCollector<T extends Responses.ParamAggregateResponse<R>, R, E extends AggregateParamError<InE>, InE extends ErrorCollect>
+    class AggregateParamResultCollector<T extends Responses.ParamAggregateResponse<R>, R, E extends AggregateParamError<InE>, InE extends SingleError>
             extends ResultCollectors<T, E, Result<R, InE>, R, InE> {
 
         protected final T aggregateResponse;
@@ -28,12 +28,12 @@ public interface ParameterizedResultCollectors {
         }
 
 
-        public static <T extends Responses.ParamAggregateResponse<R>, R, E extends AggregateParamError<InE>, InE extends ErrorCollect>
+        public static <T extends Responses.ParamAggregateResponse<R>, R, E extends AggregateParamError<InE>, InE extends SingleError>
         AggregateParamResultCollector<T, R, E, InE> fromValues(T t, E e) {
             return new AggregateParamResultCollector<>(t, e);
         }
 
-        public static <T extends Responses.ParamAggregateResponse<R>, R, E extends AggregateParamError<InE>, InE extends ErrorCollect>
+        public static <T extends Responses.ParamAggregateResponse<R>, R, E extends AggregateParamError<InE>, InE extends SingleError>
         AggregateParamResultCollector<T, R, E, InE> toResult(Supplier<T> t, Supplier<E> e) {
             return new AggregateParamResultCollector<>(t.get(), e.get());
         }
@@ -81,7 +81,7 @@ public interface ParameterizedResultCollectors {
         }
     }
 
-    class AggregateMappingParamResultCollector<T extends Responses.ParamAggregateResponse<U>, U, E extends AggregateParamError<E1>, R1, E1 extends ErrorCollect>
+    class AggregateMappingParamResultCollector<T extends Responses.ParamAggregateResponse<U>, U, E extends AggregateParamError<E1>, R1, E1 extends SingleError>
             extends ResultCollectors<T, E, Result<R1, E1>, R1, E1> {
 
         protected final T aggregateResponse;
@@ -136,7 +136,7 @@ public interface ParameterizedResultCollectors {
         }
     }
 
-    class AggregateMappingParamAggResultCollector<T extends Responses.ParamAggregateResponse<U>, U, E extends AggregateParamError<E1>, R1, E1 extends ErrorCollect>
+    class AggregateMappingParamAggResultCollector<T extends Responses.ParamAggregateResponse<U>, U, E extends AggregateParamError<E1>, R1, E1 extends SingleError>
             extends ResultCollectors<T, E, Result<R1, E1>, R1, E1> {
 
         protected final T aggregateResponse;

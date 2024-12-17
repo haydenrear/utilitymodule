@@ -1,8 +1,8 @@
-package com.hayden.utilitymodule.result.stream_cache;
+package com.hayden.utilitymodule.result.res_support.many.stream.stream_cache;
 
 import com.hayden.utilitymodule.result.Result;
-import com.hayden.utilitymodule.result.agg.Responses;
 import com.hayden.utilitymodule.result.error.Err;
+import com.hayden.utilitymodule.result.ok.Ok;
 
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -52,9 +52,9 @@ public interface CachingOperations {
         }
     }
 
-    record RetrieveRes<T, E>() implements ResultStreamCacheFunction<Result<T, E>, Responses.Ok<T>>{
+    record RetrieveRes<T, E>() implements ResultStreamCacheFunction<Result<T, E>, Ok<T>>{
         @Override
-        public Responses.Ok<T> apply(Result<T, E> teResult) {
+        public Ok<T> apply(Result<T, E> teResult) {
             return teResult.r();
         }
     }
@@ -131,7 +131,7 @@ public interface CachingOperations {
         public boolean test(Result<R, E> o) {
             if (o.e().isStream())
                 throw new RuntimeException("Cannot call HasResult on IResultTy when IResultTy is StreamResult.");
-            return false;
+            return o.isError();
         }
     }
 }

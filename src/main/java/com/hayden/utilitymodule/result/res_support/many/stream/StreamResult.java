@@ -1,13 +1,16 @@
-package com.hayden.utilitymodule.result;
+package com.hayden.utilitymodule.result.res_support.many.stream;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.hayden.utilitymodule.Either;
 import com.hayden.utilitymodule.reflection.TypeReferenceDelegate;
-import com.hayden.utilitymodule.result.agg.Responses;
+import com.hayden.utilitymodule.result.*;
 import com.hayden.utilitymodule.result.error.Err;
 import com.hayden.utilitymodule.result.map.StreamResultCollector;
-import com.hayden.utilitymodule.result.res_ty.IResultTy;
-import com.hayden.utilitymodule.result.stream_cache.CachingOperations;
+import com.hayden.utilitymodule.result.ok.Ok;
+import com.hayden.utilitymodule.result.res_support.one.ResultTy;
+import com.hayden.utilitymodule.result.res_support.many.stream.stream_cache.CachableStream;
+import com.hayden.utilitymodule.result.res_ty.IResultItem;
+import com.hayden.utilitymodule.result.res_support.many.stream.stream_cache.CachingOperations;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 
@@ -40,7 +43,7 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
             super(options, underlying, CachingOperations.ResultStreamCacheOperation.class, res);
         }
 
-        public Responses.Ok<R> getOk() {
+        public Ok<R> getOk() {
             return this.get(TypeReferenceDelegate.<CachingOperations.RetrieveRes<R, E>>create(CachingOperations.RetrieveRes.class).get())
                     .one()
                     .get();
@@ -104,7 +107,7 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
         return new StreamResult<>(Stream.of(Result.ok(r)));
     }
 
-    public static <R, E> StreamResult<R, E> ok(IResultTy<R> r) {
+    public static <R, E> StreamResult<R, E> ok(IResultItem<R> r) {
         return new StreamResult<>(Stream.of(Result.ok(r)));
     }
 
@@ -112,7 +115,7 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
         return new StreamResult<>(r.map(Result::ok));
     }
 
-    public static <R, E> StreamResult<R, E> ok(Responses.Ok<R> r) {
+    public static <R, E> StreamResult<R, E> ok(Ok<R> r) {
         return new StreamResult<>(Stream.of(Result.ok(r)));
     }
 
@@ -131,7 +134,7 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
     }
 
     @Override
-    public Responses.Ok<R> r() {
+    public Ok<R> r() {
         return this.r.getOk();
     }
 
@@ -162,13 +165,6 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
         swap(thisList);
 
         return new StreamResult<>(thisList.stream());
-    }
-
-    @Override
-    public StreamResult<R, E> copy() {
-        var toCopy = r.underlying.toList();
-        r.underlying = toCopy.stream();
-        return new StreamResult<>(toCopy.stream());
     }
 
     public Result<R, E> hasAnyOr(Supplier<Result<R, E>> s) {
@@ -239,11 +235,11 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
             return retrieveFirstCachedResIfExists();
         }
 
-        return or.apply((Err<E>) this.r.get(CachingOperations.RetrieveError.class));
+        return or.apply(this.r.getErr());
     }
 
     private R retrieveFirstCachedResIfExists() {
-        Responses.Ok<R> r = (Responses.Ok<R>) this.r.get(CachingOperations.RetrieveRes.class).one().get();
+        Ok<R> r = this.r.getOk();
         return Optional.ofNullable(r)
                 .flatMap(ResultTy::firstOptional)
                 .orElseThrow(RuntimeException::new);
@@ -256,7 +252,7 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
 
     @Override
     public StreamResult<R, E> firstErrOr(Supplier<Err<E>> s) {
-        if (this.r.get(CachingOperations.RetrieveError.class) == null)
+        if (this.r.hasAnyError(this))
             return new StreamResult<>(Stream.concat(this.stream(), Stream.of(Result.err(s.get()))));
 
         return this;
@@ -309,9 +305,9 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
         return this.toEntryStream().collect(new StreamResultCollector<>());
     }
 
-    public Stream<Either<Responses.Ok<R>, Err<E>>> toEntryStream() {
-        List<Either<Responses.Ok<R>, Err<E>>> l = this.r
-                .map(t -> Either.<Responses.Ok<R>, Err<E>>from(t.r(), t.e()))
+    public Stream<Either<Ok<R>, Err<E>>> toEntryStream() {
+        List<Either<Ok<R>, Err<E>>> l = this.r
+                .map(t -> Either.<Ok<R>, Err<E>>from(t.r(), t.e()))
                 .collect(Collectors.toCollection(ArrayList::new));
 
         return l.stream();

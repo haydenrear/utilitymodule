@@ -1,26 +1,26 @@
 package com.hayden.utilitymodule.result.error;
 
-public interface ErrorCollect {
+public interface SingleError {
 
     default boolean isError() {
         return true;
     }
 
-    static ErrorCollect fromMessage(String error) {
+    static SingleError fromMessage(String error) {
         return new StandardError(error);
     }
 
-    static ErrorCollect fromE(Throwable error) {
+    static SingleError fromE(Throwable error) {
         return new StandardError(error);
     }
 
-    static ErrorCollect fromE(Throwable error, String cause) {
+    static SingleError fromE(Throwable error, String cause) {
         return new StandardError(cause, error);
     }
 
     String getMessage();
 
-    record StandardError(String error, Throwable throwable) implements ErrorCollect {
+    record StandardError(String error, Throwable throwable) implements SingleError {
         public StandardError(Throwable throwable) {
             this(throwable.getMessage(), throwable);
         }

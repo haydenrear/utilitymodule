@@ -1,6 +1,7 @@
-package com.hayden.utilitymodule.result;
+package com.hayden.utilitymodule.result.res_support.many.stream;
 
-import com.hayden.utilitymodule.result.stream_cache.CachingOperations;
+import com.hayden.utilitymodule.result.res_support.many.stream.stream_cache.CachableStream;
+import com.hayden.utilitymodule.result.res_support.many.stream.stream_cache.CachingOperations;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Comparator;

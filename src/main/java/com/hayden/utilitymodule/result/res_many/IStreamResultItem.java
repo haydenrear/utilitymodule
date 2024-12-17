@@ -3,11 +3,9 @@ package com.hayden.utilitymodule.result.res_many;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
+public interface IStreamResultItem<R> extends IManyResultItem<R> {
 
-public interface IStreamResultTy<R> extends IManyResultTy<R> {
-
-    Logger log = LoggerFactory.getLogger(IStreamResultTy.class);
+    Logger log = LoggerFactory.getLogger(IStreamResultItem.class);
 
     default boolean isPresent() {
         return !isEmpty();

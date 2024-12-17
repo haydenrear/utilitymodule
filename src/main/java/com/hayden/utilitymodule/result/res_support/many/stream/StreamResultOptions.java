@@ -1,4 +1,4 @@
-package com.hayden.utilitymodule.result;
+package com.hayden.utilitymodule.result.res_support.many.stream;
 
 import lombok.Builder;
 

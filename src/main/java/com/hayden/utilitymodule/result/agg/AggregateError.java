@@ -1,13 +1,13 @@
 package com.hayden.utilitymodule.result.agg;
 
 import com.google.common.collect.Sets;
-import com.hayden.utilitymodule.result.error.ErrorCollect;
+import com.hayden.utilitymodule.result.error.SingleError;
 
 import java.util.Set;
 
-public interface AggregateError<T extends ErrorCollect> extends ErrorCollect, Agg, AggregateParamError<T> {
+public interface AggregateError<T extends SingleError> extends SingleError, Agg, AggregateParamError<T> {
 
-    interface StdAggregateError extends AggregateError<ErrorCollect> {}
+    interface StdAggregateError extends AggregateError<SingleError> {}
 
     default void addItem(T o) {
         this.addError(o);
@@ -23,22 +23,22 @@ public interface AggregateError<T extends ErrorCollect> extends ErrorCollect, Ag
         AggregateParamError.super.addItem(t);
     }
 
-    record StandardAggregateError(Set<ErrorCollect> messages) implements StdAggregateError {
+    record StandardAggregateError(Set<SingleError> messages) implements StdAggregateError {
 
-        public StandardAggregateError(ErrorCollect error) {
+        public StandardAggregateError(SingleError error) {
             this(Sets.newHashSet(error));
         }
 
         public StandardAggregateError(String message) {
-            this(Sets.newHashSet(ErrorCollect.fromMessage(message)));
+            this(Sets.newHashSet(SingleError.fromMessage(message)));
         }
 
         public StandardAggregateError(Throwable message) {
-            this(Sets.newHashSet(ErrorCollect.fromE(message)));
+            this(Sets.newHashSet(SingleError.fromE(message)));
         }
 
         @Override
-        public Set<ErrorCollect> errors() {
+        public Set<SingleError> errors() {
             return messages;
         }
 

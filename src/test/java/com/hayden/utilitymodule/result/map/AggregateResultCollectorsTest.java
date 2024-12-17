@@ -3,7 +3,6 @@ package com.hayden.utilitymodule.result.map;
 import com.google.common.collect.Sets;
 import com.hayden.utilitymodule.result.Result;
 import com.hayden.utilitymodule.result.ResultTestModel;
-import com.hayden.utilitymodule.result.error.ErrorCollect;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;

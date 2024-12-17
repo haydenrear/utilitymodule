@@ -1,16 +1,14 @@
 package com.hayden.utilitymodule.result.res_many;
 
-import com.hayden.utilitymodule.result.res_single.ISingleResultTy;
-import com.hayden.utilitymodule.result.res_ty.IResultTy;
+import com.hayden.utilitymodule.result.res_single.ISingleResultItem;
+import com.hayden.utilitymodule.result.res_ty.IResultItem;
 import com.hayden.utilitymodule.result.res_ty.ResultTyResult;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -18,16 +16,16 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 @Slf4j
-public class ListResult<R> implements IStreamResultTy<R> {
+public class ListResultItem<R> implements IStreamResultItem<R> {
 
     private List<R> r;
 
-    public ListResult(List<R> r) {
+    public ListResultItem(List<R> r) {
         this.r = r;
     }
 
-    public static <R> ListResult<R> of(Stream<IResultTy<R>> stream) {
-        return new ListResult<>(stream.flatMap(IResultTy::stream).toList());
+    public static <R> ListResultItem<R> of(Stream<IResultItem<R>> stream) {
+        return new ListResultItem<>(stream.flatMap(IResultItem::stream).toList());
     }
 
     @Override
@@ -42,13 +40,13 @@ public class ListResult<R> implements IStreamResultTy<R> {
     }
 
     @Override
-    public <T> IResultTy<T> from(T r) {
-        return new ListResult<>(Optional.ofNullable(r).stream().toList());
+    public <T> IResultItem<T> from(T r) {
+        return new ListResultItem<>(Optional.ofNullable(r).stream().toList());
     }
 
     @Override
-    public <T> IResultTy<T> from(Optional<T> r) {
-        return new ListResult<>(r.stream().toList());
+    public <T> IResultItem<T> from(Optional<T> r) {
+        return new ListResultItem<>(r.stream().toList());
     }
 
     @Override
@@ -78,7 +76,7 @@ public class ListResult<R> implements IStreamResultTy<R> {
     }
 
     @Override
-    public ISingleResultTy<R> single() {
+    public ISingleResultItem<R> single() {
         if (this.r.size() > 1) {
             log.warn("Called single on list result ty with {} elements.", r.size());
         }
@@ -89,8 +87,8 @@ public class ListResult<R> implements IStreamResultTy<R> {
     }
 
     @Override
-    public IResultTy<R> filter(Predicate<R> p) {
-        return new ListResult<>(r.stream().filter(p).toList());
+    public IResultItem<R> filter(Predicate<R> p) {
+        return new ListResultItem<>(r.stream().filter(p).toList());
     }
 
     @Override
@@ -99,29 +97,29 @@ public class ListResult<R> implements IStreamResultTy<R> {
     }
 
     @Override
-    public <T> ListResult<T> flatMap(Function<R, IResultTy<T>> toMap) {
-        return new ListResult<>(
+    public <T> ListResultItem<T> flatMap(Function<R, IResultItem<T>> toMap) {
+        return new ListResultItem<>(
                 r.stream().map(toMap)
-                        .flatMap(IResultTy::stream)
+                        .flatMap(IResultItem::stream)
                         .toList()
         );
     }
 
     @Override
-    public ListResult<R> add(R r) {
+    public ListResultItem<R> add(R r) {
         this.r.add(r);
         return this;
     }
 
     @Override
-    public ListResult<R> concat(IManyResultTy<R> r) {
+    public ListResultItem<R> concat(IManyResultItem<R> r) {
         r.stream().forEach(t -> this.r.add(t));
         return this;
     }
 
     @Override
-    public <T> ListResult<T> map(Function<R, T> toMap) {
-        return new ListResult<>(r.stream().map(toMap).toList());
+    public <T> ListResultItem<T> map(Function<R, T> toMap) {
+        return new ListResultItem<>(r.stream().map(toMap).toList());
     }
 
     @Override
@@ -140,8 +138,18 @@ public class ListResult<R> implements IStreamResultTy<R> {
     }
 
     @Override
-    public ListResult<R> peek(Consumer<? super R> consumer) {
-        return new ListResult<>(this.r.stream().peek(consumer).toList());
+    public ListResultItem<R> peek(Consumer<? super R> consumer) {
+        return new ListResultItem<>(this.r.stream().peek(consumer).toList());
+    }
+
+    @Override
+    public boolean isMany() {
+        return true;
+    }
+
+    @Override
+    public boolean isOne() {
+        return false;
     }
 
     public Stream<R> r() {

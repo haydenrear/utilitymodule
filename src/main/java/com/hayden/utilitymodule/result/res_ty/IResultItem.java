@@ -2,9 +2,9 @@ package com.hayden.utilitymodule.result.res_ty;
 
 import com.google.common.collect.Lists;
 import com.hayden.utilitymodule.result.Result;
-import com.hayden.utilitymodule.result.res_many.IManyResultTy;
-import com.hayden.utilitymodule.result.res_many.ListResult;
-import com.hayden.utilitymodule.result.res_single.ISingleResultTy;
+import com.hayden.utilitymodule.result.res_many.IManyResultItem;
+import com.hayden.utilitymodule.result.res_many.ListResultItem;
+import com.hayden.utilitymodule.result.res_single.ISingleResultItem;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -12,29 +12,28 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 import java.util.stream.Stream;
 
-public interface IResultTy<R> extends Result.Monadic<R> {
+public interface IResultItem<R> extends Result.Monadic<R> {
 
-    static <V> IResultTy<V> toRes(V v) {
+    static <V> IResultItem<V> toRes(V v) {
         if (v instanceof AutoCloseable a) {
-            return (IResultTy<V>) new ClosableResult<>(Optional.of(a));
+            return (IResultItem<V>) new ClosableResult<>(Optional.of(a));
         }
 
         return new ResultTyResult<>(Optional.ofNullable(v));
     }
 
-    static <R> IResultTy<R> empty() {
+    static <R> IResultItem<R> empty() {
         return new ResultTyResult<>(Optional.empty());
     }
 
     Stream<R> detachedStream();
 
-    <V> IResultTy<V> from(V r);
+    <V> IResultItem<V> from(V r);
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    <V> IResultTy<V> from(Optional<V> r);
+    <V> IResultItem<V> from(Optional<V> r);
 
     Stream<R> stream();
 
@@ -42,19 +41,23 @@ public interface IResultTy<R> extends Result.Monadic<R> {
 
     Mono<R> firstMono();
 
-    ISingleResultTy<R> single();
+    ISingleResultItem<R> single();
 
-    IResultTy<R> filter(Predicate<R> p);
+    IResultItem<R> filter(Predicate<R> p);
 
     R get();
 
-    <V> IResultTy<V> flatMap(Function<R, IResultTy<V>> toMap);
+    <V> IResultItem<V> flatMap(Function<R, IResultItem<V>> toMap);
 
-    <V> IResultTy<V> map(Function<R, V> toMap);
+    <V> IResultItem<V> map(Function<R, V> toMap);
 
     void ifPresent(Consumer<? super R> consumer);
 
-    IResultTy<R> peek(Consumer<? super R> consumer);
+    IResultItem<R> peek(Consumer<? super R> consumer);
+
+    boolean isMany();
+
+    boolean isOne();
 
     boolean isPresent();
 
@@ -62,12 +65,12 @@ public interface IResultTy<R> extends Result.Monadic<R> {
         return firstOptional();
     }
 
-    default IManyResultTy<R> many() {
-        if (this instanceof IManyResultTy<R> t) {
+    default IManyResultItem<R> many() {
+        if (this instanceof IManyResultItem<R> t) {
             return t;
         }
 
-        return new ListResult<>(Lists.newArrayList(this.get()));
+        return new ListResultItem<>(Lists.newArrayList(this.get()));
     }
 
 

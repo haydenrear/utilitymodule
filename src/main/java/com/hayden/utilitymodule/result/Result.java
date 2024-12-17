@@ -7,11 +7,12 @@ import com.hayden.utilitymodule.result.agg.AggregateParamError;
 import com.hayden.utilitymodule.result.agg.Responses;
 import com.hayden.utilitymodule.result.error.Err;
 import com.hayden.utilitymodule.result.map.StreamResultCollector;
-import com.hayden.utilitymodule.result.res_many.IManyResultTy;
-import com.hayden.utilitymodule.result.res_many.IStreamResultTy;
-import com.hayden.utilitymodule.result.res_many.ListResult;
+import com.hayden.utilitymodule.result.ok.Ok;
+import com.hayden.utilitymodule.result.res_many.ListResultItem;
+import com.hayden.utilitymodule.result.res_support.one.OneOkErrRes;
+import com.hayden.utilitymodule.result.res_support.many.stream.StreamResult;
 import com.hayden.utilitymodule.result.res_ty.ClosableResult;
-import com.hayden.utilitymodule.result.res_ty.IResultTy;
+import com.hayden.utilitymodule.result.res_ty.IResultItem;
 import jakarta.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,10 +39,10 @@ public interface Result<T, E> {
 
         Stream<R> stream();
         Optional<R> firstOptional();
-        IResultTy<R> filter(Predicate<R> p);
+        IResultItem<R> filter(Predicate<R> p);
 
-        <T> IResultTy<T> flatMap(Function<R, IResultTy<T>> toMap);
-        <T> IResultTy<T> map(Function<R, T> toMap);
+        <T> IResultItem<T> flatMap(Function<R, IResultItem<T>> toMap);
+        <T> IResultItem<T> map(Function<R, T> toMap);
 
         R orElse(R r);
 
@@ -56,14 +57,14 @@ public interface Result<T, E> {
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     static <T, E> Result<T, E> fromOpt(Optional<T> stringStringEntry, E gitAggregateError) {
-        return from(new Responses.Ok<>(stringStringEntry), Err.err(gitAggregateError));
+        return from(new Ok<>(stringStringEntry), Err.err(gitAggregateError));
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     static <T, E> Result<T, E> fromOptOrErr(Optional<T> stringStringEntry, E gitAggregateError) {
         return stringStringEntry.isPresent()
-               ? from(new Responses.Ok<>(stringStringEntry), Err.empty())
-               : from(Responses.Ok.empty(), Err.err(gitAggregateError));
+               ? from(new Ok<>(stringStringEntry), Err.empty())
+               : from(Ok.empty(), Err.err(gitAggregateError));
     }
 
     static <T extends AutoCloseable, E> Result<T, E> tryFrom(T o, Callable<Void> onClose) {
@@ -100,15 +101,15 @@ public interface Result<T, E> {
     }
 
     static <R, E> OneResult<R, E> ok(R r) {
-        return new OkErrRes<>(new Responses.Ok<>(r), Err.empty());
+        return new OneOkErrRes<>(new Ok<>(r), Err.empty());
     }
 
     static <R, E> OneResult<R, E> resOk(R r) {
-        return new OkErrRes<>(new Responses.Ok<>(r), Err.empty());
+        return new OneOkErrRes<>(new Ok<>(r), Err.empty());
     }
 
-    static <R, E> Result<R, E> ok(IResultTy<R> r) {
-        return new OkErrRes<>(new Responses.Ok<>(r), Err.empty());
+    static <R, E> Result<R, E> ok(IResultItem<R> r) {
+        return new OneOkErrRes<>(new Ok<>(r), Err.empty());
     }
 
     static <R, E> Result<R, E> from(Stream<Result<R, E>> r) {
@@ -116,48 +117,48 @@ public interface Result<T, E> {
     }
 
     static <R, E> Result<R, E> ok(Mono<R> r) {
-        return new OkErrRes<>(new Responses.Ok<>(r), Err.empty());
+        return new OneOkErrRes<>(new Ok<>(r), Err.empty());
     }
 
     static <R, E> Result<R, E> ok(Flux<R> r) {
-        return new OkErrRes<>(new Responses.Ok<>(r), Err.empty());
+        return new OneOkErrRes<>(new Ok<>(r), Err.empty());
     }
 
     static <R, E> Result<R, E> ok(Stream<R> r) {
-        return new OkErrRes<>(new Responses.Ok<>(r), Err.empty());
+        return new OneOkErrRes<>(new Ok<>(r), Err.empty());
     }
 
-    static <R, E> Result<R, E> ok(Responses.Ok<R> r) {
-        return new OkErrRes<>(r, Err.empty());
+    static <R, E> Result<R, E> ok(Ok<R> r) {
+        return new OneOkErrRes<>(r, Err.empty());
     }
 
     static <R, E> OneResult<R, E> err(E r) {
-        return new OkErrRes<>(Responses.Ok.empty(), Err.err(r));
+        return new OneOkErrRes<>(Ok.empty(), Err.err(r));
     }
 
     static <R, E> Result<R, E> err(Err<E> r) {
-        return new OkErrRes<>(Responses.Ok.empty(), r);
+        return new OneOkErrRes<>(Ok.empty(), r);
     }
 
     static <R, E> Result<R, E> from(R r, E e) {
-        return new OkErrRes<>(Responses.Ok.ok(r), Err.err(e));
+        return new OneOkErrRes<>(Ok.ok(r), Err.err(e));
     }
 
-    static <R, E> Result<R, E> from(IResultTy<R> r, IResultTy<E> e) {
-        return new OkErrRes<>(Responses.Ok.ok(r), Err.err(e));
+    static <R, E> Result<R, E> from(IResultItem<R> r, IResultItem<E> e) {
+        return new OneOkErrRes<>(Ok.ok(r), Err.err(e));
     }
 
-    static <R, E> Result<R, E> from(Responses.Ok<R> r, Err<E> e) {
-        return new OkErrRes<>(r, e);
+    static <R, E> Result<R, E> from(Ok<R> r, Err<E> e) {
+        return new OneOkErrRes<>(r, e);
     }
 
     static <T extends Responses.AggregateResponse, E extends AggregateError> @Nullable Result<T, E> all(Collection<Result<T, E>> mapper, Result<T, E> finalResult) {
         return Optional.ofNullable(all(mapper))
                 .flatMap(r -> Optional.ofNullable(r.e()))
                 .map(e -> {
-                    finalResult.e().t
-                            .flatMap(f -> IResultTy.toRes(f.errors()))
-                            .ifPresent(f -> e.t.ifPresent(toAdd -> f.addAll(toAdd.errors())));
+                    finalResult.e()
+                            .flatMap(f -> IResultItem.toRes(f.errors()))
+                            .ifPresent(f -> e.ifPresent(toAdd -> f.addAll(toAdd.errors())));
                     return finalResult;
                 })
                 .orElse(finalResult);
@@ -203,10 +204,10 @@ public interface Result<T, E> {
     }
 
     static <T extends Responses.AggregateResponse, E extends AggregateParamError> Result<T, E> addErrors(Result<T, E> r, Result<T, E> result) {
-        Assert.isTrue(!(result.e().t instanceof IManyResultTy<E>), "Result was of wrong type.");
+        Assert.isTrue(!(result.e().isMany()), "Result was of wrong type.");
         if (r.e().isPresent()) {
             if (result.e().isEmpty()) {
-                result.e().setT(r.e().t);
+                result.e().addError(r.e());
             } else {
                 var errs = r.filterErr(Predicate.not(toFilter -> result.hasErr(re -> re == toFilter)))
                         .streamErr()
@@ -222,7 +223,7 @@ public interface Result<T, E> {
     }
 
     static <E, T> Result<T, E> empty() {
-        return new OkErrRes<>(Responses.Ok.empty(), Err.empty());
+        return new OneOkErrRes<>(Ok.empty(), Err.empty());
     }
 
     Result<T, E> filterErr(Predicate<E> b);
@@ -246,7 +247,7 @@ public interface Result<T, E> {
      * //TODO: This is bad, replace
      * @return
      */
-    Responses.Ok<T> r();
+    Ok<T> r();
 
     Stream<T> toStream();
 
@@ -281,57 +282,50 @@ public interface Result<T, E> {
         return r().isEmpty();
     }
 
-    default boolean hasError() {
-        return e().isPresent();
-    }
-
     default boolean hasErr(Predicate<E> e) {
-        return switch(this.e().t)  {
-            case IManyResultTy<E> many ->
-                    many.has(e);
-            default -> this.e().filterErr(e)
+        if (this.e().isMany())
+            return this.e().many().has(e);
+        else {
+            return this.e().filterErr(e)
                     .isPresent();
-        };
+        }
     }
 
     default <U> Result<U, E> map(Function<T, U> mapper) {
-        return switch(this.r().t) {
-            case IManyResultTy<T> sr ->
-                    Result.from(Responses.Ok.ok(sr.map(mapper)), this.e());
-            default -> {
-                if (this.r().isPresent()) {
-                    var toRet = mapper.apply(this.r().get());
-                    yield Result.from(Responses.Ok.ok(toRet), this.e());
-                }
-
-                yield this.cast();
+        if (this.r().isMany())
+            return Result.from(Ok.ok(this.r().many().map(mapper)), this.e());
+        else {
+            if (this.r().isPresent()) {
+                var toRet = mapper.apply(this.r().get());
+                return Result.from(Ok.ok(toRet), this.e());
             }
-        };
+
+            return this.cast();
+        }
     };
 
     default Result<T, E> peek(Consumer<T> mapper) {
-        return Result.from(Responses.Ok.ok(this.r().peek(mapper)), this.e());
+        return Result.from(Ok.ok(this.r().peek(mapper)), this.e());
     }
 
 
     default <U> Result<U, E> map(Function<T, U> mapper, Supplier<E> err) {
-        return r().<Result<U, E>>map(t -> Result.from(Responses.Ok.ok(mapper.apply(t)), this.e()))
+        return r().<Result<U, E>>map(t -> Result.from(Ok.ok(mapper.apply(t)), this.e()))
                 .orElse(Result.err(err.get()));
     }
 
     default <E1> Result<T, E1> mapError(Function<E, E1> mapper) {
-        return switch(this.e().t) {
-            case IManyResultTy<E> st ->
-                    Result.from(this.r(), Err.err(new ListResult<>(this.e().stream().map(mapper).toList())));
-            default -> {
-                if (this.e().isPresent()) {
-                    Err<E1> r1 = this.e().mapErr(mapper);
-                    yield Result.from(this.r(), r1);
-                }
+        if (this.e().isMany()) {
+            return Result.from(this.r(), Err.err(new ListResultItem<>(this.e().stream().map(mapper).toList())));
+        } else {
 
-                yield this.castError();
+            if (this.e().isPresent()) {
+                Err<E1> r1 = this.e().mapErr(mapper);
+                return Result.from(this.r(), r1);
             }
-        };
+
+            return this.castError();
+        }
     }
 
     default <U> Result<U, E> flatMap(Function<T, Result<U, E>> mapper, Supplier<E> errorSupplier) {
@@ -341,22 +335,19 @@ public interface Result<T, E> {
     }
 
     default <U> Result<U,E> flatMapResult(Function<T, Result<U, E>> mapper) {
-        return switch(this.r().t) {
-            case IManyResultTy<T> sr -> {
-                var srt = sr.map(mapper);
-                yield Result.from(Stream.concat(srt.stream(), Stream.of(Result.err(this.e()))));
-            }
-            default -> {
-                if (this.r().isEmpty()) {
-                    yield this.cast();
-                } else {
+        if (this.r().isMany()) {
+            var srt = this.r().many().map(mapper);
+            return Result.from(Stream.concat(srt.stream(), Stream.of(Result.err(this.e()))));
+        } else {
+            if (this.r().isEmpty()) {
+                return this.cast();
+            } else {
 
-                    var mapped =  mapper.apply(this.r().get());
-                    mapped.e().t = this.e().t;
-                    yield mapped;
-                }
+                var mapped =  mapper.apply(this.r().get());
+                mapped.e().addError(this.e());
+                return mapped;
             }
-        };
+        }
     }
 
     default boolean isOk() {
@@ -402,12 +393,12 @@ public interface Result<T, E> {
         return this.toEntryStream().collect(new StreamResultCollector<>());
     }
 
-    default Stream<Either<Responses.Ok<T>, Err<E>>> toEntryStream() {
-        List<Either<Responses.Ok<T>, Err<E>>> l = this.r().stream()
-                .map(t -> Either.<Responses.Ok<T>, Err<E>>from(Responses.Ok.ok(t), null))
+    default Stream<Either<Ok<T>, Err<E>>> toEntryStream() {
+        List<Either<Ok<T>, Err<E>>> l = this.r().stream()
+                .map(t -> Either.<Ok<T>, Err<E>>from(Ok.ok(t), null))
                 .collect(Collectors.toCollection(ArrayList::new));
-        List<Either<Responses.Ok<T>, Err<E>>> r = this.e().stream()
-                .map(t -> Either.<Responses.Ok<T>, Err<E>>from(null, Err.err(t)))
+        List<Either<Ok<T>, Err<E>>> r = this.e().stream()
+                .map(t -> Either.<Ok<T>, Err<E>>from(null, Err.err(t)))
                 .collect(Collectors.toCollection(() -> l));
 
         return r.stream();

@@ -1,7 +1,7 @@
 package com.hayden.utilitymodule.result.res_many;
 
 import com.google.common.collect.Lists;
-import com.hayden.utilitymodule.result.res_ty.IResultTy;
+import com.hayden.utilitymodule.result.res_ty.IResultItem;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,16 +11,16 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-public interface IManyResultTy<R> extends IResultTy<R>{
+public interface IManyResultItem<R> extends IResultItem<R> {
 
-    Logger log = LoggerFactory.getLogger(IManyResultTy.class);
+    Logger log = LoggerFactory.getLogger(IManyResultItem.class);
 
     default List<R> toList() {
         return stream().toList();
     }
 
 
-    <V> IManyResultTy<V> flatMap(Function<R, IResultTy<V>> toMap);
+    <V> IManyResultItem<V> flatMap(Function<R, IResultItem<V>> toMap);
 
     @Override
     default Optional<R> firstOptional(boolean keepAll) {
@@ -32,14 +32,14 @@ public interface IManyResultTy<R> extends IResultTy<R>{
      * @param r
      * @return
      */
-    IManyResultTy<R> add(R r);
+    IManyResultItem<R> add(R r);
 
     /**
      * Forfeits operations
      * @param r
      * @return
      */
-    IManyResultTy<R> concat(IManyResultTy<R> r);
+    IManyResultItem<R> concat(IManyResultItem<R> r);
 
     // TODO: remove into res_single?
     @Override

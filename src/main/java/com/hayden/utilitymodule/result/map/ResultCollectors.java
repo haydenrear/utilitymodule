@@ -4,7 +4,7 @@ import com.hayden.utilitymodule.result.agg.AggregateError;
 import com.hayden.utilitymodule.result.agg.AggregateParamError;
 import com.hayden.utilitymodule.result.agg.Responses;
 import com.hayden.utilitymodule.result.Result;
-import com.hayden.utilitymodule.result.error.ErrorCollect;
+import com.hayden.utilitymodule.result.error.SingleError;
 import lombok.RequiredArgsConstructor;
 
 import java.util.Optional;
@@ -17,23 +17,23 @@ public abstract class ResultCollectors<
         OUT_E,
         IN_RES extends Result<IN_R, IN_E>,
         IN_R,
-        IN_E extends ErrorCollect
+        IN_E extends SingleError
         >
         implements Collector<IN_RES, Result<OUT_R, OUT_E>, Result<OUT_R, OUT_E>> {
 
-    public interface ResultMapper<ResultTypeT, ErrorTypeT extends ErrorCollect, ToCreateAggT>
+    public interface ResultMapper<ResultTypeT, ErrorTypeT extends SingleError, ToCreateAggT>
             extends Function<Result<ResultTypeT, ErrorTypeT>, Optional<ToCreateAggT>> {
     }
 
-    public interface ErrorMapper<ResultTypeT, ErrorTypeT extends ErrorCollect, ToCreateAggT extends ErrorCollect>
+    public interface ErrorMapper<ResultTypeT, ErrorTypeT extends SingleError, ToCreateAggT extends SingleError>
             extends Function<Result<ResultTypeT, ErrorTypeT>, Optional<ToCreateAggT>> {
     }
 
-    public interface AggResultMapper<ResultTypeT, ErrorTypeT extends ErrorCollect, ToCreateAggT extends Responses.AggregateResponse>
+    public interface AggResultMapper<ResultTypeT, ErrorTypeT extends SingleError, ToCreateAggT extends Responses.AggregateResponse>
             extends Function<Result<ResultTypeT, ErrorTypeT>, Optional<ToCreateAggT>> {
     }
 
-    public interface AggErrorMapper<ResultTypeT, ErrorTypeT extends ErrorCollect, ToCreateAggT extends AggregateError>
+    public interface AggErrorMapper<ResultTypeT, ErrorTypeT extends SingleError, ToCreateAggT extends AggregateError>
             extends Function<Result<ResultTypeT, ErrorTypeT>, Optional<ToCreateAggT>> {
     }
 
@@ -41,7 +41,7 @@ public abstract class ResultCollectors<
             T extends Responses.ParamAggregateResponse<R>,
             R,
             E extends AggregateParamError<E1>,
-            R1, E1 extends ErrorCollect
+            R1, E1 extends SingleError
             >
     ResultCollectors<T, E, Result<R1, E1>, R1, E1> from(
             T t,
@@ -57,7 +57,7 @@ public abstract class ResultCollectors<
             R,
             E extends AggregateParamError<E1>,
             R1,
-            E1 extends ErrorCollect
+            E1 extends SingleError
             >
     ResultCollectors<T, E, Result<R1, E1>, R1, E1> aggParamFrom(
             T t,
@@ -71,7 +71,7 @@ public abstract class ResultCollectors<
     public static <
             T extends Responses.AggregateResponse,
             E extends AggregateError,
-            R1, E1 extends ErrorCollect
+            R1, E1 extends SingleError
             >
     ResultCollectors<T, E, Result<R1, E1>, R1, E1> from(
             T t,
@@ -96,7 +96,7 @@ public abstract class ResultCollectors<
             T extends Responses.ParamAggregateResponse<R>,
             R,
             Er extends AggregateParamError<InE>,
-            InE extends ErrorCollect
+            InE extends SingleError
             >
     ResultCollectors<T, Er, Result<R, InE>, R, InE> from(
             T t, Er e

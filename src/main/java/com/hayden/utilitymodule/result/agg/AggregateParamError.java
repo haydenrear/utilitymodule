@@ -1,13 +1,13 @@
 package com.hayden.utilitymodule.result.agg;
 
-import com.hayden.utilitymodule.result.error.ErrorCollect;
+import com.hayden.utilitymodule.result.error.SingleError;
 
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public interface AggregateParamError<T extends ErrorCollect>
-        extends Agg.ParameterizedAgg<T>, ErrorCollect {
+public interface AggregateParamError<T extends SingleError>
+        extends Agg.ParameterizedAgg<T>, SingleError {
 
     Set<T> errors();
 
@@ -16,7 +16,7 @@ public interface AggregateParamError<T extends ErrorCollect>
     }
 
     default Set<String> getMessages() {
-        return errors().stream().map(ErrorCollect::getMessage)
+        return errors().stream().map(SingleError::getMessage)
                 .collect(Collectors.toSet());
     }
 
@@ -54,7 +54,7 @@ public interface AggregateParamError<T extends ErrorCollect>
         return """
                    Aggregate Error:
                    %s
-                """.formatted(errors().stream().map(ErrorCollect::toString).collect(Collectors.joining("\n\r")));
+                """.formatted(errors().stream().map(SingleError::toString).collect(Collectors.joining("\n\r")));
     }
 
 }

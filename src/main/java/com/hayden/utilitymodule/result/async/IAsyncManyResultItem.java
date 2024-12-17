@@ -1,12 +1,12 @@
 package com.hayden.utilitymodule.result.async;
 
-import com.hayden.utilitymodule.result.res_many.IManyResultTy;
+import com.hayden.utilitymodule.result.res_many.IManyResultItem;
 
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
-public interface IAsyncManyResultTy<T> extends IAsyncResultTy<T>, IManyResultTy<T> {
+public interface IAsyncManyResultItem<T> extends IAsyncResultItem<T>, IManyResultItem<T> {
 
 
     default List<T> blockAll() throws ExecutionException, InterruptedException {

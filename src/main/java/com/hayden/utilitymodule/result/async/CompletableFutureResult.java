@@ -1,8 +1,8 @@
 package com.hayden.utilitymodule.result.async;
 
 import com.hayden.utilitymodule.result.Result;
-import com.hayden.utilitymodule.result.res_single.ISingleResultTy;
-import com.hayden.utilitymodule.result.res_ty.IResultTy;
+import com.hayden.utilitymodule.result.res_single.ISingleResultItem;
+import com.hayden.utilitymodule.result.res_ty.IResultItem;
 import com.hayden.utilitymodule.result.res_ty.ResultTyResult;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
@@ -25,7 +25,7 @@ import static com.hayden.utilitymodule.result.Result.logAsync;
 import static com.hayden.utilitymodule.result.Result.logThreadStarvation;
 
 @Slf4j
-public record CompletableFutureResult<R>(CompletableFuture<R> r, AtomicBoolean finished) implements IAsyncResultTy<R>, ISingleResultTy<R> {
+public record CompletableFutureResult<R>(CompletableFuture<R> r, AtomicBoolean finished) implements IAsyncResultItem<R>, ISingleResultItem<R> {
 
     public CompletableFutureResult(CompletableFuture<R> r) {
         this(r, new AtomicBoolean(false));
@@ -54,12 +54,12 @@ public record CompletableFutureResult<R>(CompletableFuture<R> r, AtomicBoolean f
     }
 
     @Override
-    public <T> IResultTy<T> from(T r) {
+    public <T> IResultItem<T> from(T r) {
         return new ResultTyResult<>(Optional.ofNullable(r));
     }
 
     @Override
-    public <T> IResultTy<T> from(Optional<T> r) {
+    public <T> IResultItem<T> from(Optional<T> r) {
         return new ResultTyResult<>(r);
     }
 
@@ -80,7 +80,7 @@ public record CompletableFutureResult<R>(CompletableFuture<R> r, AtomicBoolean f
     }
 
     @Override
-    public ISingleResultTy<R> single() {
+    public ISingleResultItem<R> single() {
         return this;
     }
 
@@ -113,7 +113,7 @@ public record CompletableFutureResult<R>(CompletableFuture<R> r, AtomicBoolean f
     }
 
     @Override
-    public IResultTy<R> filter(Predicate<R> p) {
+    public IResultItem<R> filter(Predicate<R> p) {
         return new MonoResult<>(firstMono())
                 .filter(p);
     }
@@ -126,13 +126,13 @@ public record CompletableFutureResult<R>(CompletableFuture<R> r, AtomicBoolean f
     }
 
     @Override
-    public <T> IResultTy<T> flatMap(Function<R, IResultTy<T>> toMap) {
+    public <T> IResultItem<T> flatMap(Function<R, IResultItem<T>> toMap) {
         return new MonoResult<>(firstMono())
                 .flatMap(toMap);
     }
 
     @Override
-    public <T> IResultTy<T> map(Function<R, T> toMap) {
+    public <T> IResultItem<T> map(Function<R, T> toMap) {
         return new CompletableFutureResult<>(r.thenApply(toMap));
     }
 
@@ -157,8 +157,18 @@ public record CompletableFutureResult<R>(CompletableFuture<R> r, AtomicBoolean f
     }
 
     @Override
-    public IResultTy<R> peek(Consumer<? super R> consumer) {
+    public IResultItem<R> peek(Consumer<? super R> consumer) {
         return new MonoResult<>(firstMono())
                 .peek(consumer);
+    }
+
+    @Override
+    public boolean isMany() {
+        return false;
+    }
+
+    @Override
+    public boolean isOne() {
+        return true;
     }
 }
