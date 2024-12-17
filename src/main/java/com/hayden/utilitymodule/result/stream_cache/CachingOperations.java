@@ -119,13 +119,18 @@ public interface CachingOperations {
     record HasResult<R, E>() implements StreamCachePredicate.Any<Result<R, E>>, ResultStreamCachePredicate<Result<R, E>>, PersistentCacheResult {
         @Override
         public boolean test(Result<R, E> o) {
-            return false;
+            if (o.r().isStream())
+                throw new RuntimeException("Cannot call HasResult on IResultTy when IResultTy is StreamResult.");
+
+            return o.isOk();
         }
     }
 
     record HasErr<R, E>() implements StreamCachePredicate.Any<Result<R, E>>, ResultStreamCachePredicate<Result<R, E>>, PersistentCacheResult {
         @Override
         public boolean test(Result<R, E> o) {
+            if (o.e().isStream())
+                throw new RuntimeException("Cannot call HasResult on IResultTy when IResultTy is StreamResult.");
             return false;
         }
     }

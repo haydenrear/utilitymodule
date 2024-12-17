@@ -96,6 +96,20 @@ public class ResultTest {
         assertEquals(50, collected3.r().get().size());
         assertEquals(50, collected3.e().get().size());
 
+        var r = Result.from(IntStream.range(0, 100).boxed().map(b -> {
+            if (b % 2 == 0) {
+                return Result.ok("hello");
+            }
+
+            return Result.err(new ErrorCollect.StandardError("i"));
+        }));
+
+
+        var streamed = r.streamResult();
+
+        streamed.forEach(System.out::println);
+
+        assertThat(streamed.isOk()).isTrue();
     }
 
     @Test

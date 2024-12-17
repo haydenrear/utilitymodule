@@ -8,6 +8,7 @@ import com.hayden.utilitymodule.result.agg.Responses;
 import com.hayden.utilitymodule.result.error.Err;
 import com.hayden.utilitymodule.result.map.StreamResultCollector;
 import com.hayden.utilitymodule.result.res_many.IManyResultTy;
+import com.hayden.utilitymodule.result.res_many.IStreamResultTy;
 import com.hayden.utilitymodule.result.res_many.ListResult;
 import com.hayden.utilitymodule.result.res_ty.ClosableResult;
 import com.hayden.utilitymodule.result.res_ty.IResultTy;
@@ -229,6 +230,14 @@ public interface Result<T, E> {
     Result<T, E> filterResult(Predicate<T> b);
 
     void close();
+
+    default StreamResult<T, E> streamResult() {
+        if (this instanceof StreamResult s) {
+            return s;
+        }
+
+        else return new StreamResult<>(Stream.of(Result.ok(this.r()), Result.err(this.e())));
+    }
 
     <E1> Result<T, E1> mapError(Function<E, E1> mapper, E1 defaultValue);
 

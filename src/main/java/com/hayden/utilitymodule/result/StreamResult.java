@@ -206,9 +206,7 @@ public class StreamResult<R, E> implements Result<R, E>, CachableStream<Result<R
 
     public <U> StreamResult<U, E> flatMap(Function<R, Result<U, E>> mapper) {
         return new StreamResult<>(
-                this.r.map(res -> {
-                    return res.flatMap(mapper);
-                }));
+                this.r.map(res -> res.flatMap(mapper)));
     }
 
     public R orElseRes(R or) {
@@ -261,9 +259,8 @@ public class StreamResult<R, E> implements Result<R, E>, CachableStream<Result<R
     }
 
     public boolean isOk() {
-        return r.isCompletelyEmpty(this);
+        return r.hasAnyResult(this);
     }
-
 
     public Optional<R> toOptional() {
         return r.map(Result::toOptional)
@@ -326,5 +323,8 @@ public class StreamResult<R, E> implements Result<R, E>, CachableStream<Result<R
                 .flatMap(Result::detachedStream);
     }
 
+    public void forEach(Consumer<? super Result<R, E>> toDo) {
+        this.r.forEach(toDo);
+    }
 
 }
