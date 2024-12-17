@@ -103,10 +103,6 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
         }
     }
 
-    public Result<List<R>, List<E>> collectList() {
-        return toResultLists();
-    }
-
     public static <T, E> StreamResult<T, E> from(Stream<Result<T, E>> r) {
         return new StreamResult<>(r);
     }
@@ -310,16 +306,6 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
 
     public void doOnEach(Consumer<R> e) {
         this.r.forEach(res -> res.doOnEach(e));
-    }
-
-    /**
-     * If underlying is stream, then collect to list, otherwise then
-     * will be lists of 1.
-     *
-     * @return
-     */
-    public Result<List<R>, List<E>> toResultLists() {
-        return this.toEntryStream().collect(new StreamResultCollector<>());
     }
 
     public Stream<Either<Ok<R>, Err<E>>> toEntryStream() {

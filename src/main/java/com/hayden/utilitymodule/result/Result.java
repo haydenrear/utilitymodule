@@ -264,7 +264,7 @@ public interface Result<T, E> {
         else return new StreamResult<>(Stream.of(Result.ok(this.r()), Result.err(this.e())));
     }
 
-    default Result<List<T>, List<E>> collectList() {
+    default OneResult<List<T>, List<E>> collectList() {
         return toResultLists();
     }
 
@@ -392,8 +392,9 @@ public interface Result<T, E> {
      * will be lists of 1.
      * @return
      */
-    default Result<List<T>, List<E>> toResultLists() {
-        return this.toEntryStream().collect(new StreamResultCollector<>());
+    default OneResult<List<T>, List<E>> toResultLists() {
+        return this.toEntryStream().collect(new StreamResultCollector<>())
+                .one();
     }
 
     default Stream<Either<Ok<T>, Err<E>>> toEntryStream() {

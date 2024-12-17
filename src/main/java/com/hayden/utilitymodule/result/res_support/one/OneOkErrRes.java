@@ -30,10 +30,6 @@ import java.util.stream.Stream;
  */
 public record OneOkErrRes<T, E>(Ok<T> r, Err<E> e) implements OneResult<T, E>, ManyResult<T, E> {
 
-    public Result<List<T>, List<E>> collectList() {
-        return toResultLists();
-    }
-
     public Err<E> error() {
         return e;
     }
@@ -267,15 +263,6 @@ public record OneOkErrRes<T, E>(Ok<T> r, Err<E> e) implements OneResult<T, E>, M
 
     public void doOnEach(Consumer<T> e) {
         this.r.forEach(e);
-    }
-
-    /**
-     * If underlying is stream, then collect to list, otherwise then
-     * will be lists of 1.
-     * @return
-     */
-    public Result<List<T>, List<E>> toResultLists() {
-        return this.toEntryStream().collect(new StreamResultCollector<>());
     }
 
     public Stream<Either<Ok<T>, Err<E>>> toEntryStream() {
