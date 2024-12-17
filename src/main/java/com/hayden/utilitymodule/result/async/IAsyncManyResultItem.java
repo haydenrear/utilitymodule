@@ -5,6 +5,7 @@ import com.hayden.utilitymodule.result.res_many.IManyResultItem;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Predicate;
 
 public interface IAsyncManyResultItem<T> extends IAsyncResultItem<T>, IManyResultItem<T> {
 
@@ -25,4 +26,7 @@ public interface IAsyncManyResultItem<T> extends IAsyncResultItem<T>, IManyResul
         return block();
     }
 
+    default boolean has(Predicate<T> e) {
+        throw new RuntimeException("Async many result needs to add BlockingMany.");
+    }
 }

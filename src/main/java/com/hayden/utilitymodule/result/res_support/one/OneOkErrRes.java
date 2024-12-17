@@ -146,7 +146,7 @@ public record OneOkErrRes<T, E>(Ok<T> r, Err<E> e) implements OneResult<T, E>, M
                 return this;
             }
 
-            return Result.<T, E>err(this.e);
+            return Result.err(this.e);
         }
     }
 

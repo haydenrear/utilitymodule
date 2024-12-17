@@ -19,7 +19,6 @@ public interface IManyResultItem<R> extends IResultItem<R> {
         return stream().toList();
     }
 
-
     <V> IManyResultItem<V> flatMap(Function<R, IResultItem<V>> toMap);
 
     @Override
@@ -62,13 +61,7 @@ public interface IManyResultItem<R> extends IResultItem<R> {
         return !l.isEmpty() ? Optional.of(l.getFirst()) : Optional.empty();
     }
 
-    default boolean has(Predicate<R> e) {
-        var lst = toList();
-        var is = lst.stream().anyMatch(e);
-        swap(lst);
-
-        return is;
-    }
+    boolean has(Predicate<R> e);
 
     void swap(List<R> toSwap);
 

@@ -5,6 +5,7 @@ import com.hayden.utilitymodule.Either;
 import com.hayden.utilitymodule.reflection.TypeReferenceDelegate;
 import com.hayden.utilitymodule.result.*;
 import com.hayden.utilitymodule.result.error.Err;
+import com.hayden.utilitymodule.result.error.SingleError;
 import com.hayden.utilitymodule.result.map.StreamResultCollector;
 import com.hayden.utilitymodule.result.ok.Ok;
 import com.hayden.utilitymodule.result.res_support.one.ResultTy;
@@ -31,10 +32,7 @@ import java.util.stream.Stream;
 @Slf4j
 public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Result<R, E>, StreamResult<R, E>> {
 
-    @Override
-    public Stream<Result<R, E>> stream() {
-        return r.underlying;
-    }
+    private final StreamResultStreamWrapper<R, E> r;
 
     protected static class StreamResultStreamWrapper<R, E> extends ResultStreamWrapper<StreamResult<R, E>, Result<R, E>> {
 
@@ -44,21 +42,36 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
         }
 
         public Ok<R> getOk() {
-            return this.get(TypeReferenceDelegate.<CachingOperations.RetrieveRes<R, E>>create(CachingOperations.RetrieveRes.class).get())
-                    .one()
-                    .get();
+            return Result.fromOpt(
+                            TypeReferenceDelegate.<CachingOperations.RetrieveRes<R, E>>create(CachingOperations.RetrieveRes.class),
+                            new SingleError.StandardError("Failed to parse type reference delegate for %s".formatted(CachingOperations.RetrieveFirstRes.class.getName()))
+                    )
+                    .flatMapResult(this::get)
+                    .peekError(se -> log.error("Found err: {}", se))
+                    .r()
+                    .orElse(Ok.empty());
         }
 
         public Err<E> getErr() {
-            return this.get(TypeReferenceDelegate.<CachingOperations.RetrieveError<R, E>>create(CachingOperations.RetrieveError.class).get())
-                    .one()
-                    .get();
+            return Result.fromOpt(
+                            TypeReferenceDelegate.<CachingOperations.RetrieveError<R, E>>create(CachingOperations.RetrieveError.class),
+                            new SingleError.StandardError("Failed to parse type reference delegate for %s".formatted(CachingOperations.RetrieveFirstRes.class.getName()))
+                    )
+                    .flatMapResult(this::get)
+                    .peekError(se -> log.error("Found err: {}", se))
+                    .r()
+                    .orElse(Err.empty());
         }
 
         public Result<R, E> first() {
-            return this.get(TypeReferenceDelegate.<CachingOperations.RetrieveFirstRes<R, E>>create(CachingOperations.RetrieveFirstRes.class).get())
-                    .one()
-                    .get();
+            return Result.fromOpt(
+                            TypeReferenceDelegate.<CachingOperations.RetrieveFirstRes<R, E>>create(CachingOperations.RetrieveFirstRes.class),
+                            new SingleError.StandardError("Failed to parse type reference delegate for %s".formatted(CachingOperations.RetrieveFirstRes.class.getName()))
+                    )
+                    .flatMapResult(this::get)
+                    .peekError(se -> log.error("Found err: {}", se))
+                    .r()
+                    .orElse(Result.empty());
         }
 
         @Override
@@ -72,8 +85,6 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
             return findAny();
         }
     }
-
-    private final StreamResultStreamWrapper<R, E> r;
 
     public StreamResult(Stream<Result<R, E>> r) {
         this(r, StreamResultOptions.builder().build());
@@ -131,6 +142,11 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
         return new StreamResult<>(Stream.empty(), StreamResultOptions.builder()
                 .empty(true)
                 .build());
+    }
+
+    @Override
+    public Stream<Result<R, E>> stream() {
+        return r.underlying;
     }
 
     @Override

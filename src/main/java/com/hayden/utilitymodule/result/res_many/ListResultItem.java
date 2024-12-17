@@ -152,8 +152,18 @@ public class ListResultItem<R> implements IStreamResultItem<R> {
         return false;
     }
 
+    @Override
+    public boolean isPresent() {
+        return !this.r.isEmpty();
+    }
+
     public Stream<R> r() {
         return r.stream();
     }
 
+
+    @Override
+    public boolean has(Predicate<R> e) {
+        return this.r.stream().anyMatch(e);
+    }
 }

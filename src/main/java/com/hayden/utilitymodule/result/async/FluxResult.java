@@ -170,6 +170,7 @@ public class FluxResult<R> implements IAsyncManyResultItem<R> {
         return new FluxResult<>(Flux.concat(this.r, r.flux()));
     }
 
+
     @Override
     public <T> IResultItem<T> map(Function<R, T> toMap) {
         return new FluxResult<>(r.map(toMap));

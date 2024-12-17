@@ -7,8 +7,8 @@ public interface IStreamResultItem<R> extends IManyResultItem<R> {
 
     Logger log = LoggerFactory.getLogger(IStreamResultItem.class);
 
-    default boolean isPresent() {
-        return !isEmpty();
+    default boolean isEmpty() {
+        return !isPresent();
     }
 
     default boolean isStream() {

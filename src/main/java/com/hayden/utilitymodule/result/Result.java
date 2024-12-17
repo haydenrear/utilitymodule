@@ -184,10 +184,12 @@ public interface Result<T, E> {
     static <T extends Responses.AggregateResponse, E extends AggregateParamError> @Nullable Result<T, E> all(Collection<Result<T, E>> mapper) {
         Result<T, E> result = null;
         for (Result<T, E> nextResultToAdd : mapper) {
-            if (result == null)
+            if (result == null) {
                 result = nextResultToAdd;
+                Assert.isTrue(result.r().isOne(), "All results must have only one result when calling all with aggregates.");
+                Assert.isTrue(result.e().isOne(), "All results must have only one result when calling all with aggregates.");
+            }
             if (nextResultToAdd.r().isPresent()) {
-                // can't add a ref, only update current, because it's immutable.
                 if (result.r().isEmpty()) {
                     var temp = result;
                     result = nextResultToAdd;
@@ -203,23 +205,20 @@ public interface Result<T, E> {
         return result;
     }
 
-    static <T extends Responses.AggregateResponse, E extends AggregateParamError> Result<T, E> addErrors(Result<T, E> r, Result<T, E> result) {
-        Assert.isTrue(!(result.e().isMany()), "Result was of wrong type.");
-        if (r.e().isPresent()) {
-            if (result.e().isEmpty()) {
-                result.e().addError(r.e());
+    static <T extends Responses.AggregateResponse, E extends AggregateParamError> Result<T, E> addErrors(Result<T, E> toAdd, Result<T, E> toAddTo) {
+        if (toAdd.e().isPresent()) {
+            if (toAddTo.e().isEmpty()) {
+                return Result.from(toAddTo.r(), toAdd.e());
             } else {
-                var errs = r.filterErr(Predicate.not(toFilter -> result.hasErr(re -> re == toFilter)))
+                toAdd.filterErr(Predicate.not(toFilter -> toAddTo.hasErr(re -> re == toFilter)))
                         .streamErr()
-                        .toList();
-
-                errs.forEach(result.e().get()::addError);
+                        .forEach(toAddTo.e().get()::addError);
 //                if (result.e().t instanceof IManyResultTy<E> res) {
 //                    res!!!!!!!!!!
 //                }
             }
         }
-        return result;
+        return toAddTo;
     }
 
     static <E, T> Result<T, E> empty() {
@@ -312,6 +311,10 @@ public interface Result<T, E> {
     default <U> Result<U, E> map(Function<T, U> mapper, Supplier<E> err) {
         return r().<Result<U, E>>map(t -> Result.from(Ok.ok(mapper.apply(t)), this.e()))
                 .orElse(Result.err(err.get()));
+    }
+
+    default Result<T, E> peekError(Consumer<E> mapper) {
+        return Result.from(this.r(), Err.err(this.e().peek(mapper)));
     }
 
     default <E1> Result<T, E1> mapError(Function<E, E1> mapper) {

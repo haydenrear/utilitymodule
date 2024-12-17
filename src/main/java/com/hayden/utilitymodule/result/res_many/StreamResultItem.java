@@ -1,6 +1,8 @@
 package com.hayden.utilitymodule.result.res_many;
 
 import com.hayden.utilitymodule.reflection.TypeReferenceDelegate;
+import com.hayden.utilitymodule.result.Result;
+import com.hayden.utilitymodule.result.error.SingleError;
 import com.hayden.utilitymodule.result.res_single.ISingleResultItem;
 import com.hayden.utilitymodule.result.res_support.many.stream.ResultStreamWrapper;
 import com.hayden.utilitymodule.result.res_support.many.stream.StreamResultOptions;
@@ -25,7 +27,7 @@ import java.util.stream.Stream;
 @Slf4j
 public class StreamResultItem<R> implements IStreamResultItem<R>, CachableStream<R, StreamResultItem<R>> {
 
-    private ResultTyStreamWrapper<R> r;
+    private final ResultTyStreamWrapper<R> r;
 
     private static class ResultTyStreamWrapper<R> extends ResultStreamWrapper<StreamResultItem<R>, R> {
 
@@ -34,9 +36,14 @@ public class StreamResultItem<R> implements IStreamResultItem<R>, CachableStream
         }
 
         public R first() {
-            return this.get(TypeReferenceDelegate.<CachingOperations.RetrieveFirstTy<R>>create(CachingOperations.RetrieveFirstTy.class).get())
-                    .one()
-                    .get();
+            return Result.fromOpt(
+                            TypeReferenceDelegate.<CachingOperations.RetrieveFirstTy<R>>create(CachingOperations.RetrieveFirstTy.class),
+                            new SingleError.StandardError("Failed to parse type reference delegate for %s".formatted(CachingOperations.RetrieveFirstTy.class.getName()))
+                    )
+                    .flatMapResult(this::get)
+                    .peekError(se -> log.error("Found err: {}", se))
+                    .r()
+                    .orElse(null);
         }
 
         @Override
@@ -190,8 +197,21 @@ public class StreamResultItem<R> implements IStreamResultItem<R>, CachableStream
         return false;
     }
 
+    @Override
+    public boolean isPresent() {
+        return this.r.isAnyNonNull(this);
+    }
+
     public Stream<R> r() {
         return r;
     }
 
+    @Override
+    public boolean has(Predicate<R> e) {
+        var lst = toList();
+        var is = lst.stream().anyMatch(e);
+        swap(lst);
+
+        return is;
+    }
 }
