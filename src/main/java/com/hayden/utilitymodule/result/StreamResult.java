@@ -33,12 +33,12 @@ public class StreamResult<R, E> implements Result<R, E>, CachableStream<Result<R
         return r.underlying;
     }
 
-    private static class ResultStreamWrapper<R, E> extends StreamWrapper<StreamResult<R, E>, Result<R, E>> {
+    private static class StreamResultStreamWrapper<R, E> extends ResultStreamWrapper<StreamResult<R, E>, Result<R, E>> {
 
         StreamResult<R, E> res;
 
-        public ResultStreamWrapper(StreamResultOptions options, Stream<Result<R, E>> underlying,
-                                   StreamResult<R, E> res) {
+        public StreamResultStreamWrapper(StreamResultOptions options, Stream<Result<R, E>> underlying,
+                                         StreamResult<R, E> res) {
             super(options, underlying, CachingOperations.ResultStreamCacheOperation.class, res);
         }
 
@@ -69,14 +69,14 @@ public class StreamResult<R, E> implements Result<R, E>, CachableStream<Result<R
         }
     }
 
-    private final ResultStreamWrapper<R, E> r;
+    private final StreamResultStreamWrapper<R, E> r;
 
     public StreamResult(Stream<Result<R, E>> r) {
         this(r, StreamResultOptions.builder().build());
     }
 
     public StreamResult(Stream<Result<R, E>> r, StreamResultOptions options) {
-        this.r = new ResultStreamWrapper<>(options, r, this);
+        this.r = new StreamResultStreamWrapper<>(options, r, this);
     }
 
     public static <T, E> StreamResult<T, E> stream(Stream<T> o) {

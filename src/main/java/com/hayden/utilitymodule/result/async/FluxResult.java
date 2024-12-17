@@ -25,7 +25,7 @@ import static com.hayden.utilitymodule.result.Result.logAsync;
 import static com.hayden.utilitymodule.result.Result.logThreadStarvation;
 
 @Slf4j
-public class FluxResult<R> implements IAsyncResultTy<R>, IManyResultTy<R> {
+public class FluxResult<R> implements IAsyncManyResultTy<R> {
 
     private final AtomicBoolean finished = new AtomicBoolean(false);
 

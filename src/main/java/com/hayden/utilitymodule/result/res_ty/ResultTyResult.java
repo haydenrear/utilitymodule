@@ -57,7 +57,6 @@ public record ResultTyResult<R>(Optional<R> r) implements IResultTy<R> {
         return this;
     }
 
-
     @Override
     public Stream<R> stream() {
         return this.r.stream();
@@ -80,12 +79,12 @@ public record ResultTyResult<R>(Optional<R> r) implements IResultTy<R> {
 
     @Override
     public <T> IResultTy<T> from(T r) {
-        return new com.hayden.utilitymodule.result.res_ty.ResultTyResult<>(Optional.ofNullable(r));
+        return new ResultTyResult<>(Optional.ofNullable(r));
     }
 
     @Override
     public <T> IResultTy<T> from(Optional<T> r) {
-        return new com.hayden.utilitymodule.result.res_ty.ResultTyResult<>(r);
+        return new ResultTyResult<>(r);
     }
 
     @Override

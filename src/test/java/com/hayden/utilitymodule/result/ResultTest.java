@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static com.hayden.utilitymodule.result.ResultTestModel.singleMessage;
@@ -55,6 +56,46 @@ public class ResultTest {
 
         assertEquals(2, collected.r().get().size());
         assertEquals(1, collected.e().get().size());
+
+        var collected1 = Result.from(Stream.of(Result.ok("hello")))
+                .flatMapResult(Result::ok)
+                .map(e -> e)
+                .map(e -> e)
+                .flatMapResult(Result::ok)
+                .mapError(e -> e)
+                .collectList();
+
+        assertEquals(1, collected1.r().get().size());
+        assertEquals(0, collected1.e().get().size());
+
+        var collected2 = Result.from(Stream.of(Result.err(new ErrorCollect.StandardError("i"))))
+                .flatMapResult(Result::ok)
+                .map(e -> e)
+                .map(e -> e)
+                .flatMapResult(Result::ok)
+                .mapError(e -> e)
+                .collectList();
+
+        assertEquals(0, collected2.r().get().size());
+        assertEquals(1, collected2.e().get().size());
+
+        var collected3 = Result.from(IntStream.range(0, 100).boxed().map(b -> {
+                    if (b % 2 == 0) {
+                        return Result.ok("hello");
+                    }
+
+                    return Result.err(new ErrorCollect.StandardError("i"));
+                }))
+                .flatMapResult(Result::ok)
+                .map(e -> e)
+                .map(e -> e)
+                .flatMapResult(Result::ok)
+                .mapError(e -> e)
+                .collectList();
+
+        assertEquals(50, collected3.r().get().size());
+        assertEquals(50, collected3.e().get().size());
+
     }
 
     @Test

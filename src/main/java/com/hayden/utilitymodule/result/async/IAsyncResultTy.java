@@ -19,24 +19,16 @@ public interface IAsyncResultTy<R> extends IResultTy<R> {
         return block();
     }
 
-    default R blockFirst() throws ExecutionException, InterruptedException {
-        return block();
-    }
-
-    default R blockLast() throws ExecutionException, InterruptedException {
-        return block();
-    }
-
-    default List<R> blockAll() throws ExecutionException, InterruptedException {
-        return List.of(block());
-    }
-
-    default List<R> blockAll(Duration duration) throws ExecutionException, InterruptedException {
-        return blockAll();
-    }
-
     default boolean isAsyncSub() {
         return true;
+    }
+
+    default IAsyncManyResultTy<R> many() {
+        if (this instanceof IAsyncManyResultTy<R> t) {
+            return t;
+        }
+
+        return new FluxResult<>(this.firstMono().flux());
     }
 
 }

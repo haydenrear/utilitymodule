@@ -2,6 +2,7 @@ package com.hayden.utilitymodule.result.res_many;
 
 import com.hayden.utilitymodule.reflection.TypeReferenceDelegate;
 import com.hayden.utilitymodule.result.CachableStream;
+import com.hayden.utilitymodule.result.ResultStreamWrapper;
 import com.hayden.utilitymodule.result.StreamResultOptions;
 import com.hayden.utilitymodule.result.StreamWrapper;
 import com.hayden.utilitymodule.result.res_ty.IResultTy;
@@ -25,7 +26,7 @@ public class StreamResult<R> implements IStreamResultTy<R>, CachableStream<R, St
 
     private ResultTyStreamWrapper<R> r;
 
-    private static class ResultTyStreamWrapper<R> extends StreamWrapper<StreamResult<R>, R> {
+    private static class ResultTyStreamWrapper<R> extends ResultStreamWrapper<StreamResult<R>, R> {
 
         public ResultTyStreamWrapper(StreamResultOptions options, Stream<R> underlying, StreamResult<R> res) {
             super(options, underlying, CachingOperations.ResultTyStreamWrapperOperation.class, res);

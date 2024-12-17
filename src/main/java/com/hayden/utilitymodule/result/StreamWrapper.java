@@ -359,7 +359,6 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
         this.cached.resetCache();
     }
 
-
      synchronized boolean isAnyNonNull(C streamResult) {
         Assert.notNull(streamResult, "streamResult must not be null");
         cacheResultsIfNotCached();
@@ -373,7 +372,9 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
         Assert.notNull(streamResult, "streamResult must not be null");
         cacheResultsIfNotCached();
 
-        return (boolean) get(CachingOperations.IsCompletelyEmpty.class).get();
+        return (boolean) get(CachingOperations.IsCompletelyEmpty.class)
+                .mapError(se -> {log.error("{}", se); return se;})
+                .get();
     }
 
     synchronized boolean hasAnyResult(C streamResult) {
@@ -382,7 +383,16 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
 
         return (boolean) get(CachingOperations.HasResult.class)
                 .mapError(se -> {log.error("{}", se); return se;})
-                .get();
+                .orElseRes(false);
+    }
+
+    synchronized boolean hasAnyError(C streamResult) {
+        Assert.notNull(streamResult, "streamResult must not be null");
+        cacheResultsIfNotCached();
+
+        return (boolean) get(CachingOperations.HasErr.class)
+                .mapError(se -> {log.error("{}", se); return se;})
+                .orElseRes(false);
     }
 
     protected void cacheResultsIfNotCached() {
@@ -394,13 +404,26 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
             this.cached.doCache(this.res, consumer);
     }
 
-    synchronized boolean hasAnyError(C streamResult) {
-        Assert.notNull(streamResult, "streamResult must not be null");
-        cacheResultsIfNotCached();
+    protected List<ST> cacheResultsIfNotCachedWithList(Consumer<? super ST> consumer) {
+        if (!cached.isCached())
+            return this.cached.cacheToList(this.res, consumer);
 
-        return (boolean) get(CachingOperations.HasErr.class)
-                .mapError(se -> {log.error("{}", se); return se;})
-                .get();
+        throw new RuntimeException("Multiple terminal operations have been called.");
+    }
+
+    public synchronized List<ST> throwIfCachedOrCacheWithList(boolean infinite, Consumer<? super ST> consumer) {
+        if (this.cached.isCached())
+            throw new RuntimeException("Already cached!");
+
+        return cacheResultsIfNotCachedWithList(consumer);
+    }
+
+    public synchronized List<ST> throwIfCachedOrCacheWithList(Consumer<? super ST> consumer) {
+        return throwIfCachedOrCacheWithList(false, consumer);
+    }
+
+    public synchronized List<ST> throwIfCachedOrCacheWithList() {
+        return cacheResultsIfNotCachedWithList(st -> {});
     }
 
     public synchronized void throwIfCachedOrCache(boolean infinite, Consumer<? super ST> consumer) {
@@ -425,112 +448,26 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
 
     @Override
     public boolean isParallel() {
-        throwIfCachedOrCache();
         return underlying.isParallel();
-    }
-
-    @Override
-    public @NotNull Spliterator<ST> spliterator() {
-        throwIfCachedOrCache();
-        return underlying.spliterator();
-    }
-
-    @Override
-    public @NotNull Iterator<ST> iterator() {
-        throwIfCachedOrCache();
-        return underlying.iterator();
-    }
-
-    @Override
-    public boolean noneMatch(Predicate<? super ST> predicate) {
-        throwIfCachedOrCache();
-        return underlying.noneMatch(predicate);
-    }
-
-    @Override
-    public boolean allMatch(Predicate<? super ST> predicate) {
-        throwIfCachedOrCache();
-        return underlying.allMatch(predicate);
-    }
-
-    @Override
-    public boolean anyMatch(Predicate<? super ST> predicate) {
-        throwIfCachedOrCache();
-        return underlying.anyMatch(predicate);
-    }
-
-    @Override
-    public long count() {
-        throwIfCachedOrCache();
-        return underlying.count();
-    }
-
-    @Override
-    public List<ST> toList() {
-        throwIfCachedOrCache();
-        return underlying.toList();
-    }
-
-    @Override
-    public @NotNull Optional<ST> max(Comparator<? super ST> comparator) {
-        throw new RuntimeException("Not implemented yet");
-    }
-
-    @Override
-    public @NotNull Optional<ST> min(Comparator<? super ST> comparator) {
-        throw new RuntimeException("Not implemented yet");
-    }
-
-
-    @Override
-    public <R, A> R collect(Collector<? super ST, A, R> collector) {
-        throw new RuntimeException("Not implemented yet");
-    }
-
-    @Override
-    public <R> R collect(Supplier<R> supplier, BiConsumer<R, ? super ST> accumulator, BiConsumer<R, R> combiner) {
-        throw new RuntimeException("Not implemented yet");
-    }
-
-    @Override
-    public <U> U reduce(U identity, BiFunction<U, ? super ST, U> accumulator, BinaryOperator<U> combiner) {
-        throw new RuntimeException("Not implemented yet");
-    }
-
-    @Override
-    public @NotNull Optional<ST> reduce(BinaryOperator<ST> accumulator) {
-        throw new RuntimeException("Not implemented yet");
-    }
-
-    @Override
-    public ST reduce(ST identity, BinaryOperator<ST> accumulator) {
-        throw new RuntimeException("Not implemented yet");
-    }
-
-    @Override
-    public @NotNull <A> A[] toArray(IntFunction<A[]> generator) {
-        throw new RuntimeException("Not implemented yet");
-    }
-
-    @Override
-    public @NotNull Object[] toArray() {
-        throw new RuntimeException("Not implemented yet");
-    }
-
-    @Override
-    public void forEachOrdered(Consumer<? super ST> action) {
-        throwIfCachedOrCache();
-        underlying.forEachOrdered(action);
-    }
-
-    @Override
-    public void forEach(Consumer<? super ST> action) {
-        throwIfCachedOrCache(action);
     }
 
     @Override
     public Stream<ST> dropWhile(Predicate<? super ST> predicate) {
         return underlying.dropWhile(predicate);
+    }
+
+    @Override
+    public List<ST> toList() {
+        return throwIfCachedOrCacheWithList();
+    }
+    @Override
+    public void forEachOrdered(Consumer<? super ST> action) {
+        throwIfCachedOrCache(action);
+    }
+
+    @Override
+    public void forEach(Consumer<? super ST> action) {
+        throwIfCachedOrCache(action);
     }
 
 }

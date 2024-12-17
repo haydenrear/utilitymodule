@@ -1,6 +1,9 @@
 package com.hayden.utilitymodule.result.res_ty;
 
+import com.google.common.collect.Lists;
 import com.hayden.utilitymodule.result.Result;
+import com.hayden.utilitymodule.result.res_many.IManyResultTy;
+import com.hayden.utilitymodule.result.res_many.ListResult;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -45,6 +48,13 @@ public interface IResultTy<R> extends Result.Monadic<R> {
 
     Mono<R> firstMono();
 
+    default IManyResultTy<R> many() {
+        if (this instanceof IManyResultTy<R> t) {
+            return t;
+        }
+
+        return new ListResult<>(Lists.newArrayList(this.get()));
+    }
 
     default boolean isAsyncSub() {
         return false;
@@ -57,7 +67,6 @@ public interface IResultTy<R> extends Result.Monadic<R> {
     default boolean isStream() {
         return false;
     }
-
 
     IResultTy<R> filter(Predicate<R> p);
 
