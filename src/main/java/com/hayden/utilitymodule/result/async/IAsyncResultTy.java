@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 
+import com.hayden.utilitymodule.result.res_single.ISingleResultTy;
 import com.hayden.utilitymodule.result.res_ty.IResultTy;
 
 public interface IAsyncResultTy<R> extends IResultTy<R> {

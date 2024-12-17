@@ -172,15 +172,16 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
             );
         }
 
-        default <W extends CachingOperations.CachedOperation<U, V>, U, V> Result<V, ErrorCollect.StandardError> get(Class<W> clazz) {
+        default <W extends CachingOperations.CachedOperation<U, V>, U, V> OneResult<V, ErrorCollect.StandardError> get(Class<W> clazz) {
             return Result.fromOpt(
                             TypeReferenceDelegate.<W>create(clazz),
                             new ErrorCollect.StandardError("Failed to cast to type ref for %s".formatted(clazz.getName()))
                     )
-                    .flatMapResult(this::get);
+                    .flatMapResult(this::get)
+                    .one();
         }
 
-        default <W extends CachingOperations.CachedOperation<U, V>, U, V> Result<V, ErrorCollect.StandardError> get(TypeReferenceDelegate<W> clazz) {
+        default <W extends CachingOperations.CachedOperation<U, V>, U, V> OneResult<V, ErrorCollect.StandardError> get(TypeReferenceDelegate<W> clazz) {
             try {
                 return Optional.ofNullable(CACHED_RESULTS().get(clazz.underlying()))
                         .map(cachedRes -> Result.<V, ErrorCollect.StandardError>ok((V) cachedRes.cachedResult()))
@@ -347,7 +348,7 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
         underlying = to.stream();
     }
 
-    <T extends CachingOperations.CachedOperation<RE, V>, RE, V> Result<V, ErrorCollect.StandardError> get(Class<T> t) {
+    <T extends CachingOperations.CachedOperation<RE, V>, RE, V> OneResult<V, ErrorCollect.StandardError> get(Class<T> t) {
         return cached.get(t);
     }
 
@@ -365,6 +366,7 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
 
         return (boolean) get(CachingOperations.IsAnyNonNull.class)
                 .mapError(se -> {log.error("{}", se); return se;})
+                .one()
                 .get();
     }
 
@@ -374,6 +376,7 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
 
         return (boolean) get(CachingOperations.IsCompletelyEmpty.class)
                 .mapError(se -> {log.error("{}", se); return se;})
+                .one()
                 .get();
     }
 
@@ -383,6 +386,7 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
 
         return (boolean) get(CachingOperations.HasResult.class)
                 .mapError(se -> {log.error("{}", se); return se;})
+                .one()
                 .orElseRes(false);
     }
 
@@ -392,6 +396,7 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
 
         return (boolean) get(CachingOperations.HasErr.class)
                 .mapError(se -> {log.error("{}", se); return se;})
+                .one()
                 .orElseRes(false);
     }
 
@@ -404,7 +409,7 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
             this.cached.doCache(this.res, consumer);
     }
 
-    protected List<ST> cacheResultsIfNotCachedWithList(Consumer<? super ST> consumer) {
+    public List<ST> cacheResultsIfNotCachedWithList(Consumer<? super ST> consumer) {
         if (!cached.isCached())
             return this.cached.cacheToList(this.res, consumer);
 

@@ -99,11 +99,11 @@ public interface Result<T, E> {
         }
     }
 
-    static <R, E> Result<R, E> ok(R r) {
+    static <R, E> OneResult<R, E> ok(R r) {
         return new OkErrRes<>(new Responses.Ok<>(r), Err.empty());
     }
 
-    static <R, E> Result<R, E> resOk(R r) {
+    static <R, E> OneResult<R, E> resOk(R r) {
         return new OkErrRes<>(new Responses.Ok<>(r), Err.empty());
     }
 
@@ -131,7 +131,7 @@ public interface Result<T, E> {
         return new OkErrRes<>(r, Err.empty());
     }
 
-    static <R, E> Result<R, E> err(E r) {
+    static <R, E> OneResult<R, E> err(E r) {
         return new OkErrRes<>(Responses.Ok.empty(), Err.err(r));
     }
 
@@ -231,14 +231,6 @@ public interface Result<T, E> {
 
     void close();
 
-    default StreamResult<T, E> streamResult() {
-        if (this instanceof StreamResult s) {
-            return s;
-        }
-
-        else return new StreamResult<>(Stream.of(Result.ok(this.r()), Result.err(this.e())));
-    }
-
     <E1> Result<T, E1> mapError(Function<E, E1> mapper, E1 defaultValue);
 
     <U> Result<U, E> flatMap(Function<T, Result<U, E>> mapper);
@@ -260,6 +252,18 @@ public interface Result<T, E> {
 
     Stream<T> detachedStream();
 
+    ManyResult<T, E> many();
+
+    OneResult<T, E> one();
+
+    default StreamResult<T, E> streamResult() {
+        if (this instanceof StreamResult s) {
+            return s;
+        }
+
+        else return new StreamResult<>(Stream.of(Result.ok(this.r()), Result.err(this.e())));
+    }
+
     default Result<List<T>, List<E>> collectList() {
         return toResultLists();
     }
@@ -279,21 +283,6 @@ public interface Result<T, E> {
 
     default boolean hasError() {
         return e().isPresent();
-    }
-
-    default T orElseGet(Supplier<T> o) {
-        if (this.r().isPresent())
-            return this.r().get();
-
-        return o.get();
-    }
-
-    default T get() {
-        return this.r().get();
-    }
-
-    default boolean isPresent() {
-        return r().isPresent();
     }
 
     default boolean hasErr(Predicate<E> e) {
@@ -345,41 +334,13 @@ public interface Result<T, E> {
         };
     }
 
-    default Result<T, E> orError(Supplier<Err<E>> s) {
-        if (e().isPresent())
-            return this;
-
-        return Result.from(this.r(), s.get());
-    }
-
-    default Result<T, E> or(Supplier<Result<T, E>> s) {
-        if (this.r().isPresent())
-            return this;
-
-        Result<T, E> teResult = s.get();
-        return Result.from(teResult.r(), teResult.e().addError(this.e()));
-    }
-    default T orElseRes(T or) {
-        if (this.r().isPresent())
-            return this.r().get();
-
-        return or;
-    }
-
-    default T orElseErrRes(Function<Err<E>, T> or) {
-        if (this.r().isPresent())
-            return this.r().get();
-
-        return or.apply(this.e());
-    }
-
     default <U> Result<U, E> flatMap(Function<T, Result<U, E>> mapper, Supplier<E> errorSupplier) {
         return r().map(mapper)
                 .filter(r -> r.r().isPresent())
                 .orElse(Result.err(errorSupplier.get()));
     }
 
-    default <U> Result<U, E> flatMapResult(Function<T, Result<U, E>> mapper) {
+    default <U> Result<U,E> flatMapResult(Function<T, Result<U, E>> mapper) {
         return switch(this.r().t) {
             case IManyResultTy<T> sr -> {
                 var srt = sr.map(mapper);
@@ -409,14 +370,6 @@ public interface Result<T, E> {
             return p.r().get();
 
         return Stream.empty();
-    }
-
-    default Optional<T> toOptional() {
-        return r().t.firstOptional();
-    }
-
-    default Optional<T> optional() {
-        return r().t.firstOptional();
     }
 
     default <U> Result<U, E> cast() {

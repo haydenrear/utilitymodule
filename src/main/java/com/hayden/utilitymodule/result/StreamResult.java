@@ -26,7 +26,7 @@ import java.util.stream.Stream;
  * or Async types as well as Stream or Optional.
  */
 @Slf4j
-public class StreamResult<R, E> implements Result<R, E>, CachableStream<Result<R, E>, StreamResult<R, E>> {
+public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Result<R, E>, StreamResult<R, E>> {
 
     @Override
     public Stream<Result<R, E>> stream() {
@@ -44,16 +44,19 @@ public class StreamResult<R, E> implements Result<R, E>, CachableStream<Result<R
 
         public Responses.Ok<R> getOk() {
             return this.get(TypeReferenceDelegate.<CachingOperations.RetrieveRes<R, E>>create(CachingOperations.RetrieveRes.class).get())
+                    .one()
                     .get();
         }
 
         public Err<E> getErr() {
             return this.get(TypeReferenceDelegate.<CachingOperations.RetrieveError<R, E>>create(CachingOperations.RetrieveError.class).get())
+                    .one()
                     .get();
         }
 
         public Result<R, E> first() {
             return this.get(TypeReferenceDelegate.<CachingOperations.RetrieveFirstRes<R, E>>create(CachingOperations.RetrieveFirstRes.class).get())
+                    .one()
                     .get();
         }
 
@@ -129,10 +132,6 @@ public class StreamResult<R, E> implements Result<R, E>, CachableStream<Result<R
                 .build());
     }
 
-    public static <R, E> StreamResult<R, E> withCached(Stream<Result<R, E>> r) {
-        throw new RuntimeException("didn't do cache yet");
-    }
-
     @Override
     public Responses.Ok<R> r() {
         return this.r.getOk();
@@ -142,6 +141,20 @@ public class StreamResult<R, E> implements Result<R, E>, CachableStream<Result<R
     public Err<E> e() {
         return this.r.getErr();
     }
+
+    @Override
+    public OneResult<R, E> one() {
+        var last = this.r.cacheResultsIfNotCachedWithList(c -> {});
+        if (last.size() > 1) {
+            log.warn("Called one() on StreamResult with size greater than 1. Discarding all other.");
+        }
+
+        return Optional.ofNullable(last.getFirst())
+                .map(res -> Result.from(res.r(), res.e()))
+                .map(Result::one)
+                .orElse(null);
+    }
+
 
     @Override
     public StreamResult<R, E> swap(Stream<Result<R, E>> toCache) {
@@ -158,13 +171,18 @@ public class StreamResult<R, E> implements Result<R, E>, CachableStream<Result<R
         return new StreamResult<>(toCopy.stream());
     }
 
-    @Override
-    public Result<R, E> or(Supplier<Result<R, E>> s) {
+    public Result<R, E> hasAnyOr(Supplier<Result<R, E>> s) {
         if (!this.r.hasAnyResult(this))  {
             return s.get();
         }
 
         return this;
+    }
+
+    @Override
+    public Result<R, E> last(Consumer<Result<R, E>> last) {
+        var lastRef = this.r.cacheResultsIfNotCachedWithList(last);
+        return lastRef.getLast();
     }
 
     public void swap(List<Result<R, E>> toSwap) {
@@ -176,12 +194,11 @@ public class StreamResult<R, E> implements Result<R, E>, CachableStream<Result<R
     }
 
     public StreamResult<R, E> peek(Consumer<R> mapper) {
-        return StreamResult.withCached(this.r.peek(res -> res.peek(mapper)));
+        return new StreamResult<>(this.r.peek(res -> res.peek(mapper)));
     }
 
-
     public <U> StreamResult<U, E> map(Function<R, U> mapper, Supplier<E> err) {
-        return new StreamResult<>(r.map(t -> this.map(mapper).or(() -> Result.err(err.get()))));
+        return new StreamResult<>(r.map(t -> this.map(mapper).hasAnyOr(() -> Result.err(err.get()))));
     }
 
     public <E1> StreamResult<R, E1> mapError(Function<E, E1> mapper) {
@@ -209,45 +226,36 @@ public class StreamResult<R, E> implements Result<R, E>, CachableStream<Result<R
                 this.r.map(res -> res.flatMap(mapper)));
     }
 
-    public R orElseRes(R or) {
+    public R firstResOrElse(R or) {
         if (this.r.hasAnyResult(this)) {
-            return retrieveResIfExists();
+            return retrieveFirstCachedResIfExists();
         }
 
         return or;
     }
 
-    public R orElseErrRes(Function<Err<E>, R> or) {
+    public R hasFirstErrOrElseGet(Function<Err<E>, R> or) {
         if (this.r.isCompletelyEmpty(this)) {
-            return retrieveResIfExists();
+            return retrieveFirstCachedResIfExists();
         }
 
         return or.apply((Err<E>) this.r.get(CachingOperations.RetrieveError.class));
     }
 
-    private R retrieveResIfExists() {
-        Responses.Ok<R> r = (Responses.Ok<R>) this.r.get(CachingOperations.RetrieveRes.class).get();
+    private R retrieveFirstCachedResIfExists() {
+        Responses.Ok<R> r = (Responses.Ok<R>) this.r.get(CachingOperations.RetrieveRes.class).one().get();
         return Optional.ofNullable(r)
                 .flatMap(ResultTy::firstOptional)
                 .orElseThrow(RuntimeException::new);
     }
 
-    public StreamResult<R, E> orElseErr(StreamResult<R, E> or) {
-//        if (this.e.isPresent())
-//            return this;
-//
-//        or.r.t = this.r.t;
-
-        return or;
-    }
-
     public <U> StreamResult<U, E> flatMap(Function<R, Result<U, E>> mapper, Supplier<E> errorSupplier) {
         return new StreamResult<>(this.r.flatMap(m -> m.toStream().map(mapper)))
-                .orError(() -> Err.err(errorSupplier.get()));
+                .firstErrOr(() -> Err.err(errorSupplier.get()));
     }
 
     @Override
-    public StreamResult<R, E> orError(Supplier<Err<E>> s) {
+    public StreamResult<R, E> firstErrOr(Supplier<Err<E>> s) {
         if (this.r.get(CachingOperations.RetrieveError.class) == null)
             return new StreamResult<>(Stream.concat(this.stream(), Stream.of(Result.err(s.get()))));
 
@@ -262,14 +270,13 @@ public class StreamResult<R, E> implements Result<R, E>, CachableStream<Result<R
         return r.hasAnyResult(this);
     }
 
-    public Optional<R> toOptional() {
-        return r.map(Result::toOptional)
-                .flatMap(Optional::stream)
+    public Optional<R> oneOptional() {
+        return r.flatMap(Result::toStream)
                 .findAny();
     }
 
     public Optional<R> optional() {
-        return toOptional();
+        return oneOptional();
     }
 
     public <U> StreamResult<U, E> cast() {
@@ -322,6 +329,7 @@ public class StreamResult<R, E> implements Result<R, E>, CachableStream<Result<R
         return swapped.stream()
                 .flatMap(Result::detachedStream);
     }
+
 
     public void forEach(Consumer<? super Result<R, E>> toDo) {
         this.r.forEach(toDo);

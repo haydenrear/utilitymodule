@@ -1,5 +1,6 @@
 package com.hayden.utilitymodule.result.res_ty;
 
+import com.hayden.utilitymodule.result.res_single.ISingleResultTy;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -12,7 +13,7 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 @Slf4j
-public record ResultTyResult<R>(Optional<R> r) implements IResultTy<R> {
+public record ResultTyResult<R>(Optional<R> r) implements ISingleResultTy<R> {
 
     public <T> IResultTy<T> flatMap(Function<R, IResultTy<T>> toMap) {
         if (r().isEmpty())
@@ -34,6 +35,11 @@ public record ResultTyResult<R>(Optional<R> r) implements IResultTy<R> {
     @Override
     public boolean isZeroOrOneAbstraction() {
         return true;
+    }
+
+    @Override
+    public Optional<R> optional() {
+        return r;
     }
 
     @Override
@@ -70,6 +76,11 @@ public record ResultTyResult<R>(Optional<R> r) implements IResultTy<R> {
     @Override
     public Mono<R> firstMono() {
         return Mono.justOrEmpty(this.r);
+    }
+
+    @Override
+    public ISingleResultTy<R> single() {
+        return this;
     }
 
     @Override

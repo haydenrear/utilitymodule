@@ -1,6 +1,7 @@
 package com.hayden.utilitymodule.result.res_ty;
 
 import com.hayden.utilitymodule.result.Result;
+import com.hayden.utilitymodule.result.res_single.ISingleResultTy;
 import jakarta.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
@@ -24,7 +25,7 @@ import java.util.stream.Stream;
  */
 @Slf4j
 public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable Callable<Void> onClose)
-        implements IResultTy<R> {
+        implements ISingleResultTy<R> {
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public ClosableResult(Optional<R> r) {
@@ -120,6 +121,11 @@ public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable C
     @Override
     public <T> IResultTy<T> map(Function<R, T> toMap) {
         return from(r.map(toMap));
+    }
+
+    @Override
+    public Optional<R> optional() {
+        return r;
     }
 
     @Override

@@ -2,6 +2,7 @@ package com.hayden.utilitymodule.result.async;
 
 import com.google.common.collect.Lists;
 import com.hayden.utilitymodule.result.Result;
+import com.hayden.utilitymodule.result.res_single.ISingleResultTy;
 import com.hayden.utilitymodule.result.res_ty.IResultTy;
 import com.hayden.utilitymodule.result.res_ty.ResultTyResult;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +23,7 @@ import static com.hayden.utilitymodule.result.Result.logAsync;
 import static com.hayden.utilitymodule.result.Result.logThreadStarvation;
 
 @Slf4j
-public record MonoResult<R>(Mono<R> r, AtomicBoolean finished) implements IAsyncResultTy<R> {
+public record MonoResult<R>(Mono<R> r, AtomicBoolean finished) implements IAsyncResultTy<R>, ISingleResultTy<R> {
 
     public MonoResult(Mono<R> r) {
         this(r, new AtomicBoolean(false));
@@ -121,6 +122,12 @@ public record MonoResult<R>(Mono<R> r, AtomicBoolean finished) implements IAsync
     @Override
     public <T> IResultTy<T> map(Function<R, T> toMap) {
         return new MonoResult<>(r.map(toMap));
+    }
+
+    @Override
+    public Optional<R> optional() {
+        logThreadStarvation();
+        return r.blockOptional();
     }
 
     @Override

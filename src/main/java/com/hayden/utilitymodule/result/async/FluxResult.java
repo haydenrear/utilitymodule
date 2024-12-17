@@ -2,6 +2,7 @@ package com.hayden.utilitymodule.result.async;
 
 import com.google.common.collect.Lists;
 import com.hayden.utilitymodule.result.res_many.IManyResultTy;
+import com.hayden.utilitymodule.result.res_single.ISingleResultTy;
 import com.hayden.utilitymodule.result.res_ty.IResultTy;
 import com.hayden.utilitymodule.result.res_ty.ResultTyResult;
 import lombok.extern.slf4j.Slf4j;
@@ -73,6 +74,18 @@ public class FluxResult<R> implements IAsyncManyResultTy<R> {
                 .flatMap(l -> l.size() <= 1
                               ? Mono.justOrEmpty(l.getFirst())
                               : Mono.error(new RuntimeException("Called Mono on stream result with more than one value.")));
+    }
+
+    @Override
+    public ISingleResultTy<R> single() {
+        logThreadStarvation();
+        var created = this.r.toStream().toList();
+
+        if (created.size() > 1) {
+            log.warn("Called single() on flux result with more than one value. Returning first.");
+        }
+
+        return new ResultTyResult<>(Optional.ofNullable(created.getFirst()));
     }
 
     @Override
@@ -180,6 +193,11 @@ public class FluxResult<R> implements IAsyncManyResultTy<R> {
     @Override
     public IResultTy<R> peek(Consumer<? super R> consumer) {
         return new FluxResult<>(this.r.doOnNext(consumer));
+    }
+
+    @Override
+    public boolean isPresent() {
+        return false;
     }
 
     public Flux<R> r() {

@@ -1,6 +1,7 @@
 package com.hayden.utilitymodule.result.async;
 
 import com.hayden.utilitymodule.result.Result;
+import com.hayden.utilitymodule.result.res_single.ISingleResultTy;
 import com.hayden.utilitymodule.result.res_ty.IResultTy;
 import com.hayden.utilitymodule.result.res_ty.ResultTyResult;
 import lombok.extern.slf4j.Slf4j;
@@ -24,7 +25,7 @@ import static com.hayden.utilitymodule.result.Result.logAsync;
 import static com.hayden.utilitymodule.result.Result.logThreadStarvation;
 
 @Slf4j
-public record CompletableFutureResult<R>(CompletableFuture<R> r, AtomicBoolean finished) implements IAsyncResultTy<R> {
+public record CompletableFutureResult<R>(CompletableFuture<R> r, AtomicBoolean finished) implements IAsyncResultTy<R>, ISingleResultTy<R> {
 
     public CompletableFutureResult(CompletableFuture<R> r) {
         this(r, new AtomicBoolean(false));
@@ -79,6 +80,11 @@ public record CompletableFutureResult<R>(CompletableFuture<R> r, AtomicBoolean f
     }
 
     @Override
+    public ISingleResultTy<R> single() {
+        return this;
+    }
+
+    @Override
     public boolean didFinish() {
         return finished.get();
     }
@@ -128,6 +134,11 @@ public record CompletableFutureResult<R>(CompletableFuture<R> r, AtomicBoolean f
     @Override
     public <T> IResultTy<T> map(Function<R, T> toMap) {
         return new CompletableFutureResult<>(r.thenApply(toMap));
+    }
+
+    @Override
+    public Optional<R> optional() {
+        return firstOptional();
     }
 
     @Override

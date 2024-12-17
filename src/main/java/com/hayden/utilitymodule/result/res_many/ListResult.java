@@ -1,12 +1,16 @@
 package com.hayden.utilitymodule.result.res_many;
 
+import com.hayden.utilitymodule.result.res_single.ISingleResultTy;
 import com.hayden.utilitymodule.result.res_ty.IResultTy;
+import com.hayden.utilitymodule.result.res_ty.ResultTyResult;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -67,6 +71,15 @@ public class ListResult<R> implements IStreamResultTy<R> {
     }
 
     @Override
+    public ISingleResultTy<R> single() {
+        if (this.r.size() > 1) {
+            log.warn("Called single on list result ty with {} elements.", r.size());
+        }
+
+        return new ResultTyResult<>(Optional.ofNullable(this.r.getFirst()));
+    }
+
+    @Override
     public IResultTy<R> filter(Predicate<R> p) {
         return new ListResult<>(r.stream().filter(p).toList());
     }
@@ -86,13 +99,13 @@ public class ListResult<R> implements IStreamResultTy<R> {
     }
 
     @Override
-    public IManyResultTy<R> add(R r) {
+    public ListResult<R> add(R r) {
         this.r.add(r);
         return this;
     }
 
     @Override
-    public IManyResultTy<R> concat(IManyResultTy<R> r) {
+    public ListResult<R> concat(IManyResultTy<R> r) {
         r.stream().forEach(t -> this.r.add(t));
         return this;
     }

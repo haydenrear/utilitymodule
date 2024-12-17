@@ -31,7 +31,7 @@ class AggregateResultCollectorsTest {
                     ResultCollectors.from(
                             new ResultTestModel.TestRes(new HashSet<>()),
                             new ResultTestModel.TestAgg(new HashSet<>()),
-                            ab -> ab.toOptional().map(o -> new ResultTestModel.TestRes(Set.of(o))),
+                            ab -> ab.one().toOptional().map(o -> new ResultTestModel.TestRes(Set.of(o))),
                             b -> {
                                 if (b.isError()) {
                                     return Optional.of(new ResultTestModel.TestAgg(Sets.newHashSet(b.e().get())));

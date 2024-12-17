@@ -19,7 +19,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public record OkErrRes<T, E>(Responses.Ok<T> r, Err<E> e) implements Result<T, E> {
+public record OkErrRes<T, E>(Responses.Ok<T> r, Err<E> e) implements OneResult<T, E>, ManyResult<T, E> {
 
     public Result<List<T>, List<E>> collectList() {
         return toResultLists();
@@ -173,7 +173,7 @@ public record OkErrRes<T, E>(Responses.Ok<T> r, Err<E> e) implements Result<T, E
                 if (err.e().isEmpty()) {
                     yield Result.from(r, Err.err(publicValue));
                 } else {
-                    yield mapError(mapper).orError(() -> Err.err(publicValue));
+                    yield mapError(mapper).one().orError(() -> Err.err(publicValue));
                 }
             }
         };

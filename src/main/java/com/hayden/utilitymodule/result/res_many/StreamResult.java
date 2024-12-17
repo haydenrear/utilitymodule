@@ -5,7 +5,9 @@ import com.hayden.utilitymodule.result.CachableStream;
 import com.hayden.utilitymodule.result.ResultStreamWrapper;
 import com.hayden.utilitymodule.result.StreamResultOptions;
 import com.hayden.utilitymodule.result.StreamWrapper;
+import com.hayden.utilitymodule.result.res_single.ISingleResultTy;
 import com.hayden.utilitymodule.result.res_ty.IResultTy;
+import com.hayden.utilitymodule.result.res_ty.ResultTyResult;
 import com.hayden.utilitymodule.result.stream_cache.CachingOperations;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
@@ -34,6 +36,7 @@ public class StreamResult<R> implements IStreamResultTy<R>, CachableStream<R, St
 
         public R first() {
             return this.get(TypeReferenceDelegate.<CachingOperations.RetrieveFirstTy<R>>create(CachingOperations.RetrieveFirstTy.class).get())
+                    .one()
                     .get();
         }
 
@@ -110,6 +113,19 @@ public class StreamResult<R> implements IStreamResultTy<R>, CachableStream<R, St
         return streamList.size() <= 1
                ? Mono.justOrEmpty(streamList.getFirst())
                : Mono.error(new RuntimeException("Called get Mono on list with more than 1."));
+    }
+
+    @Override
+    public ISingleResultTy<R> single() {
+        var last = this.r.cacheResultsIfNotCachedWithList(c -> {});
+        if (last.size() > 1) {
+            log.warn("Called one() on StreamResult with size greater than 1. Discarding all other.");
+        }
+
+
+        return Optional.ofNullable(last.getFirst())
+                .map(res -> new ResultTyResult<>(Optional.of(res)))
+                .orElse(null);
     }
 
     @Override
