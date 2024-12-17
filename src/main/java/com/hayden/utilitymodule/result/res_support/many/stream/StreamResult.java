@@ -34,6 +34,7 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
 
     private final StreamResultStreamWrapper<R, E> r;
 
+
     protected static class StreamResultStreamWrapper<R, E> extends ResultStreamWrapper<StreamResult<R, E>, Result<R, E>> {
 
         public StreamResultStreamWrapper(StreamResultOptions options, Stream<Result<R, E>> underlying,

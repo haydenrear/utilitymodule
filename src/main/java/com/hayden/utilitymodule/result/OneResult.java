@@ -2,6 +2,7 @@ package com.hayden.utilitymodule.result;
 
 import com.hayden.utilitymodule.result.error.Err;
 import com.hayden.utilitymodule.result.res_support.many.stream.StreamResult;
+import com.hayden.utilitymodule.result.res_ty.IResultItem;
 
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -10,6 +11,16 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 public interface OneResult<R, E> extends Result<R, E>, ManyResult<R, E> {
+
+    default IResultItem<R> toResultItem() {
+        return this.r().isMany()
+                ? this.r().many()
+               : this.r().single();
+    }
+
+    default Stream<R> stream() {
+        return this.optional().stream();
+    }
 
     default OneResult<R, E> one() {
         return this;
