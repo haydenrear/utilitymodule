@@ -33,9 +33,7 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
         return r.underlying;
     }
 
-    private static class StreamResultStreamWrapper<R, E> extends ResultStreamWrapper<StreamResult<R, E>, Result<R, E>> {
-
-        StreamResult<R, E> res;
+    protected static class StreamResultStreamWrapper<R, E> extends ResultStreamWrapper<StreamResult<R, E>, Result<R, E>> {
 
         public StreamResultStreamWrapper(StreamResultOptions options, Stream<Result<R, E>> underlying,
                                          StreamResult<R, E> res) {
@@ -149,10 +147,12 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
             log.warn("Called one() on StreamResult with size greater than 1. Discarding all other.");
         }
 
-        return Optional.ofNullable(last.getFirst())
-                .map(res -> Result.from(res.r(), res.e()))
-                .map(Result::one)
-                .orElse(null);
+        return !last.isEmpty()
+               ? Optional.of(last.getFirst())
+                       .map(res -> Result.from(res.r(), res.e()))
+                       .map(Result::one)
+                       .orElse(null)
+               : Result.<E, R>empty().one();
     }
 
 

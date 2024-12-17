@@ -26,7 +26,7 @@ public record OkErrRes<T, E>(Responses.Ok<T> r, Err<E> e) implements OneResult<T
     }
 
     public Err<E> error() {
-        return null;
+        return e;
     }
 
     public Stream<T> stream() {

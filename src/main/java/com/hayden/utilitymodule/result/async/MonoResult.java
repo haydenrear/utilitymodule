@@ -42,7 +42,9 @@ public record MonoResult<R>(Mono<R> r, AtomicBoolean finished) implements IAsync
             log.error("Called optional on stream result with more than one value. Returning first.");
         }
 
-        return !l.isEmpty() ? Optional.of(l.getFirst()) : Optional.empty();
+        return !l.isEmpty()
+               ? Optional.of(l.getFirst())
+               : Optional.empty();
     }
 
     @Override
@@ -74,7 +76,7 @@ public record MonoResult<R>(Mono<R> r, AtomicBoolean finished) implements IAsync
     @Override
     public Mono<R> firstMono() {
         return flux().collectList()
-                .flatMap(l -> l.size() <= 1
+                .flatMap(l -> !l.isEmpty()
                               ? Mono.justOrEmpty(l.getFirst())
                               : Mono.error(new RuntimeException("Called Mono on stream result with more than one value.")));
     }

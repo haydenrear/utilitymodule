@@ -56,6 +56,9 @@ public interface IManyResultTy<R> extends IResultTy<R>{
         if (keepAll)
             swap(l);
 
+        if (l.size() != 1 && !l.isEmpty())
+            log.warn("Called get first on many result and discarded {} results.", l.size() - 1);
+
         return !l.isEmpty() ? Optional.of(l.getFirst()) : Optional.empty();
     }
 

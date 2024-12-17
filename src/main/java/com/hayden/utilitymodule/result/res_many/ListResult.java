@@ -65,9 +65,16 @@ public class ListResult<R> implements IStreamResultTy<R> {
     public Mono<R> firstMono() {
         List<R> streamList = this.r;
         swap(streamList);
-        return streamList.size() <= 1
-               ? Mono.justOrEmpty(streamList.getFirst())
-               : Mono.error(new RuntimeException("Called get Mono on list with more than 1."));
+
+        if (streamList.isEmpty()) {
+            return Mono.error(new RuntimeException("Called get Mono on list with more than 1."));
+        } else {
+            if (streamList.size() != 1) {
+                log.warn("First only one mono is expected, but got {}", streamList.size());
+            }
+
+            return Mono.justOrEmpty(streamList.getFirst());
+        }
     }
 
     @Override
@@ -76,7 +83,9 @@ public class ListResult<R> implements IStreamResultTy<R> {
             log.warn("Called single on list result ty with {} elements.", r.size());
         }
 
-        return new ResultTyResult<>(Optional.ofNullable(this.r.getFirst()));
+        return this.r.isEmpty()
+               ? new ResultTyResult<>(Optional.empty())
+               : new ResultTyResult<>(Optional.ofNullable(this.r.getFirst()));
     }
 
     @Override

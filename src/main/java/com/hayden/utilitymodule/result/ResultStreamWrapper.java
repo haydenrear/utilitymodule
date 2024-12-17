@@ -17,11 +17,18 @@ import java.util.stream.Stream;
  * @param <ST>
  */
 public abstract class ResultStreamWrapper<C extends CachableStream<ST, C>, ST> extends StreamWrapper<C, ST> {
-    public ResultStreamWrapper(StreamResultOptions options, Stream<ST> underlying, Class<? extends CachingOperations.StreamCacheOperation> provider, StreamWrapper<C, ST> other, C res) {
+
+    public ResultStreamWrapper(StreamResultOptions options, Stream<ST> underlying,
+                               Class<? extends CachingOperations.StreamCacheOperation> provider,
+                               StreamWrapper<C, ST> other,
+                               C res) {
         super(options, underlying, provider, other, res);
     }
 
-    public ResultStreamWrapper(StreamResultOptions options, Stream<ST> underlying, Class<? extends CachingOperations.StreamCacheOperation> provider, C c) {
+    public ResultStreamWrapper(StreamResultOptions options,
+                               Stream<ST> underlying,
+                               Class<? extends CachingOperations.StreamCacheOperation> provider,
+                               C c) {
         super(options, underlying, provider, c);
     }
 

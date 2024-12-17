@@ -71,7 +71,7 @@ public class FluxResult<R> implements IAsyncManyResultTy<R> {
     @Override
     public Mono<R> firstMono() {
         return r.collectList()
-                .flatMap(l -> l.size() <= 1
+                .flatMap(l -> !l.isEmpty()
                               ? Mono.justOrEmpty(l.getFirst())
                               : Mono.error(new RuntimeException("Called Mono on stream result with more than one value.")));
     }
@@ -85,7 +85,9 @@ public class FluxResult<R> implements IAsyncManyResultTy<R> {
             log.warn("Called single() on flux result with more than one value. Returning first.");
         }
 
-        return new ResultTyResult<>(Optional.ofNullable(created.getFirst()));
+        return !created.isEmpty()
+               ? new ResultTyResult<>(Optional.ofNullable(created.getFirst()))
+               : new ResultTyResult<>(Optional.empty());
     }
 
     @Override

@@ -1,10 +1,7 @@
 package com.hayden.utilitymodule.result.res_many;
 
 import com.hayden.utilitymodule.reflection.TypeReferenceDelegate;
-import com.hayden.utilitymodule.result.CachableStream;
-import com.hayden.utilitymodule.result.ResultStreamWrapper;
-import com.hayden.utilitymodule.result.StreamResultOptions;
-import com.hayden.utilitymodule.result.StreamWrapper;
+import com.hayden.utilitymodule.result.*;
 import com.hayden.utilitymodule.result.res_single.ISingleResultTy;
 import com.hayden.utilitymodule.result.res_ty.IResultTy;
 import com.hayden.utilitymodule.result.res_ty.ResultTyResult;
@@ -110,9 +107,13 @@ public class StreamResult<R> implements IStreamResultTy<R>, CachableStream<R, St
     public Mono<R> firstMono() {
         List<R> streamList = this.r.toList();
         swap(streamList);
-        return streamList.size() <= 1
-               ? Mono.justOrEmpty(streamList.getFirst())
-               : Mono.error(new RuntimeException("Called get Mono on list with more than 1."));
+        if (streamList.isEmpty())
+            return Mono.error(new RuntimeException("Called get Mono on list with more than 1."));
+
+        if (streamList.size() != 1)
+            log.warn("Called first mono on StreamResult and discarded {}.", streamList.size() - 1);
+
+        return Mono.justOrEmpty(streamList.getFirst());
     }
 
     @Override
@@ -123,9 +124,11 @@ public class StreamResult<R> implements IStreamResultTy<R>, CachableStream<R, St
         }
 
 
-        return Optional.ofNullable(last.getFirst())
-                .map(res -> new ResultTyResult<>(Optional.of(res)))
-                .orElse(null);
+        return !last.isEmpty()
+               ? Optional.ofNullable(last.getFirst())
+                       .map(res -> new ResultTyResult<>(Optional.of(res)))
+                       .orElse(null)
+               : new ResultTyResult<>(Optional.empty());
     }
 
     @Override
