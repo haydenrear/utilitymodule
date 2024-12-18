@@ -220,15 +220,16 @@ public record OneOkErrRes<T, E>(Ok<T> r, Err<E> e) implements OneResult<T, E>, M
             var srt = r.many().map(mapper);
             return Result.from(Stream.concat(srt.stream(), Stream.of(Result.err(this.e))));
         } else {
-            if (this.r.isEmpty()) {
+            if (this.r().isEmpty()) {
                 return this.cast();
             } else {
+                var s = r().map(mapper)
+                        .single()
+                        .get();
 
-                var mapped =  mapper.apply(this.r.get());
-                mapped.e().addError(this.e);
-                return mapped;
+                s.e().addError(this.e());
+                return s;
             }
-
         }
     }
 

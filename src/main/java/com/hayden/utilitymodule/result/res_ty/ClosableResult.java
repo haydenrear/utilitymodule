@@ -2,6 +2,7 @@ package com.hayden.utilitymodule.result.res_ty;
 
 import com.hayden.utilitymodule.result.Result;
 import com.hayden.utilitymodule.result.res_single.ISingleResultItem;
+import com.hayden.utilitymodule.result.res_support.one.ResultTy;
 import jakarta.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
@@ -83,12 +84,12 @@ public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable C
     @Override
     public <T> IResultItem<T> from(Optional<T> r) {
         if (r.isEmpty())
-            return (IResultItem<T>) new ClosableResult<>(Optional.empty());
+            return new ResultTyResult<>(Optional.empty());
         else if (r.get() instanceof AutoCloseable a) {
             return (IResultItem<T>) new ClosableResult<>(Optional.of(a));
         }
 
-        return (IResultItem<T>) new ClosableResult<>(Optional.empty());
+        return new ResultTyResult<>(r);
     }
 
     @Override
@@ -112,13 +113,18 @@ public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable C
     public <T> IResultItem<T> flatMap(Function<R, IResultItem<T>> toMap) {
         return from(r.flatMap(t -> {
             var applied = toMap.apply(t);
+            doClose();
             return applied.firstOptional();
         }));
     }
 
     @Override
     public <T> IResultItem<T> map(Function<R, T> toMap) {
-        return from(r.map(toMap));
+        return from(r.map(m -> {
+            var toApply = toMap.apply(m);
+            doClose();
+            return toApply;
+        }));
     }
 
     @Override

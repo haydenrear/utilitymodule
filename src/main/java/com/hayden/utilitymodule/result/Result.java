@@ -67,6 +67,7 @@ public interface Result<T, E> {
                : from(Ok.empty(), Err.err(gitAggregateError));
     }
 
+
     static <T extends AutoCloseable, E> Result<T, E> tryFrom(T o, Callable<Void> onClose) {
         try {
             log.debug("Doing try from with result ty. Means there was a closable opened. Will log debug on close.");
@@ -337,21 +338,7 @@ public interface Result<T, E> {
                 .orElse(Result.err(errorSupplier.get()));
     }
 
-    default <U> Result<U,E> flatMapResult(Function<T, Result<U, E>> mapper) {
-        if (this.r().isMany()) {
-            var srt = this.r().many().map(mapper);
-            return Result.from(Stream.concat(srt.stream(), Stream.of(Result.err(this.e()))));
-        } else {
-            if (this.r().isEmpty()) {
-                return this.cast();
-            } else {
-
-                var mapped =  mapper.apply(this.r().get());
-                mapped.e().addError(this.e());
-                return mapped;
-            }
-        }
-    }
+    <U> Result<U,E> flatMapResult(Function<T, Result<U, E>> mapper);
 
     default boolean isOk() {
         return r().isPresent();
