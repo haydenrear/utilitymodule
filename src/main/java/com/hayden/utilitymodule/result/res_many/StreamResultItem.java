@@ -29,7 +29,7 @@ public class StreamResultItem<R> implements IStreamResultItem<R>, CachableStream
 
     private final ResultTyStreamWrapper<R> r;
 
-    private static class ResultTyStreamWrapper<R> extends ResultStreamWrapper<StreamResultItem<R>, R> {
+    protected static class ResultTyStreamWrapper<R> extends ResultStreamWrapper<StreamResultItem<R>, R> {
 
         public ResultTyStreamWrapper(StreamResultOptions options, Stream<R> underlying, StreamResultItem<R> res) {
             super(options, underlying, CachingOperations.ResultTyStreamWrapperOperation.class, res);

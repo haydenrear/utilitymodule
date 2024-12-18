@@ -187,7 +187,7 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
             try {
                 return Optional.ofNullable(CACHED_RESULTS().get(clazz.underlying()))
                         .map(cachedRes -> Result.<V, SingleError.StandardError>ok((V) cachedRes.cachedResult()))
-                        .orElseGet(() -> Result.err(new SingleError.StandardError("Infinite operation did not exist.")));
+                        .orElseGet(() -> Result.err(new SingleError.StandardError("Operation did not exist from %s.".formatted(clazz.getName()))));
             } catch (ClassCastException castingException) {
                 return Result.err(new SingleError.StandardError(castingException));
             }
@@ -372,6 +372,10 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
                 .get();
     }
 
+    public synchronized boolean isCompletelyEmpty() {
+        return isCompletelyEmpty(this.res);
+    }
+
     public synchronized boolean isCompletelyEmpty(C streamResult) {
         Assert.notNull(streamResult, "streamResult must not be null");
         cacheResultsIfNotCached();
@@ -380,6 +384,14 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
                 .mapError(se -> {log.error("{}", se); return se;})
                 .one()
                 .get();
+    }
+
+    public synchronized boolean hasAnyResult() {
+        return this.hasAnyResult(this.res);
+    }
+
+    public synchronized boolean isAnyNonNull() {
+        return this.isAnyNonNull(this.res);
     }
 
     public synchronized boolean hasAnyResult(C streamResult) {
