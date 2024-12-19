@@ -148,11 +148,13 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
 
     @Override
     public Ok<R> r() {
+        this.r.cacheResultsIfNotCached();
         return this.r.getOk();
     }
 
     @Override
     public Err<E> e() {
+        this.r.cacheResultsIfNotCached();
         return this.r.getErr();
     }
 

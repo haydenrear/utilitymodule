@@ -39,6 +39,26 @@ public class FileUtils {
         }
     }
 
+    public record FileError(String message) {}
+
+    public static Result<Boolean, FileError> writeToFileRes(String data, Path file) {
+        try {
+            if (isFileInvalidNotCreatable(file)) {
+                var f = "Failed to write to file %s. Could not create file".formatted(file.toFile());
+                log.error(f);
+                return Result.err(new FileError(f));
+            }
+            try (FileWriter fw = new FileWriter(file.toFile())) {
+                fw.write(data);
+            }
+
+            return Result.ok(true);
+        } catch (IOException e) {
+            var f = "Failed to write to file: %s.".formatted(e.getMessage());
+            return Result.err(new FileError(f));
+        }
+    }
+
     public static boolean writeToFile(String data, Path file) {
         try {
             if (isFileInvalidNotCreatable(file)) {

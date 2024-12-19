@@ -113,7 +113,7 @@ public interface Result<T, E> {
         return new OneOkErrRes<>(new Ok<>(r), Err.empty());
     }
 
-    static <R, E> Result<R, E> from(Stream<Result<R, E>> r) {
+    static <R, E> ManyResult<R, E> from(Stream<Result<R, E>> r) {
         return new StreamResult<>(r);
     }
 

@@ -73,7 +73,7 @@ public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable C
             return (IResultItem<T>) new ClosableResult<>(Optional.of(a));
         }
 
-        return (IResultItem<T>) new ClosableResult<>(Optional.empty());
+        return new ResultTyResult<>(Optional.ofNullable(r));
     }
 
     @Override
@@ -113,7 +113,9 @@ public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable C
     public <T> IResultItem<T> flatMap(Function<R, IResultItem<T>> toMap) {
         return from(r.flatMap(t -> {
             var applied = toMap.apply(t);
-            doClose();
+            if ((applied.isOne() && applied.get() != t) || applied.isMany())
+                doClose();
+
             return applied.firstOptional();
         }));
     }
@@ -122,7 +124,9 @@ public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable C
     public <T> IResultItem<T> map(Function<R, T> toMap) {
         return from(r.map(m -> {
             var toApply = toMap.apply(m);
-            doClose();
+            if (toApply != m)
+                doClose();
+
             return toApply;
         }));
     }
