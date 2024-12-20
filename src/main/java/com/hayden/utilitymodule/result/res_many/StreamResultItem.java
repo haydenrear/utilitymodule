@@ -14,10 +14,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -30,6 +32,14 @@ public class StreamResultItem<R> implements IStreamResultItem<R>, CachableStream
     private final ResultTyStreamWrapper<R> r;
 
     protected static class ResultTyStreamWrapper<R> extends ResultStreamWrapper<StreamResultItem<R>, R> {
+
+        public ResultTyStreamWrapper(StreamResultOptions options, Flux<R> underlying, StreamResultItem<R> res) {
+            this(options, underlying.publishOn(Schedulers.fromExecutor(Executors.newVirtualThreadPerTaskExecutor())).toStream(), res);
+        }
+
+        public ResultTyStreamWrapper(StreamResultOptions options, Mono<R> underlying, StreamResultItem<R> res) {
+            this(options, underlying.flux(), res);
+        }
 
         public ResultTyStreamWrapper(StreamResultOptions options, Stream<R> underlying, StreamResultItem<R> res) {
             super(options, underlying, CachingOperations.ResultTyStreamWrapperOperation.class, res);

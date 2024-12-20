@@ -22,23 +22,16 @@ import java.util.stream.*;
 @Slf4j
 public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> implements Stream<ST> {
 
+    @Delegate
+    protected Stream<ST> underlying;
+
+    protected C res;
 
     protected final Class<? extends CachingOperations.StreamCacheOperation> provider;
 
     protected final StreamResultOptions options;
 
     protected final StreamCache<? extends CachingOperations.CachedOperation, C, ST> cached;
-
-    protected void setUnderlying(Stream<ST> underlying) {
-        this.underlying = underlying;
-    }
-
-    @Delegate
-    protected Stream<ST> underlying;
-
-
-    protected C res;
-
 
     protected interface StreamCache<T extends CachingOperations.CachedOperation<ST, ?>, C extends CachableStream<ST, C>, ST> {
 
@@ -130,7 +123,17 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
                             .toList());
 
             if (opts.isInfinite()) {
-                streamed.swap(streamed.stream().peek(c -> doOps(c, streamCacheOperations)));
+                streamed.swap(
+                        streamed.stream()
+                                .peek(c -> doOps(c, streamCacheOperations))
+                                .onClose(() -> streamCacheOperations.get().stream()
+                                        .flatMap(sca -> sca instanceof CachingOperations.OnClosedOperation<?, ?> onClose
+                                                        ? Stream.of(onClose)
+                                                        : Stream.empty()
+                                        )
+                                        .forEach(onClose ->
+                                                CACHED_RESULTS().put((Class<? extends T>) onClose.getClass(),
+                                                        new CachingOperations.StreamCacheResult(onClose, onClose.apply(null))))));
                 return new CacheFilterResult<>(new ArrayList<>(), new ArrayList<>());
             }
 
@@ -169,6 +172,7 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
                                                     return false;
                                                 })
                                                 .orElse(true);
+                                case CachingOperations.OnCloseResultTy o -> true;
                             })
                             .toList()
             );

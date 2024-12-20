@@ -2,18 +2,17 @@ package com.hayden.utilitymodule.result.async;
 
 import com.hayden.utilitymodule.result.Result;
 import com.hayden.utilitymodule.result.res_single.ISingleResultItem;
+import com.hayden.utilitymodule.result.res_support.many.stream.StreamResultOptions;
 import com.hayden.utilitymodule.result.res_ty.IResultItem;
 import com.hayden.utilitymodule.result.res_ty.ResultTyResult;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.time.Duration;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -65,8 +64,15 @@ public record CompletableFutureResult<R>(CompletableFuture<R> r, AtomicBoolean f
 
     @Override
     public Stream<R> stream() {
-        logThreadStarvation();
-        return this.firstOptional().stream();
+        return Mono.fromFuture(this.r)
+                .flux()
+                .publishOn(Schedulers.fromExecutor(Executors.newVirtualThreadPerTaskExecutor()))
+                .toStream();
+    }
+
+    @Override
+    public IAsyncResultItem<R> swap(Stream<R> toCache) {
+        return new CompletableFutureResult<>(CompletableFuture.completedFuture(toCache.findAny().orElse(null)), new AtomicBoolean(true));
     }
 
     @Override
@@ -90,10 +96,16 @@ public record CompletableFutureResult<R>(CompletableFuture<R> r, AtomicBoolean f
     }
 
     @Override
-    public void doAsync(Consumer<? super R> consumer) {
+    public AsyncTyResultStreamWrapper<R> doAsync(Consumer<? super R> consumer) {
         logAsync();
-        var c = this.r.thenAcceptAsync(consumer);
+        var c = this.r.thenApply(u -> {
+            consumer.accept(u);
+            return u;
+        });
+
         c.thenRun(() -> this.finished.set(true));
+        return new AsyncTyResultStreamWrapper<>(StreamResultOptions.builder().build(),
+                Mono.fromFuture(c), this) ;
     }
 
     @Override

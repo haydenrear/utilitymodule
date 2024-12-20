@@ -11,6 +11,11 @@ public interface CachableStream<R, SELF extends CachableStream<R, SELF>> {
 
     Stream<R> stream();
 
+    /**
+     * free will original sin
+     * @param toCache
+     * @return
+     */
     SELF swap(Stream<R> toCache);
 
 }

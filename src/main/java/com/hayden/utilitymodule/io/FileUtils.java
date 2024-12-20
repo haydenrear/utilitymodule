@@ -48,9 +48,11 @@ public class FileUtils {
                 log.error(f);
                 return Result.err(new FileError(f));
             }
-            try (FileWriter fw = new FileWriter(file.toFile())) {
-                fw.write(data);
-            }
+
+            if (data != null)
+                try (FileWriter fw = new FileWriter(file.toFile())) {
+                    fw.write(data);
+                }
 
             return Result.ok(true);
         } catch (IOException e) {

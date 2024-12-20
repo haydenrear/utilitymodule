@@ -13,6 +13,8 @@ public interface CachingOperations {
 
     interface InfiniteOperation<T, U> extends CachedOperation<T, U> {}
 
+    interface OnClosedOperation<T, U> extends InfiniteOperation<T, U> {}
+
     record StreamCacheResult<T, U>(CachedOperation<T, U> predicateType,
                                    U cachedResult) {}
 
@@ -22,21 +24,37 @@ public interface CachingOperations {
                 CachingOperations.ResultStreamCacheOperation { }
 
     sealed interface ResultTyStreamWrapperOperation<T, U> extends StreamCacheOperation<T, U>
-                        permits CachingOperations.ResultTyPredicate, CachingOperations.ResultTyStreamCacheFunction { }
+                        permits
+                            CachingOperations.ResultTyPredicate,
+                            CachingOperations.ResultTyStreamCacheFunction { }
 
     interface StreamCacheFunction<T, U> extends CachedOperation<T, U> {}
 
     sealed interface ResultStreamCacheOperation<T, U> extends StreamCacheOperation<T, U>
-            permits CachingOperations.ResultStreamCacheFunction, CachingOperations.ResultStreamCachePredicate { }
+            permits
+                CachingOperations.ResultStreamCacheFunction,
+                CachingOperations.ResultStreamCachePredicate { }
 
     sealed interface ResultStreamCacheFunction<T, U> extends StreamCacheFunction<T, U>, ResultStreamCacheOperation<T, U>
             permits
-            CachingOperations.RetrieveError,
-            CachingOperations.RetrieveRes,
-            CachingOperations.RetrieveFirstRes{ }
+                CachingOperations.RetrieveError,
+                CachingOperations.RetrieveRes,
+                CachingOperations.RetrieveFirstRes { }
 
     sealed interface ResultTyStreamCacheFunction<T, U> extends StreamCacheFunction<T, U>, ResultTyStreamWrapperOperation<T, U>
             permits CachingOperations.RetrieveFirstTy { }
+
+    record OnCloseResultTy<T>() implements OnClosedOperation<T, Boolean>, ResultTyPredicate<T>, ResultStreamCachePredicate<T> {
+        @Override
+        public Boolean apply(T teResult) {
+            return true;
+        }
+
+        @Override
+        public boolean test(T t) {
+            return false;
+        }
+    }
 
     record RetrieveFirstTy<T>() implements ResultTyStreamCacheFunction<T, T> {
         @Override
@@ -94,10 +112,24 @@ public interface CachingOperations {
     }
 
     sealed interface ResultTyPredicate<T> extends StreamCachePredicate<T>, ResultTyStreamWrapperOperation<T, Boolean>
-            permits CachingOperations.IsAnyNonNull, CachingOperations.IsCompletelyEmpty, StreamCachePredicate.All, StreamCachePredicate.Any { }
+            permits IsAnyNonNull, IsCompletelyEmpty, OnCloseResultTy, StreamCachePredicate.All, StreamCachePredicate.Any {
+
+        @Override
+        default Boolean apply(T t) {
+            return this.test(t);
+        }
+    }
 
     sealed interface ResultStreamCachePredicate<T> extends StreamCachePredicate<T>, ResultStreamCacheOperation<T, Boolean>
-            permits CachingOperations.HasErr, CachingOperations.HasResult, CachingOperations.IsAnyNonNull, CachingOperations.IsCompletelyEmpty, StreamCachePredicate.All, StreamCachePredicate.Any { }
+            permits HasErr, HasResult, IsAnyNonNull, IsCompletelyEmpty, OnCloseResultTy, StreamCachePredicate.All, StreamCachePredicate.Any {
+
+        @Override
+        default Boolean apply(T t) {
+            return this.test(t);
+        }
+
+
+    }
 
     interface PersistentCacheResult  {}
 

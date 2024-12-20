@@ -3,15 +3,20 @@ package com.hayden.utilitymodule.result.async;
 import com.google.common.collect.Lists;
 import com.hayden.utilitymodule.result.Result;
 import com.hayden.utilitymodule.result.res_single.ISingleResultItem;
+import com.hayden.utilitymodule.result.res_support.many.stream.StreamResultOptions;
 import com.hayden.utilitymodule.result.res_ty.IResultItem;
 import com.hayden.utilitymodule.result.res_ty.ResultTyResult;
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.time.Duration;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -23,10 +28,14 @@ import static com.hayden.utilitymodule.result.Result.logAsync;
 import static com.hayden.utilitymodule.result.Result.logThreadStarvation;
 
 @Slf4j
-public record MonoResult<R>(Mono<R> r, AtomicBoolean finished) implements IAsyncResultItem<R>, ISingleResultItem<R> {
+@AllArgsConstructor
+public class MonoResult<R> implements IAsyncResultItem<R>, ISingleResultItem<R> {
+
+    Mono<R> r;
+    AtomicBoolean finished = new AtomicBoolean(false);
 
     public MonoResult(Mono<R> r) {
-        this(r, new AtomicBoolean(false));
+        this.r = r;
     }
 
     @Override
@@ -69,6 +78,11 @@ public record MonoResult<R>(Mono<R> r, AtomicBoolean finished) implements IAsync
     }
 
     @Override
+    public IAsyncResultItem<R> swap(Stream<R> toCache) {
+        return new FluxResult<>(Flux.fromStream(toCache));
+    }
+
+    @Override
     public Flux<R> flux() {
         return r.flux();
     }
@@ -87,10 +101,15 @@ public record MonoResult<R>(Mono<R> r, AtomicBoolean finished) implements IAsync
     }
 
     @Override
-    public void doAsync(Consumer<? super R> consumer) {
+    public IAsyncResultItem.AsyncTyResultStreamWrapper<R> doAsync(Consumer<? super R> consumer) {
         logAsync();
-        this.r.doAfterTerminate(() -> this.finished.set(true))
-                .subscribe(consumer);
+
+        return new AsyncTyResultStreamWrapper<>(
+                StreamResultOptions.builder().build(),
+                this.r.flux().doOnEach(s -> consumer.accept(s.get()))
+                        .doAfterTerminate(() -> this.finished.set(true))
+                        .subscribeOn(Schedulers.fromExecutor(Executors.newVirtualThreadPerTaskExecutor())),
+                this);
     }
 
     @Override
@@ -161,4 +180,13 @@ public record MonoResult<R>(Mono<R> r, AtomicBoolean finished) implements IAsync
     public boolean isOne() {
         return true;
     }
+
+    public Mono<R> r() {
+        return r;
+    }
+
+    public AtomicBoolean finished() {
+        return finished;
+    }
+
 }

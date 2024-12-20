@@ -1,18 +1,22 @@
 package com.hayden.utilitymodule.result.async;
 
 import com.hayden.utilitymodule.result.res_many.IManyResultItem;
+import com.hayden.utilitymodule.result.res_many.StreamResultItem;
 import com.hayden.utilitymodule.result.res_single.ISingleResultItem;
+import com.hayden.utilitymodule.result.res_support.many.stream.StreamResultOptions;
 import com.hayden.utilitymodule.result.res_ty.IResultItem;
 import com.hayden.utilitymodule.result.res_ty.ResultTyResult;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -30,10 +34,11 @@ public class FluxResult<R> implements IAsyncManyResultItem<R> {
 
     private Flux<R> r;
 
+
+
     public FluxResult(Flux<R> r) {
         this.r = r;
     }
-
 
     public void swap(Flux<R> toSwap) {
         this.r = toSwap;
@@ -57,8 +62,14 @@ public class FluxResult<R> implements IAsyncManyResultItem<R> {
 
     @Override
     public Stream<R> stream() {
-        logAsync();
-        return r.toStream();
+        return r.subscribeOn(Schedulers.fromExecutor(Executors.newVirtualThreadPerTaskExecutor()))
+                .toStream();
+    }
+
+    @Override
+    public IAsyncResultItem<R> swap(Stream<R> toCache) {
+        this.r = Flux.fromStream(toCache);
+        return this;
     }
 
     @Override
@@ -94,10 +105,12 @@ public class FluxResult<R> implements IAsyncManyResultItem<R> {
     }
 
     @Override
-    public void doAsync(Consumer<? super R> consumer) {
-        logAsync();
-        this.r.doOnComplete(() -> finished.set(true))
-                .subscribe(consumer);
+    public IAsyncResultItem.AsyncTyResultStreamWrapper<R> doAsync(Consumer<? super R> consumer) {
+        return new AsyncTyResultStreamWrapper<>(StreamResultOptions.builder().build(),
+                this.r.doOnEach(c -> consumer.accept(c.get()))
+                        .doOnComplete(() -> finished.set(true))
+                        .subscribeOn(Schedulers.fromExecutor(Executors.newVirtualThreadPerTaskExecutor())),
+                this);
     }
 
     @Override
