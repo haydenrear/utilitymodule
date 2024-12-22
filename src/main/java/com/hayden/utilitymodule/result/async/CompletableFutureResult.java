@@ -104,8 +104,10 @@ public record CompletableFutureResult<R>(CompletableFuture<R> r, AtomicBoolean f
         });
 
         c.thenRun(() -> this.finished.set(true));
-        return new AsyncTyResultStreamWrapper<>(StreamResultOptions.builder().build(),
-                Mono.fromFuture(c).subscribeOn(Schedulers.fromExecutor(Executors.newVirtualThreadPerTaskExecutor())), this) ;
+        return new AsyncTyResultStreamWrapper<>(
+                StreamResultOptions.builder().build(),
+                Mono.fromFuture(c).subscribeOn(Schedulers.fromExecutor(Executors.newVirtualThreadPerTaskExecutor())),
+                this);
     }
 
     @Override

@@ -41,6 +41,9 @@ public interface OneResult<R, E> extends Result<R, E>, ManyResult<R, E> {
         return r().isPresent();
     }
 
+    @Override
+    <U> ManyResult<U, E> flatMap(Function<R, Result<U, E>> mapper);
+
     default Result<R, E> or(Supplier<Result<R, E>> s) {
         if (this.r().isPresent())
             return this;
@@ -83,13 +86,13 @@ public interface OneResult<R, E> extends Result<R, E>, ManyResult<R, E> {
     }
 
     @Override
-    default Result<R, E> hasAnyOr(Supplier<Result<R, E>> s) {
-        return this.or(s);
+    default ManyResult<R, E> hasAnyOr(Supplier<Result<R, E>> s) {
+        return this.or(s).many();
     }
 
     @Override
-    default Result<R, E> last(Consumer<Result<R, E>> last) {
-        return this;
+    default ManyResult<R, E> last(Consumer<Result<R, E>> last) {
+        return this.many();
     }
 
     @Override
@@ -111,11 +114,12 @@ public interface OneResult<R, E> extends Result<R, E>, ManyResult<R, E> {
     }
 
     @Override
-    default Result<R, E> firstErrOr(Supplier<Err<E>> s) {
+    default OneResult<R, E> firstErrOr(Supplier<Err<E>> s) {
         if (this.e().isPresent()) {
             return this;
         }
 
-        return Result.from(this.r(), s.get());
+        return Result.from(this.r(), s.get())
+                .one();
     }
 }

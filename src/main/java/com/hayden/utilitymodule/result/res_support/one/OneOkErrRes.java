@@ -6,7 +6,6 @@ import com.hayden.utilitymodule.result.ManyResult;
 import com.hayden.utilitymodule.result.OneResult;
 import com.hayden.utilitymodule.result.Result;
 import com.hayden.utilitymodule.result.error.Err;
-import com.hayden.utilitymodule.result.map.StreamResultCollector;
 import com.hayden.utilitymodule.result.ok.Ok;
 import com.hayden.utilitymodule.result.res_many.ListResultItem;
 import com.hayden.utilitymodule.result.res_ty.IResultItem;
@@ -76,73 +75,79 @@ public record OneOkErrRes<T, E>(Ok<T> r, Err<E> e) implements OneResult<T, E>, M
                 .isPresent();
     }
 
-    public <U> Result<U, E> map(Function<T, U> mapper) {
+    public <U> OneResult<U, E> map(Function<T, U> mapper) {
         if (this.r.isMany())
-            return Result.from(Ok.ok(this.r.many().map(mapper)), this.e);
+            return Result.from(Ok.ok(this.r.many().map(mapper)), this.e).one();
         else {
             if (this.r.isPresent()) {
                 var toRet = mapper.apply(this.r.get());
-                return Result.from(Ok.ok(toRet), this.e);
+                return Result.from(Ok.ok(toRet), this.e).one();
             }
 
             return this.cast();
         }
     }
 
-    public Result<T, E> peek(Consumer<T> mapper) {
-        return Result.from(Ok.ok(this.r.peek(mapper)), this.e);
+    public OneResult<T, E> peek(Consumer<T> mapper) {
+        return Result.from(Ok.ok(this.r.peek(mapper)), this.e).one();
     }
 
 
-    public <U> Result<U, E> map(Function<T, U> mapper, Supplier<E> err) {
+    public <U> OneResult<U, E> map(Function<T, U> mapper, Supplier<E> err) {
         return r.<Result<U, E>>map(t -> Result.from(Ok.ok(mapper.apply(t)), this.e))
-                .orElse(Result.err(err.get()));
+                .orElse(Result.err(err.get())).one();
     }
 
-    public <E1> Result<T, E1> mapError(Function<E, E1> mapper) {
+    @Override
+    public ManyResult<T, E> peekError(Consumer<E> mapper) {
+        return new OneOkErrRes<>(this.r, Err.err(this.e.peek(mapper)));
+    }
+
+
+    public <E1> OneResult<T, E1> mapError(Function<E, E1> mapper) {
         if (this.e.isMany())
-            return Result.from(this.r, Err.err(new ListResultItem<>(this.e.stream().map(mapper).toList())));
+            return Result.from(this.r, Err.err(new ListResultItem<>(this.e.stream().map(mapper).toList()))).one();
         else {
             if (this.e.isPresent()) {
                 Err<E1> r1 = this.e.mapErr(mapper);
-                return Result.from(this.r, r1);
+                return Result.from(this.r, r1).one();
             }
 
             return this.castError();
         }
     }
 
-    public Result<T, E> or(Supplier<Result<T, E>> s) {
+    public OneResult<T, E> or(Supplier<Result<T, E>> s) {
         if (this.r.isPresent())
             return this;
-        return s.get();
+        return s.get().one();
     }
 
-    public Result<T, E> filterErr(Predicate<E> b) {
+    public OneResult<T, E> filterErr(Predicate<E> b) {
         if (this.e.isMany()) {
             var filtered = this.e.many().filter(b);
 
-            return Result.from(this.r, Err.err(filtered));
+            return Result.from(this.r, Err.err(filtered)).one();
         } else {
             if (e.isPresent() && b.test(e.get())) {
                 return this;
             }
 
-            return Result.from(this.r, Err.empty());
+            return Result.<T, E>from(this.r, Err.empty()).one();
         }
     }
 
-    public Result<T, E> filterResult(Predicate<T> b) {
+    public OneResult<T, E> filterResult(Predicate<T> b) {
         if (this.r.isMany()) {
             var filtered = r.many().filter(b);
 
-            return Result.from(Ok.ok(filtered), this.e);
+            return Result.from(Ok.ok(filtered), this.e).one();
         } else {
             if (r.isPresent() && b.test(r.get())) {
                 return this;
             }
 
-            return Result.err(this.e);
+            return Result.<T, E>err(this.e).one();
         }
     }
 
@@ -157,28 +162,30 @@ public record OneOkErrRes<T, E>(Ok<T> r, Err<E> e) implements OneResult<T, E>, M
                 });
     }
 
-    public <E1> Result<T, E1> mapError(Function<E, E1> mapper, E1 publicValue) {
+    public <E1> OneResult<T, E1> mapError(Function<E, E1> mapper, E1 publicValue) {
         if (this.e.isMany()) {
-            return Result.from(this.r, Err.err(this.e.many().map(mapper)));
+            return Result.from(this.r, Err.err(this.e.many().map(mapper))).one();
         } else {
             var err = this.mapError(mapper);
             if (err.e().isEmpty()) {
-                return Result.from(r, Err.err(publicValue));
+                return Result.from(r, Err.err(publicValue)).one();
             } else {
-                return mapError(mapper).one().orError(() -> Err.err(publicValue));
+                return mapError(mapper).one().orError(() -> Err.err(publicValue)).one();
             }
         }
     }
 
-    public <U> Result<U, E> flatMap(Function<T, Result<U, E>> mapper) {
+    public <U> ManyResult<U, E> flatMap(Function<T, Result<U, E>> mapper) {
         if (this.r.isMany()) {
-            return Result.from(Stream.of(Result.ok(this.r.many()), Result.err(this.e)))
-                    .flatMap(mapper);
+            var m = Result.from(Stream.of(Result.ok(this.r), Result.err(this.e)))
+                        .flatMap(mapper);
+
+            return m.many();
         } else {
             if (this.r.isPresent()) {
                 var applied = mapper.apply(this.r.get());
                 Err<E> e1 = applied.e();
-                return Result.from(applied.r(), e1.addError(this.e));
+                return Result.from(applied.r(), e1.addError(this.e)).one();
             }
 
             return this.cast();
@@ -209,16 +216,17 @@ public record OneOkErrRes<T, E>(Ok<T> r, Err<E> e) implements OneResult<T, E>, M
         return or.apply(this.e);
     }
 
-    public <U> Result<U, E> flatMap(Function<T, Result<U, E>> mapper, Supplier<E> errorSupplier) {
+    public <U> OneResult<U, E> flatMap(Function<T, Result<U, E>> mapper, Supplier<E> errorSupplier) {
         return r.map(mapper)
                 .filter(r -> r.r().isPresent())
-                .orElse(Result.err(errorSupplier.get()));
+                .orElse(Result.err(errorSupplier.get()))
+                .one();
     }
 
-    public <U> Result<U, E> flatMapResult(Function<T, Result<U, E>> mapper) {
+    public <U> ManyResult<U, E> flatMapResult(Function<T, Result<U, E>> mapper) {
         if (this.r.isMany()) {
             var srt = r.many().map(mapper);
-            return Result.from(Stream.concat(srt.stream(), Stream.of(Result.err(this.e))));
+            return Result.from(Stream.concat(srt.stream(), Stream.of(Result.err(this.e)))).many();
         } else {
             if (this.r().isEmpty()) {
                 return this.cast();
@@ -228,7 +236,7 @@ public record OneOkErrRes<T, E>(Ok<T> r, Err<E> e) implements OneResult<T, E>, M
                         .get();
 
                 s.e().addError(this.e());
-                return s;
+                return s.one();
             }
         }
     }
@@ -245,19 +253,19 @@ public record OneOkErrRes<T, E>(Ok<T> r, Err<E> e) implements OneResult<T, E>, M
         return toOptional();
     }
 
-    public <U> Result<U, E> cast() {
-        return Result.from(this.r.cast(), this.e);
+    public <U> OneResult<U, E> cast() {
+        return Result.<U, E>from(this.r.cast(), this.e).one();
     }
 
-    public <V> Result<T, V> castError() {
-        return Result.from(this.r, this.e.cast());
+    public <V> OneResult<T, V> castError() {
+        return Result.<T, V>from(this.r, this.e.cast()).one();
     }
 
     public <R extends Result<U, V>, U, V> R cast(TypeReference<R> refDelegate) {
         return (R) this.map(c -> (U) c);
     }
 
-    public Result<T, E> doOnError(Consumer<E> e) {
+    public OneResult<T, E> doOnError(Consumer<E> e) {
         this.e.ifPresent(e);
         return this;
     }

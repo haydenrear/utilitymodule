@@ -182,9 +182,9 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
         return new StreamResult<>(thisList.stream());
     }
 
-    public Result<R, E> hasAnyOr(Supplier<Result<R, E>> s) {
+    public ManyResult<R, E> hasAnyOr(Supplier<Result<R, E>> s) {
         if (!this.r.hasAnyResult(this))  {
-            return s.get();
+            return s.get().many();
         }
 
         return this;
@@ -209,7 +209,7 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
     }
 
     public <U> StreamResult<U, E> map(Function<R, U> mapper, Supplier<E> err) {
-        return new StreamResult<>(r.map(t -> this.map(mapper).hasAnyOr(() -> Result.err(err.get()))));
+        return new StreamResult<>(r.map(t -> t.map(mapper).many().hasAnyOr(() -> Result.err(err.get()))));
     }
 
     public <E1> StreamResult<R, E1> mapError(Function<E, E1> mapper) {
@@ -334,6 +334,11 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
 
     public void forEach(Consumer<? super Result<R, E>> toDo) {
         this.r.forEach(toDo);
+    }
+
+    @Override
+    public ManyResult<R, E> peekError(Consumer<E> mapper) {
+        return new StreamResult<>(this.r.peek(res -> res.e().peek(mapper)));
     }
 
 }
