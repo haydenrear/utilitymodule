@@ -11,10 +11,11 @@ import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.util.Assert;
+import org.springframework.util.concurrent.CompletableToListenableFutureAdapter;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.*;
 import java.util.stream.*;
@@ -48,6 +49,12 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
         void doCache(C c, Consumer<? super ST> terminalOp);
 
         List<ST> cacheToList(C c, Consumer<? super ST> terminalOp);
+
+        boolean isParallel();
+
+        boolean isAsync();
+
+        Optional<ExecutorService> executor();
 
         default List<ST> cacheToList(C c) {
             return this.cacheToList(c, cst -> {});
@@ -123,24 +130,109 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
                             .toList());
 
             if (opts.isInfinite()) {
-                streamed.swap(
-                        streamed.stream()
-                                .peek(c -> doOps(c, streamCacheOperations))
-                                .onClose(() -> streamCacheOperations.get().stream()
-                                        .flatMap(sca -> sca instanceof CachingOperations.OnClosedOperation<?, ?> onClose
-                                                        ? Stream.of(onClose)
-                                                        : Stream.empty()
-                                        )
-                                        .forEach(onClose ->
-                                                CACHED_RESULTS().put((Class<? extends T>) onClose.getClass(),
-                                                        new CachingOperations.StreamCacheResult(onClose, onClose.apply(null))))));
-                return new CacheFilterResult<>(new ArrayList<>(), new ArrayList<>());
+                return doInfinite(streamed, terminalOp, streamCacheOperations);
             }
 
-            var resultList = streamed.stream().peek(res -> { terminalOp.accept(res); doOps(res, streamCacheOperations); })
-                    .toList();
+
+            return doStandard(streamed, terminalOp, streamCacheOperations);
+        }
+
+        private @NotNull CacheFilterResult doStandard(C streamed, Consumer<? super ST> terminalOp, AtomicReference<List<CachingOperations.StreamCacheOperation>> streamCacheOperations) {
+            var stream = stream(streamed);
+
+            List<ST> resultList;
+            if (isAsync()) {
+                resultList = doAsyncStandard(terminalOp, streamCacheOperations, stream);
+            } else {
+                resultList = stream
+                        .peek(res -> { terminalOp.accept(res); doOps(res, streamCacheOperations); })
+                        .toList();
+            }
+
 
             return new CacheFilterResult<>((List) streamCacheOperations.get(), resultList);
+        }
+
+        private Stream<ST> stream(C streamed) {
+            var stream = streamed.stream();
+
+            if (isParallel())
+                stream = stream.parallel();
+            return stream;
+        }
+
+        private @NotNull List<ST> doAsyncStandard(Consumer<? super ST> terminalOp, AtomicReference<List<CachingOperations.StreamCacheOperation>> streamCacheOperations, Stream<ST> stream) {
+            List<ST> resultList;
+            try(final ExecutorService te = retrieveExecutor()) {
+                var all = stream
+                        .map(i -> CompletableFuture.supplyAsync(
+                                () -> {
+                                    terminalOp.accept(i);
+                                    doOps(i, streamCacheOperations);
+                                    return i;
+                                },
+                                te
+                        ))
+                        .toList();
+
+                resultList = CompletableFuture.allOf(all.toArray(CompletableFuture[]::new))
+                        .thenApply(v -> all.stream().flatMap(f -> {
+                            try {
+                                return Stream.of(f.get());
+                            } catch (
+                                    InterruptedException |
+                                    ExecutionException e) {
+                                throw new RuntimeException(e);
+                            }
+                        }))
+                        .get()
+                        .toList();
+
+            } catch (ExecutionException |
+                     InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            return resultList;
+        }
+
+        private @NotNull CacheFilterResult doInfinite(C streamed, Consumer<? super ST> terminalOp, AtomicReference<List<CachingOperations.StreamCacheOperation>> streamCacheOperations) {
+            Stream<ST> toCache = infiniStream(streamed, streamCacheOperations);
+
+            if (isAsync()) {
+                try(final ExecutorService te = retrieveExecutor()) {
+                    toCache.forEach(n -> te.submit(() -> terminalOp.accept(n)));
+                }
+            } else {
+                toCache.forEach(terminalOp);
+            }
+
+            return new CacheFilterResult<>((List) streamCacheOperations.get(), new ArrayList<>());
+        }
+
+        private @NotNull ExecutorService retrieveExecutor() {
+            if (this.executor().isEmpty())
+                throw new RuntimeException("Async execution required for async.");
+
+            final ExecutorService te = this.executor().get();
+            return te;
+        }
+
+        private @NotNull Stream<ST> infiniStream(C streamed,
+                                                 AtomicReference<List<CachingOperations.StreamCacheOperation>> streamCacheOperations) {
+            var s = streamed.stream()
+                    .peek(c -> doOps(c, streamCacheOperations))
+                    .onClose(() -> streamCacheOperations.get().stream()
+                            .flatMap(sca -> sca instanceof CachingOperations.OnClosedOperation<?, ?> onClose
+                                            ? Stream.of(onClose)
+                                            : Stream.empty()
+                            )
+                            .forEach(onClose ->
+                                    CACHED_RESULTS().put((Class<? extends T>) onClose.getClass(),
+                                            new CachingOperations.StreamCacheResult(onClose, onClose.apply(null)))));
+            if (isParallel())
+                return s.parallel();
+
+            return s;
         }
 
         private void doOps(ST res, AtomicReference<List<CachingOperations.StreamCacheOperation>> streamCacheOperations) {
@@ -199,7 +291,6 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
 
     }
 
-    @RequiredArgsConstructor
     protected class InfiniCache implements StreamCache<CachingOperations.InfiniteOperation<ST, ?>, C, ST> {
 
         private final ConcurrentHashMap<Class<? extends CachingOperations.InfiniteOperation<ST, ?>>, CachingOperations.StreamCacheResult> CACHED_RESULTS
@@ -207,8 +298,21 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
 
         protected final Class<? extends CachingOperations.StreamCacheOperation> provider;
 
+        private final StreamResultOptions streamResultOptions;
+
+        private ExecutorService executorService;
+
         private volatile boolean cached = false;
 
+        public InfiniCache(Class<? extends CachingOperations.StreamCacheOperation> provider,
+                           StreamResultOptions streamResultOptions) {
+            this.provider = provider;
+            this.streamResultOptions = streamResultOptions;
+
+            if (this.streamResultOptions.isAsync())
+                this.executorService = Executors.newVirtualThreadPerTaskExecutor();
+
+        }
 
         @Override
         public synchronized void doCache(C c, Consumer<? super ST> st) {
@@ -235,6 +339,21 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
         }
 
         @Override
+        public boolean isParallel() {
+            return streamResultOptions.isParallel();
+        }
+
+        @Override
+        public boolean isAsync() {
+            return this.streamResultOptions.isAsync();
+        }
+
+        @Override
+        public Optional<ExecutorService> executor() {
+            return Optional.ofNullable(this.executorService);
+        }
+
+        @Override
         public synchronized void resetCache() {
             cached = false;
         }
@@ -256,18 +375,28 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
 
     }
 
-    @RequiredArgsConstructor
     protected class StandardCache implements StreamCache<CachingOperations.CachedOperation<ST, ?>, C, ST> {
 
         private final ConcurrentHashMap<Class<? extends CachingOperations.CachedOperation<ST, ?>>, CachingOperations.StreamCacheResult> CACHED_RESULTS
                 = new ConcurrentHashMap<>();
 
         protected final Class<? extends CachingOperations.StreamCacheOperation> provider;
+        private final StreamResultOptions streamResultOptions;
+
+        private ExecutorService executorService;
 
         private volatile boolean cached = false;
 
-        public synchronized void doCache(C c) {
+        public StandardCache(Class<? extends CachingOperations.StreamCacheOperation> provider,
+                             StreamResultOptions streamResultOptions) {
+            this.provider = provider;
+            this.streamResultOptions = streamResultOptions;
+            if (this.streamResultOptions.isAsync())
+                this.executorService = Executors.newVirtualThreadPerTaskExecutor();
+        }
 
+        public synchronized void doCache(C c) {
+            this.doCache(c, nextItem -> {});
         }
 
         public synchronized void doCache(C c, Consumer<? super ST> terminalOp) {
@@ -324,7 +453,20 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
             return cached;
         }
 
+        @Override
+        public boolean isParallel() {
+            return streamResultOptions.isParallel();
+        }
 
+        @Override
+        public boolean isAsync() {
+            return this.streamResultOptions.isAsync();
+        }
+
+        @Override
+        public Optional<ExecutorService> executor() {
+            return Optional.ofNullable(this.executorService);
+        }
 
     }
 
@@ -336,9 +478,11 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
         this.options = options;
         this.underlying = underlying;
         this.provider = provider;
+
         if (this.options.isInfinite())
-            this.cached = new InfiniCache(provider);
-        else this.cached = new StandardCache(provider);
+            this.cached = new InfiniCache(provider, options);
+        else
+            this.cached = new StandardCache(provider, options);
 
         if (other != null)
             throw new RuntimeException("Not implemented yet");

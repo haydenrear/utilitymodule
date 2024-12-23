@@ -97,17 +97,16 @@ public record CompletableFutureResult<R>(CompletableFuture<R> r, AtomicBoolean f
 
     @Override
     public AsyncTyResultStreamWrapper<R> doAsync(Consumer<? super R> consumer) {
-        logAsync();
-        var c = this.r.thenApply(u -> {
-            consumer.accept(u);
-            return u;
-        });
-
-        c.thenRun(() -> this.finished.set(true));
-        return new AsyncTyResultStreamWrapper<>(
+        var wrapper = new AsyncTyResultStreamWrapper<>(
                 StreamResultOptions.builder().build(),
-                Mono.fromFuture(c).subscribeOn(Schedulers.fromExecutor(Executors.newVirtualThreadPerTaskExecutor())),
+                Mono.fromFuture(r)
+                        .doAfterTerminate(() -> this.finished.set(false)),
                 this);
+
+
+        wrapper.throwIfCachedOrCache(consumer);
+
+        return wrapper;
     }
 
     @Override

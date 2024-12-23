@@ -102,14 +102,15 @@ public class MonoResult<R> implements IAsyncResultItem<R>, ISingleResultItem<R> 
 
     @Override
     public IAsyncResultItem.AsyncTyResultStreamWrapper<R> doAsync(Consumer<? super R> consumer) {
-        logAsync();
-
-        return new AsyncTyResultStreamWrapper<>(
-                StreamResultOptions.builder().build(),
-                this.r.flux().doOnEach(s -> consumer.accept(s.get()))
-                        .doAfterTerminate(() -> this.finished.set(true))
-                        .subscribeOn(Schedulers.fromExecutor(Executors.newVirtualThreadPerTaskExecutor())),
+        var wrapper = new AsyncTyResultStreamWrapper<>(
+                StreamResultOptions.builder()
+                        .build(),
+                this.r.flux().doAfterTerminate(() -> this.finished.set(true)),
                 this);
+
+        wrapper.throwIfCachedOrCache(consumer);
+
+        return wrapper;
     }
 
     @Override

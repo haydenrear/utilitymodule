@@ -34,8 +34,6 @@ public class FluxResult<R> implements IAsyncManyResultItem<R> {
 
     private Flux<R> r;
 
-
-
     public FluxResult(Flux<R> r) {
         this.r = r;
     }
@@ -106,13 +104,23 @@ public class FluxResult<R> implements IAsyncManyResultItem<R> {
 
     @Override
     public IAsyncResultItem.AsyncTyResultStreamWrapper<R> doAsync(Consumer<? super R> consumer) {
-        return new AsyncTyResultStreamWrapper<>(StreamResultOptions.builder().build(),
-                this.r.doOnEach(c -> consumer.accept(c.get()))
-                        .doOnComplete(() -> finished.set(true))
-                        .subscribeOn(Schedulers.fromExecutor(Executors.newVirtualThreadPerTaskExecutor())),
+        var wrapper = new AsyncTyResultStreamWrapper<>(
+                StreamResultOptions.builder().build(),
+                this.r.doOnComplete(() -> finished.set(true)),
                 this);
+
+        wrapper.throwIfCachedOrCache(consumer);
+
+        return wrapper;
+
     }
 
+    /**
+     * TODO: await until it's finished and then wake it up
+     * @return
+     * @throws ExecutionException
+     * @throws InterruptedException
+     */
     @Override
     public R block() throws ExecutionException, InterruptedException {
         return blockFirst();

@@ -28,15 +28,17 @@ public interface IAsyncResultItem<R> extends IResultItem<R>, CachableStream<R, I
     class AsyncTyResultStreamWrapper<R> extends ResultStreamWrapper<IAsyncResultItem<R>, R> {
 
         public AsyncTyResultStreamWrapper(StreamResultOptions options, Flux<R> underlying, IAsyncResultItem<R> res) {
-            this(options, underlying.publishOn(Schedulers.fromExecutor(Executors.newVirtualThreadPerTaskExecutor())).toStream(), res);
+            this(asyncVirtual(options),
+                    underlying.publishOn(Schedulers.fromExecutor(Executors.newVirtualThreadPerTaskExecutor())).toStream(),
+                    res);
         }
 
         public AsyncTyResultStreamWrapper(StreamResultOptions options, Mono<R> underlying, IAsyncResultItem<R> res) {
-            this(options, underlying.flux(), res);
+            this(asyncVirtual(options), underlying.flux(), res);
         }
 
         public AsyncTyResultStreamWrapper(StreamResultOptions options, Stream<R> underlying, IAsyncResultItem<R> res) {
-            super(options, underlying, CachingOperations.ResultTyStreamWrapperOperation.class, res);
+            super(asyncVirtual(options), underlying, CachingOperations.ResultTyStreamWrapperOperation.class, res);
         }
 
         public R first() {
@@ -61,6 +63,10 @@ public interface IAsyncResultItem<R> extends IResultItem<R>, CachableStream<R, I
             return findAny();
         }
 
+    }
+
+    private static StreamResultOptions asyncVirtual(StreamResultOptions options) {
+        return options.toBuilder().isAsync(true).isVirtual(true).build();
     }
 
     boolean didFinish();
