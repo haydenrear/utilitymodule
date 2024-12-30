@@ -291,12 +291,12 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
 
     }
 
-    protected class InfiniCache implements StreamCache<CachingOperations.InfiniteOperation<ST, ?>, C, ST> {
+    protected final class InfiniCache implements StreamCache<CachingOperations.InfiniteOperation<ST, ?>, C, ST> {
 
         private final ConcurrentHashMap<Class<? extends CachingOperations.InfiniteOperation<ST, ?>>, CachingOperations.StreamCacheResult> CACHED_RESULTS
                 = new ConcurrentHashMap<>();
 
-        protected final Class<? extends CachingOperations.StreamCacheOperation> provider;
+        private final Class<? extends CachingOperations.StreamCacheOperation> provider;
 
         private final StreamResultOptions streamResultOptions;
 
@@ -375,12 +375,13 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
 
     }
 
-    protected class StandardCache implements StreamCache<CachingOperations.CachedOperation<ST, ?>, C, ST> {
+    protected final class StandardCache implements StreamCache<CachingOperations.CachedOperation<ST, ?>, C, ST> {
 
         private final ConcurrentHashMap<Class<? extends CachingOperations.CachedOperation<ST, ?>>, CachingOperations.StreamCacheResult> CACHED_RESULTS
                 = new ConcurrentHashMap<>();
 
-        protected final Class<? extends CachingOperations.StreamCacheOperation> provider;
+        private final Class<? extends CachingOperations.StreamCacheOperation> provider;
+
         private final StreamResultOptions streamResultOptions;
 
         private ExecutorService executorService;

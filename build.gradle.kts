@@ -12,9 +12,6 @@ plugins {
 
 description = "utilitymodule"
 
-java {
-    version = JavaVersion.VERSION_21
-}
 
 val vC = project.extensions.getByType(BuildSrcVersionCatalogCollector::class.java)
 

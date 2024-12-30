@@ -25,7 +25,7 @@ import reactor.core.scheduler.Schedulers;
 public interface IAsyncResultItem<R> extends IResultItem<R>, CachableStream<R, IAsyncResultItem<R>> {
 
     @Slf4j
-    class AsyncTyResultStreamWrapper<R> extends ResultStreamWrapper<IAsyncResultItem<R>, R> {
+    final class AsyncTyResultStreamWrapper<R> extends ResultStreamWrapper<IAsyncResultItem<R>, R> {
 
         public AsyncTyResultStreamWrapper(StreamResultOptions options, Flux<R> underlying, IAsyncResultItem<R> res) {
             this(asyncVirtual(options),

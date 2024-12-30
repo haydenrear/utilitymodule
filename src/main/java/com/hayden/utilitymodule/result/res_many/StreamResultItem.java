@@ -31,7 +31,7 @@ public class StreamResultItem<R> implements IStreamResultItem<R>, CachableStream
 
     private final ResultTyStreamWrapper<R> r;
 
-    protected static class ResultTyStreamWrapper<R> extends ResultStreamWrapper<StreamResultItem<R>, R> {
+    protected final static class ResultTyStreamWrapper<R> extends ResultStreamWrapper<StreamResultItem<R>, R> {
 
         public ResultTyStreamWrapper(StreamResultOptions options, Flux<R> underlying, StreamResultItem<R> res) {
             this(options, underlying.publishOn(Schedulers.fromExecutor(Executors.newVirtualThreadPerTaskExecutor())).toStream(), res);
