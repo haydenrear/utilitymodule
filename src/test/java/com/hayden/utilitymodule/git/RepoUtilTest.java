@@ -2,12 +2,14 @@ package com.hayden.utilitymodule.git;
 
 import org.assertj.core.util.Files;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
 class RepoUtilTest {
@@ -30,6 +32,12 @@ class RepoUtilTest {
                         throw new AssertionError(e);
                     }
                 });
+    }
 
+    @Test
+    void getGitRepo() {
+        var repo = RepoUtil.getGitRepo();
+        assertThat(repo.toFile().exists()).isTrue();
+        Assertions.assertThrows(RuntimeException.class, () -> RepoUtil.getGitRepo(Files.newTemporaryFolder()));
     }
 }

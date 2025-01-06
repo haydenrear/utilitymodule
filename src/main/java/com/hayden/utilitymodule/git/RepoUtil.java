@@ -6,6 +6,7 @@ import com.hayden.utilitymodule.result.Result;
 import com.hayden.utilitymodule.result.error.SingleError;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.util.FS;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.nio.file.Path;
@@ -38,13 +39,21 @@ public interface RepoUtil {
 
     static Path getGitRepo() {
         var f= new File("");
+        return getGitRepo(f);
+    }
+
+    static @NotNull Path getGitRepo(File f) {
         var p = f.toPath();
 
         if (p.resolve(".git").toFile().exists()) {
             return f.toPath().resolve(".git").toAbsolutePath();
         } else {
-            while (!f.getParentFile().toPath().resolve(".git").toFile().exists()) {
-                f = f.getParentFile();
+            while (f.getParentFile() != null && !f.getParentFile().toPath().resolve(".git").toFile().exists()) {
+                var pf = f.getParentFile();
+                if (pf.equals(f) || pf.equals(f.toPath().getRoot().toFile()))
+                    break;
+                else
+                    f = pf;
             }
 
             if (f.toPath().resolve(".git").toFile().exists()) {
