@@ -109,6 +109,10 @@ public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable C
         return this.r.orElse(null);
     }
 
+    public R getClosableQuietly() {
+        return this.r.orElse(null);
+    }
+
     @Override
     public <T> IResultItem<T> flatMap(Function<R, IResultItem<T>> toMap) {
         return from(r.flatMap(t -> {
