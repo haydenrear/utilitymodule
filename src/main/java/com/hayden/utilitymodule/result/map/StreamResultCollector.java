@@ -2,9 +2,10 @@ package com.hayden.utilitymodule.result.map;
 
 import com.hayden.utilitymodule.Either;
 import com.hayden.utilitymodule.result.Result;
+import com.hayden.utilitymodule.result.ok.Ok;
 import com.hayden.utilitymodule.result.res_support.one.ResultTy;
 import com.hayden.utilitymodule.result.error.Err;
-import com.hayden.utilitymodule.result.ok.Ok;
+import com.hayden.utilitymodule.result.res_ty.IResultItem;
 
 import java.util.*;
 import java.util.function.BiConsumer;
@@ -26,7 +27,7 @@ public class StreamResultCollector<R, ERR>
         return (r, e) -> {
             Optional.ofNullable(e.getLeft())
                     .stream()
-                    .flatMap(ResultTy::stream)
+                    .flatMap(IResultItem::stream)
                     .filter(Objects::nonNull)
                     .forEach(o -> r.r().get().add(o));
             Optional.ofNullable(e.getRight())

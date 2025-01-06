@@ -1,7 +1,5 @@
 package com.hayden.utilitymodule.result;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.hayden.utilitymodule.Either;
 import com.hayden.utilitymodule.result.error.Err;
 import com.hayden.utilitymodule.result.ok.Ok;
 import com.hayden.utilitymodule.result.res_support.many.stream.StreamResult;
@@ -35,9 +33,6 @@ public interface ManyResult<R, E> extends Result<R, E> {
 
     @Override
     ManyResult<R, E> filterResult(Predicate<R> b);
-
-    @Override
-    void close();
 
     @Override
     <E1> ManyResult<R, E1> mapError(Function<E, E1> mapper, E1 defaultValue);

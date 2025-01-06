@@ -6,9 +6,7 @@ import com.hayden.utilitymodule.reflection.TypeReferenceDelegate;
 import com.hayden.utilitymodule.result.*;
 import com.hayden.utilitymodule.result.error.Err;
 import com.hayden.utilitymodule.result.error.SingleError;
-import com.hayden.utilitymodule.result.map.StreamResultCollector;
 import com.hayden.utilitymodule.result.ok.Ok;
-import com.hayden.utilitymodule.result.res_support.one.ResultTy;
 import com.hayden.utilitymodule.result.res_support.many.stream.stream_cache.CachableStream;
 import com.hayden.utilitymodule.result.res_ty.IResultItem;
 import com.hayden.utilitymodule.result.res_support.many.stream.stream_cache.CachingOperations;
@@ -256,7 +254,7 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
     private R retrieveFirstCachedResIfExists() {
         Ok<R> r = this.r.getOk();
         return Optional.ofNullable(r)
-                .flatMap(ResultTy::firstOptional)
+                .flatMap(IResultItem::firstOptional)
                 .orElseThrow(RuntimeException::new);
     }
 

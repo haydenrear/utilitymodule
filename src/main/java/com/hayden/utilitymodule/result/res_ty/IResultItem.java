@@ -45,6 +45,7 @@ public interface IResultItem<R> extends Result.Monadic<R> {
 
     IResultItem<R> filter(Predicate<R> p);
 
+
     R get();
 
     <V> IResultItem<V> flatMap(Function<R, IResultItem<V>> toMap);

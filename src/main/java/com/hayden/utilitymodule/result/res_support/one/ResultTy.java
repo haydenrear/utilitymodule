@@ -69,7 +69,6 @@ public abstract class ResultTy<U> {
         this.t = from(u);
     }
 
-    public abstract Stream<U> detachedStream();
 
 
 }

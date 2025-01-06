@@ -7,9 +7,14 @@ import com.hayden.utilitymodule.result.agg.AggregateParamError;
 import com.hayden.utilitymodule.result.agg.Responses;
 import com.hayden.utilitymodule.result.error.Err;
 import com.hayden.utilitymodule.result.map.StreamResultCollector;
+import com.hayden.utilitymodule.result.ok.ClosableOk;
+import com.hayden.utilitymodule.result.ok.MutableOk;
 import com.hayden.utilitymodule.result.ok.Ok;
+import com.hayden.utilitymodule.result.ok.StdOk;
 import com.hayden.utilitymodule.result.res_many.ListResultItem;
-import com.hayden.utilitymodule.result.res_support.one.OneOkErrRes;
+import com.hayden.utilitymodule.result.res_support.one.ClosableOne;
+import com.hayden.utilitymodule.result.res_support.one.MutableOne;
+import com.hayden.utilitymodule.result.res_support.one.One;
 import com.hayden.utilitymodule.result.res_support.many.stream.StreamResult;
 import com.hayden.utilitymodule.result.res_ty.ClosableResult;
 import com.hayden.utilitymodule.result.res_ty.IResultItem;
@@ -33,6 +38,7 @@ public interface Result<T, E> {
 
     Logger log = LoggerFactory.getLogger(Result.class);
 
+
     interface Monadic<R> {
 
         R get();
@@ -54,32 +60,31 @@ public interface Result<T, E> {
 
     }
 
-
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     static <T, E> Result<T, E> fromOpt(Optional<T> stringStringEntry, E gitAggregateError) {
-        return from(new Ok<>(stringStringEntry), Err.err(gitAggregateError));
+        return from(new StdOk<>(stringStringEntry), Err.err(gitAggregateError));
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     static <T, E> Result<T, E> fromOptOrErr(Optional<T> stringStringEntry, E gitAggregateError) {
         return stringStringEntry.isPresent()
-               ? from(new Ok<>(stringStringEntry), Err.empty())
+               ? from(Ok.ok(stringStringEntry), Err.empty())
                : from(Ok.empty(), Err.err(gitAggregateError));
     }
 
 
-    static <T extends AutoCloseable, E> Result<T, E> tryFrom(T o, Callable<Void> onClose) {
+    static <T extends AutoCloseable, E> com.hayden.utilitymodule.result.Result<T, E> tryFrom(T o, Callable<Void> onClose) {
         try {
             log.debug("Doing try from with result ty. Means there was a closable opened. Will log debug on close.");
-            return Result.ok(new ClosableResult<>(Optional.ofNullable(o), onClose));
+            return Result.tryOk(new ClosableResult<>(Optional.ofNullable(o), onClose));
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
     }
 
-    static <T extends AutoCloseable, E> Result<T, E> tryFrom(Callable<T> o) {
+    static <T extends AutoCloseable, E> com.hayden.utilitymodule.result.ClosableResult<T, E> tryFrom(Callable<T> o) {
         try {
-            return Result.ok(o.call());
+            return Result.tryOk(o.call());
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
@@ -102,15 +107,27 @@ public interface Result<T, E> {
     }
 
     static <R, E> OneResult<R, E> ok(R r) {
-        return new OneOkErrRes<>(new Ok<>(r), Err.empty());
+        return new One<>(new StdOk<>(r), Err.empty());
+    }
+
+    static <R, E> MutableResult<R, E> mutableOk(R r) {
+        return new MutableOne<>(new MutableOk<>(r), Err.empty());
+    }
+
+    static <R extends AutoCloseable, E> com.hayden.utilitymodule.result.ClosableResult<R, E> tryOk(R r) {
+        return new ClosableOne<>(ClosableOk.ok(r), Err.empty());
     }
 
     static <R, E> OneResult<R, E> resOk(R r) {
-        return new OneOkErrRes<>(new Ok<>(r), Err.empty());
+        return new One<>(new StdOk<>(r), Err.empty());
     }
 
     static <R, E> Result<R, E> ok(IResultItem<R> r) {
-        return new OneOkErrRes<>(new Ok<>(r), Err.empty());
+        return new One<>(new StdOk<>(r), Err.empty());
+    }
+
+    static <R extends AutoCloseable, E> com.hayden.utilitymodule.result.ClosableResult<R, E> tryOk(ClosableResult<R> r) {
+        return new ClosableOne<>(ClosableOk.ok(r), Err.empty());
     }
 
     static <R, E> ManyResult<R, E> from(Stream<Result<R, E>> r) {
@@ -118,39 +135,43 @@ public interface Result<T, E> {
     }
 
     static <R, E> Result<R, E> ok(Mono<R> r) {
-        return new OneOkErrRes<>(new Ok<>(r), Err.empty());
+        return new One<>(new StdOk<>(r), Err.empty());
     }
 
     static <R, E> Result<R, E> ok(Flux<R> r) {
-        return new OneOkErrRes<>(new Ok<>(r), Err.empty());
+        return new One<>(new StdOk<>(r), Err.empty());
     }
 
     static <R, E> Result<R, E> ok(Stream<R> r) {
-        return new OneOkErrRes<>(new Ok<>(r), Err.empty());
+        return new One<>(new StdOk<>(r), Err.empty());
     }
 
     static <R, E> Result<R, E> ok(Ok<R> r) {
-        return new OneOkErrRes<>(r, Err.empty());
+        return new One<>(r, Err.empty());
     }
 
     static <R, E> OneResult<R, E> err(E r) {
-        return new OneOkErrRes<>(Ok.empty(), Err.err(r));
+        return new One<>(Ok.empty(), Err.err(r));
+    }
+
+    static <R extends AutoCloseable, E> com.hayden.utilitymodule.result.ClosableResult<R, E> tryErr(E r) {
+        return new ClosableOne<>(ClosableOk.emptyClosable(), Err.err(r));
     }
 
     static <R, E> Result<R, E> err(Err<E> r) {
-        return new OneOkErrRes<>(Ok.empty(), r);
+        return new One<>(Ok.empty(), r);
     }
 
     static <R, E> Result<R, E> from(R r, E e) {
-        return new OneOkErrRes<>(Ok.ok(r), Err.err(e));
+        return new One<>(Ok.ok(r), Err.err(e));
     }
 
     static <R, E> Result<R, E> from(IResultItem<R> r, IResultItem<E> e) {
-        return new OneOkErrRes<>(Ok.ok(r), Err.err(e));
+        return new One<>(Ok.ok(r), Err.err(e));
     }
 
     static <R, E> Result<R, E> from(Ok<R> r, Err<E> e) {
-        return new OneOkErrRes<>(r, e);
+        return new One<>(r, e);
     }
 
     static <T extends Responses.AggregateResponse, E extends AggregateError> @Nullable Result<T, E> all(Collection<Result<T, E>> mapper, Result<T, E> finalResult) {
@@ -223,14 +244,16 @@ public interface Result<T, E> {
     }
 
     static <E, T> Result<T, E> empty() {
-        return new OneOkErrRes<>(Ok.empty(), Err.empty());
+        return new One<>(Ok.empty(), Err.empty());
+    }
+
+    static <E, T> MutableResult<T, E> mutableEmpty() {
+        return new MutableOne<>(new MutableOk<>(Optional.empty()), Err.empty());
     }
 
     Result<T, E> filterErr(Predicate<E> b);
 
     Result<T, E> filterResult(Predicate<T> b);
-
-    void close();
 
     <E1> Result<T, E1> mapError(Function<E, E1> mapper, E1 defaultValue);
 
