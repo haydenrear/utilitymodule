@@ -8,6 +8,7 @@ plugins {
     id("com.hayden.ai")
     id("com.hayden.security")
     id("com.hayden.bom-plugin")
+    id("com.hayden.git")
 }
 
 description = "utilitymodule"
