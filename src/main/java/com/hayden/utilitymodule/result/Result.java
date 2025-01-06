@@ -297,7 +297,7 @@ public interface Result<T, E> {
     }
 
 
-    default void ifPresent(Consumer<T> t) {
+    default void ifPresent(Consumer<? super T> t) {
         this.r().ifPresent(t);
     }
 
@@ -393,7 +393,7 @@ public interface Result<T, E> {
         return this;
     }
 
-    default void doOnEach(Consumer<T> e) {
+    default void doOnEach(Consumer<? super T> e) {
         this.r().forEach(e);
     }
 

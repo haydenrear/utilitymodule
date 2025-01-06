@@ -199,4 +199,6 @@ public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable C
     public boolean isOne() {
         return true;
     }
+
+
 }

@@ -304,7 +304,7 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
         return new StreamResult<>(this.r.map(res -> res.doOnError(e)));
     }
 
-    public void doOnEach(Consumer<R> e) {
+    public void doOnEach(Consumer<? super R> e) {
         this.r.forEach(res -> res.doOnEach(e));
     }
 

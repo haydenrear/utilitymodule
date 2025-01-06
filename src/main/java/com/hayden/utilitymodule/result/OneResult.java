@@ -144,7 +144,7 @@ public interface OneResult<R, E> extends ManyResult<R, E> {
         return e().stream();
     }
 
-    default void ifPresent(Consumer<R> t) {
+    default void ifPresent(Consumer<? super R> t) {
         this.r().ifPresent(t);
     }
 
@@ -317,7 +317,7 @@ public interface OneResult<R, E> extends ManyResult<R, E> {
         return this;
     }
 
-    default void doOnEach(Consumer<R> e) {
+    default void doOnEach(Consumer<? super R> e) {
         this.r().forEach(e);
     }
 

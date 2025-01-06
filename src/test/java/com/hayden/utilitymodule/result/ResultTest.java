@@ -20,7 +20,7 @@ public class ResultTest {
 
     @SneakyThrows
     @Test
-    public void autoClosable() throws InterruptedException {
+    public void autoClosable() {
         AtomicInteger i = new AtomicInteger(0);
         Result.<FileInputStream, SingleError>tryFrom(
                         new FileInputStream("build.gradle.kts"),
@@ -29,6 +29,7 @@ public class ResultTest {
                             return null;
                         })
                 .ifPresent(fi -> {
+                    assertThat(ClosableResult.hasOpenResources()).isTrue();
                     assertEquals(1, i.incrementAndGet());
                     try {
                         assertNotEquals(0, fi.available());
@@ -38,6 +39,7 @@ public class ResultTest {
                 });
 
         assertEquals(2, i.get());
+        assertThat(ClosableResult.hasOpenResources()).isFalse();
     }
 
     @Test

@@ -8,7 +8,6 @@ import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.util.FS;
 
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.Path;
 
 public interface RepoUtil {
@@ -30,10 +29,11 @@ public interface RepoUtil {
             return Result.tryFrom(() -> Git.open(repoPath.toFile()));
         }
 
-        return Result.tryFrom(() -> Git.init().setGitDir(repoPath.toFile()).setInitialBranch("main")
-                .setFs(FS.detect())
-                .setDirectory(repoPath.toFile().getParentFile())
-                .call());
+        return Result.tryFrom(
+                () -> Git.init().setGitDir(repoPath.toFile()).setInitialBranch("main")
+                        .setFs(FS.detect())
+                        .setDirectory(repoPath.toFile().getParentFile())
+                        .call());
     }
 
     static Path getGitRepo() {

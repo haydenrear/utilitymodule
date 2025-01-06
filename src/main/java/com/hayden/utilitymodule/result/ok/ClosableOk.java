@@ -5,7 +5,6 @@ import com.hayden.utilitymodule.result.res_ty.ClosableResult;
 import com.hayden.utilitymodule.result.res_ty.IResultItem;
 
 import java.util.Optional;
-import java.util.stream.Stream;
 
 public class ClosableOk<R extends AutoCloseable> extends ResultTy<R> implements Ok<R> {
 
@@ -13,17 +12,12 @@ public class ClosableOk<R extends AutoCloseable> extends ResultTy<R> implements 
         super(r);
     }
 
-    @Override
-    public Stream<R> detachedStream() {
-        return Stream.empty();
-    }
-
-    public ClosableOk(IResultItem<R> r) {
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    public ClosableOk(Optional<R> r) {
         super(r);
     }
 
-    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    public ClosableOk(Optional<R> r) {
+    public ClosableOk(IResultItem<R> r) {
         super(r);
     }
 
@@ -42,5 +36,13 @@ public class ClosableOk<R extends AutoCloseable> extends ResultTy<R> implements 
     @Override
     public IResultItem<R> t() {
         return t;
+    }
+
+    public R getClosableQuietly() {
+        if (this.t instanceof ClosableResult<R> res) {
+            return res.getClosableQuietly();
+        }
+
+        return this.t.get();
     }
 }

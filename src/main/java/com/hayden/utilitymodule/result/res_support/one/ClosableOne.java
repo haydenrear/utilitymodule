@@ -10,6 +10,7 @@ public record ClosableOne<T extends AutoCloseable, E>(ClosableOk<T> r, Err<E> e)
     public ClosableOne(ClosableOk<T> r, Err<E> e) {
         this.r = r;
         this.e = e;
+        onInitialize();
     }
 
     public void close() {
