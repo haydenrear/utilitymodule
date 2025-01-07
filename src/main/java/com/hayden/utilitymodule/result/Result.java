@@ -134,6 +134,7 @@ public interface Result<T, E> {
         return new StreamResult<>(r);
     }
 
+
     static <R, E> Result<R, E> ok(Mono<R> r) {
         return new One<>(new StdOk<>(r), Err.empty());
     }

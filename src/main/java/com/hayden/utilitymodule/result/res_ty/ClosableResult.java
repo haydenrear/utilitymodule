@@ -160,6 +160,10 @@ public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable C
         doClose();
     }
 
+    public void doWithoutClosing(Consumer<? super R> consumer) {
+        r.ifPresent(consumer);
+    }
+
     private void doClose() {
         try {
             log.debug("Doing close on ClosableResult closable.");

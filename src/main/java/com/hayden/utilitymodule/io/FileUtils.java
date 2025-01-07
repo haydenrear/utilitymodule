@@ -3,16 +3,19 @@ package com.hayden.utilitymodule.io;
 import com.hayden.utilitymodule.result.error.SingleError;
 import com.hayden.utilitymodule.result.Result;
 import jakarta.annotation.Nonnull;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.Assert;
 
 import java.io.*;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -243,4 +246,60 @@ public class FileUtils {
             return Result.err(SingleError.fromE(e));
         }
     }
+
+    public static @Nonnull Result<Iterator<String>, SingleError> readToLazyIterator(File f) {
+        if (!f.exists())
+            return Result.err(SingleError.fromMessage("File %s did not exist.".formatted(f.getAbsolutePath())));
+
+        try {
+            return Result.<BufferedReader, SingleError>ok(Files.newBufferedReader(f.toPath()))
+                    .map(bfr -> new Iterator<>() {
+
+                        @SneakyThrows
+                        @Override
+                        public boolean hasNext() {
+                            if (!bfr.ready()) {
+                                bfr.close();
+                                return false;
+                            }
+
+                            return true;
+                        }
+
+                        @SneakyThrows
+                        @Override
+                        public String next() {
+                            if (hasNext())
+                                return bfr.readLine();
+
+                            return null;
+                        }
+                    });
+        } catch (IOException e) {
+            return Result.err(SingleError.fromE(e));
+        }
+
+    }
+
+    public static boolean hasParentDirectoryMatching(Predicate<Path> toMatch, Path starting) {
+        starting = starting.toAbsolutePath();
+        if (toMatch.test(starting))
+            return true;
+
+        if (isRoot(starting))
+            return false;
+
+        while (!isRoot(starting)) {
+            starting = starting.getParent();
+            if (toMatch.test(starting))
+                return true;
+        }
+
+        return false;
+    }
+
+    public static boolean isRoot(Path starting) {
+        return starting.getParent() == null || starting.getParent().equals(starting) || starting.getParent().equals(starting.getRoot());
+    }
+
 }

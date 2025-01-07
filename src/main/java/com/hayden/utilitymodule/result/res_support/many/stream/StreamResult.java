@@ -45,7 +45,7 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
                             TypeReferenceDelegate.<CachingOperations.RetrieveRes<R, E>>create(CachingOperations.RetrieveRes.class),
                             new SingleError.StandardError("Failed to parse type reference delegate for %s".formatted(CachingOperations.RetrieveFirstRes.class.getName()))
                     )
-                    .flatMapResult(this::get)
+                    .flatMapResult(res -> this.get(res))
                     .peekError(se -> log.error("Found err: {}", se))
                     .r()
                     .orElse(Ok.empty());

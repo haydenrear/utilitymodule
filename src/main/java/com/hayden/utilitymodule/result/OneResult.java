@@ -95,8 +95,8 @@ public interface OneResult<R, E> extends ManyResult<R, E> {
     }
 
     @Override
-    default ManyResult<R, E> hasAnyOr(Supplier<Result<R, E>> s) {
-        return this.or(s).many();
+    default OneResult<R, E> hasAnyOr(Supplier<Result<R, E>> s) {
+        return this.or(s).one();
     }
 
     @Override

@@ -7,8 +7,10 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Iterator;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class FileUtilsTest {
@@ -109,4 +111,11 @@ public class FileUtilsTest {
         assertEquals(2, count, "Total files (including symbolic links) should be 4");
     }
 
+    @Test
+    public void testHasParent() {
+        var hasParent = FileUtils.hasParentDirectoryMatching(p -> p.toAbsolutePath().toFile().getName().equals("drools"), Paths.get(""));
+        assertThat(hasParent).isTrue();
+        var noParent = FileUtils.hasParentDirectoryMatching(p -> p.toAbsolutePath().toFile().getName().equals("asdfjkdsllkj"), Paths.get(""));
+        assertThat(noParent).isFalse();
+    }
 }
