@@ -33,6 +33,29 @@ public class StreamResultTest {
     }
 
     @Test
+    public void doTestStreamResultCollectWithFlatMap() {
+        record TestErr() {}
+        Result<String, TestErr> sr = new StreamResult<>(Stream.of(Result.ok("first"), Result.ok("second"), Result.ok("third"),
+                Result.err(new TestErr())))
+                .flatMapResult(u -> Result.ok("ok"));
+
+        var collected = sr.toList();
+        var e = collected.errs();
+        var r = collected.res();
+        var errors = collected.errsList();
+        var results = collected.results();
+        var cached = collected.resultCache();
+
+        assertThat(results).containsExactlyElementsOf(List.of("ok", "ok", "ok"));
+        assertThat(errors).hasSameElementsAs(List.of(new TestErr()));
+
+        assertThat(cached.size()).isNotZero();
+
+        assertThat(e.size()).isNotZero();
+        assertThat(r.size()).isNotZero();
+    }
+
+    @Test
     public void doTestResultCollect() {
         record TestErr() {}
         Result<String, TestErr> sr = Result.from("hello", new TestErr());
