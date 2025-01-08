@@ -16,9 +16,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -223,5 +221,10 @@ public class StreamResultItem<R> implements IStreamResultItem<R>, CachableStream
         swap(lst);
 
         return is;
+    }
+
+    @Override
+    public List<R> toList() {
+        return this.r.throwIfCachedOrCacheWithList();
     }
 }

@@ -1,5 +1,8 @@
 package com.hayden.utilitymodule.result.res_many;
 
+import com.hayden.utilitymodule.result.Result;
+import com.hayden.utilitymodule.result.ok.Ok;
+import com.hayden.utilitymodule.result.res_support.many.stream.StreamResult;
 import com.hayden.utilitymodule.result.res_support.many.stream.StreamResultOptions;
 import org.checkerframework.checker.units.qual.A;
 import org.junit.jupiter.api.Test;
@@ -12,6 +15,24 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
 class StreamResultItemTest {
+
+    @Test
+    public void testMapToStreamResult() {
+        var found = Result.ok("whatever")
+                .flatMapToStreamResult(w -> Result.from(Stream.of(Result.ok("whatever"), Result.ok("ok"))))
+                .many();
+
+        var many = found.many().toResultLists().get();
+        assertThat(many).isNotNull();
+        assertThat(many).containsExactly("whatever", "ok");
+
+        found = Result.ok("whatever")
+                .flatMapResult(w -> Result.from(Stream.of(Result.ok("whatever"), Result.ok("ok"))));
+
+        many = found.many().toResultLists().get();
+        assertThat(many).isNotNull();
+        assertThat(many).containsExactly("whatever");
+    }
 
     @Test
     public void testOkStreamResultItem() {

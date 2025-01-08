@@ -100,6 +100,8 @@ public interface ManyResult<R, E> extends Result<R, E> {
         return Result.super.flatMapStreamResult(mapper);
     }
 
+
+
     @Override
     default <U> ManyResult<U, E> cast() {
         return Result.super.<U>cast().many();

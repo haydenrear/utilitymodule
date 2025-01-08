@@ -147,6 +147,11 @@ public class ListResultItem<R> implements IStreamResultItem<R> {
         return true;
     }
 
+
+    public List<R> toList() {
+        return this.r;
+    }
+
     @Override
     public boolean isOne() {
         return false;

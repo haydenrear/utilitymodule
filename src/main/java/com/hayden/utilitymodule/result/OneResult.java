@@ -2,6 +2,7 @@ package com.hayden.utilitymodule.result;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.hayden.utilitymodule.Either;
+import com.hayden.utilitymodule.assert_util.AssertUtil;
 import com.hayden.utilitymodule.result.error.Err;
 import com.hayden.utilitymodule.result.ok.Ok;
 import com.hayden.utilitymodule.result.res_many.ListResultItem;
@@ -281,6 +282,21 @@ public interface OneResult<R, E> extends ManyResult<R, E> {
                 .one();
     }
 
+    default <U> ManyResult<U, E> flatMapToStreamResult(Function<R, StreamResult<U, E>> mapper) {
+        if (this.r().isMany()) {
+            var srt = r().many().map(mapper);
+            return Result.from(Stream.concat(srt.stream(), Stream.of(Result.err(this.e())))).many();
+        } else {
+            if (this.r().isEmpty()) {
+                return this.cast();
+            } else {
+                return new StreamResult<>(Stream.concat(
+                        r().map(mapper).get().stream(),
+                        Stream.of(Result.err(this.e()))));
+            }
+        }
+    }
+
     default <U> ManyResult<U, E> flatMapResult(Function<R, Result<U, E>> mapper) {
         if (this.r().isMany()) {
             var srt = r().many().map(mapper);
@@ -289,12 +305,14 @@ public interface OneResult<R, E> extends ManyResult<R, E> {
             if (this.r().isEmpty()) {
                 return this.cast();
             } else {
-                var s = r().map(mapper)
-                        .single()
-                        .get();
-
+                var f = r().map(mapper);
+                Result<U, E> ueResult = f.get();
+                AssertUtil.assertTrue(() -> !(ueResult instanceof StreamResult<U,E>),
+                        () -> "Cannot flatMap from One to StreamResult successfully - call many() first and then flatMapResult instead " +
+                              "of calling flatMapResult to ResultStream on OneResult - or else only returns the first result.");
+                var s = ueResult.one();
                 s.e().addError(this.e());
-                return s.one();
+                return s;
             }
         }
     }

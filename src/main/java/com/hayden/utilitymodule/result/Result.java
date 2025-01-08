@@ -130,7 +130,7 @@ public interface Result<T, E> {
         return new ClosableOne<>(ClosableOk.ok(r), Err.empty());
     }
 
-    static <R, E> ManyResult<R, E> from(Stream<Result<R, E>> r) {
+    static <R, E> StreamResult<R, E> from(Stream<Result<R, E>> r) {
         return new StreamResult<>(r);
     }
 
