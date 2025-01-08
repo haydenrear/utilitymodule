@@ -1,11 +1,18 @@
 package com.hayden.utilitymodule.result.res_support.many.stream.stream_cache;
 
+import com.hayden.utilitymodule.result.OneResult;
 import com.hayden.utilitymodule.result.Result;
 import com.hayden.utilitymodule.result.error.Err;
 import com.hayden.utilitymodule.result.ok.Ok;
 
-import java.util.function.Function;
-import java.util.function.Predicate;
+import java.util.Collection;
+import java.util.List;
+import java.util.Set;
+import java.util.function.*;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
+
+import static java.util.stream.Collectors.toList;
 
 public interface CachingOperations {
 
@@ -23,6 +30,7 @@ public interface CachingOperations {
                 CachingOperations.ResultTyStreamWrapperOperation,
                 CachingOperations.ResultStreamCacheOperation { }
 
+
     sealed interface ResultTyStreamWrapperOperation<T, U> extends StreamCacheOperation<T, U>
                         permits
                             CachingOperations.ResultTyPredicate,
@@ -30,10 +38,15 @@ public interface CachingOperations {
 
     interface StreamCacheFunction<T, U> extends CachedOperation<T, U> {}
 
+    interface StreamCacheCollector<T, U extends Collection<V>, V> extends CachedOperation<T, U> {}
+
     sealed interface ResultStreamCacheOperation<T, U> extends StreamCacheOperation<T, U>
             permits
                 CachingOperations.ResultStreamCacheFunction,
-                CachingOperations.ResultStreamCachePredicate { }
+                CachingOperations.ResultStreamCachePredicate{ }
+
+//    sealed interface ResultStreamCacheCollectors<T extends Collection<R>, U extends Collection<V>, R, V> extends StreamCacheCollector<T, U, V>, Function<T, U>
+//            { }
 
     sealed interface ResultStreamCacheFunction<T, U> extends StreamCacheFunction<T, U>, ResultStreamCacheOperation<T, U>
             permits
@@ -166,4 +179,6 @@ public interface CachingOperations {
             return o.isError();
         }
     }
+
+
 }

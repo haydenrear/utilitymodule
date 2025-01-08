@@ -311,8 +311,8 @@ public interface OneResult<R, E> extends ManyResult<R, E> {
                         () -> "Cannot flatMap from One to StreamResult successfully - call many() first and then flatMapResult instead " +
                               "of calling flatMapResult to ResultStream on OneResult - or else only returns the first result.");
                 var s = ueResult.one();
-                s.e().addError(this.e());
-                return s;
+                return Result.from(s.r(), s.e().addError(this.e()))
+                        .one();
             }
         }
     }

@@ -16,6 +16,7 @@ import com.hayden.utilitymodule.result.res_support.one.ClosableOne;
 import com.hayden.utilitymodule.result.res_support.one.MutableOne;
 import com.hayden.utilitymodule.result.res_support.one.One;
 import com.hayden.utilitymodule.result.res_support.many.stream.StreamResult;
+import com.hayden.utilitymodule.result.res_ty.CachedCollectedResult;
 import com.hayden.utilitymodule.result.res_ty.ClosableResult;
 import com.hayden.utilitymodule.result.res_ty.IResultItem;
 import jakarta.annotation.Nullable;
@@ -417,6 +418,10 @@ public interface Result<T, E> {
                 .collect(Collectors.toCollection(() -> l));
 
         return r.stream();
+    }
+
+    default CachedCollectedResult<T, E> toList() {
+        return this.streamResult().collectCachedResults();
     }
 
 }

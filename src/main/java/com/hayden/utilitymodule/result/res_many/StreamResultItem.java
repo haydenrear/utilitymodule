@@ -6,6 +6,7 @@ import com.hayden.utilitymodule.result.error.SingleError;
 import com.hayden.utilitymodule.result.res_single.ISingleResultItem;
 import com.hayden.utilitymodule.result.res_support.many.stream.ResultStreamWrapper;
 import com.hayden.utilitymodule.result.res_support.many.stream.StreamResultOptions;
+import com.hayden.utilitymodule.result.res_support.many.stream.StreamWrapper;
 import com.hayden.utilitymodule.result.res_support.many.stream.stream_cache.CachableStream;
 import com.hayden.utilitymodule.result.res_ty.IResultItem;
 import com.hayden.utilitymodule.result.res_ty.ResultTyResult;
@@ -224,7 +225,7 @@ public class StreamResultItem<R> implements IStreamResultItem<R>, CachableStream
     }
 
     @Override
-    public List<R> toList() {
+    public StreamWrapper.CacheResult<R> toList() {
         return this.r.throwIfCachedOrCacheWithList();
     }
 }

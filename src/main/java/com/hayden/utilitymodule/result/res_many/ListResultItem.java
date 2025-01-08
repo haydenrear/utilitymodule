@@ -152,6 +152,10 @@ public class ListResultItem<R> implements IStreamResultItem<R> {
         return this.r;
     }
 
+    public boolean isStream() {
+        return false;
+    }
+
     @Override
     public boolean isOne() {
         return false;

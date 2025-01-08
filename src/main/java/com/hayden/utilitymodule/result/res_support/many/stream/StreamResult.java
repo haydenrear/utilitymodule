@@ -7,7 +7,10 @@ import com.hayden.utilitymodule.result.*;
 import com.hayden.utilitymodule.result.error.Err;
 import com.hayden.utilitymodule.result.error.SingleError;
 import com.hayden.utilitymodule.result.ok.Ok;
+import com.hayden.utilitymodule.result.res_many.ListResultItem;
+import com.hayden.utilitymodule.result.res_many.StreamResultItem;
 import com.hayden.utilitymodule.result.res_support.many.stream.stream_cache.CachableStream;
+import com.hayden.utilitymodule.result.res_ty.CachedCollectedResult;
 import com.hayden.utilitymodule.result.res_ty.IResultItem;
 import com.hayden.utilitymodule.result.res_support.many.stream.stream_cache.CachingOperations;
 import lombok.extern.slf4j.Slf4j;
@@ -40,12 +43,23 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
             super(options, underlying, CachingOperations.ResultStreamCacheOperation.class, res);
         }
 
+        public CachedCollectedResult<R, E> collectCachedResults() {
+            var streamResult = this.toList();
+
+            var resultStream = new StreamResultItem<>(streamResult.stream().flatMap(r -> r.r().stream()));
+            var errorStream = new StreamResultItem<>(streamResult.stream().flatMap(r -> r.e().stream()));
+
+            var res = resultStream.toList();
+            var errs = errorStream.toList();
+            return new CachedCollectedResult<>(res.res(), res.results(), errs.res(), errs.results(), null);
+        }
+
         public Ok<R> getOk() {
             return Result.fromOpt(
                             TypeReferenceDelegate.<CachingOperations.RetrieveRes<R, E>>create(CachingOperations.RetrieveRes.class),
                             new SingleError.StandardError("Failed to parse type reference delegate for %s".formatted(CachingOperations.RetrieveFirstRes.class.getName()))
                     )
-                    .flatMapResult(res -> this.get(res))
+                    .flatMapResult(this::get)
                     .peekError(se -> log.error("Found err: {}", se))
                     .r()
                     .orElse(Ok.empty());
@@ -337,6 +351,15 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
     @Override
     public ManyResult<R, E> peekError(Consumer<E> mapper) {
         return new StreamResult<>(this.r.peek(res -> res.e().peek(mapper)));
+    }
+
+
+    public CachedCollectedResult<R, E> collectCachedResults() {
+        var collected =  this.r.collectCachedResults();
+        return new CachedCollectedResult<>(
+                collected.res(), collected.results(),
+                collected.errs(), collected.errsList(),
+                this.r.cached.CACHED_RESULTS().values());
     }
 
 }

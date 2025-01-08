@@ -6,12 +6,11 @@ import com.hayden.utilitymodule.result.Result;
 import com.hayden.utilitymodule.result.error.SingleError;
 import com.hayden.utilitymodule.result.res_support.many.stream.stream_cache.CachableStream;
 import com.hayden.utilitymodule.result.res_support.many.stream.stream_cache.CachingOperations;
-import lombok.RequiredArgsConstructor;
 import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.util.Assert;
-import org.springframework.util.concurrent.CompletableToListenableFutureAdapter;
+import org.springframework.web.servlet.handler.HandlerMappingIntrospector;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.*;
@@ -22,6 +21,12 @@ import java.util.stream.*;
 
 @Slf4j
 public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> implements Stream<ST> {
+
+    public record CacheFilterResult<ST>(List<CachingOperations.StreamCacheOperation<ST, ?>> res,
+                                        @Delegate List<ST> results) implements List<ST> { }
+
+    public record CacheResult<ST>(Collection<CachingOperations.StreamCacheResult> res,
+                                  @Delegate List<ST> results) implements List<ST> { }
 
     @Delegate
     protected Stream<ST> underlying;
@@ -48,7 +53,7 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
 
         void doCache(C c, Consumer<? super ST> terminalOp);
 
-        List<ST> cacheToList(C c, Consumer<? super ST> terminalOp);
+        CacheResult<ST> cacheToList(C c, Consumer<? super ST> terminalOp);
 
         boolean isParallel();
 
@@ -99,12 +104,9 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
                     .toList();
         }
 
-        record CacheFilterResult<ST>(List<CachingOperations.StreamCacheOperation<ST, ?>> res,
-                                     List<ST> results) {}
-
-        default @NotNull CacheFilterResult<ST> cacheFilter(C streamed,
-                                                           StreamResultOptions opts,
-                                                           Consumer<? super ST> terminalOp) {
+        default @NotNull StreamWrapper.CacheFilterResult<ST> cacheFilter(C streamed,
+                                                                         StreamResultOptions opts,
+                                                                         Consumer<? super ST> terminalOp) {
             if (opts.empty()) {
                 var e = new CachingOperations.IsCompletelyEmpty();
                 CACHED_RESULTS().computeIfAbsent((Class<? extends T>) e.getClass(),
@@ -137,7 +139,7 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
             return doStandard(streamed, terminalOp, streamCacheOperations);
         }
 
-        private @NotNull CacheFilterResult doStandard(C streamed, Consumer<? super ST> terminalOp, AtomicReference<List<CachingOperations.StreamCacheOperation>> streamCacheOperations) {
+        private @NotNull StreamWrapper.CacheFilterResult<ST> doStandard(C streamed, Consumer<? super ST> terminalOp, AtomicReference<List<CachingOperations.StreamCacheOperation>> streamCacheOperations) {
             var stream = stream(streamed);
 
             List<ST> resultList;
@@ -150,7 +152,7 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
             }
 
 
-            return new CacheFilterResult<>((List) streamCacheOperations.get(), resultList);
+            return new StreamWrapper.CacheFilterResult<>((List) streamCacheOperations.get(), resultList);
         }
 
         private Stream<ST> stream(C streamed) {
@@ -195,7 +197,7 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
             return resultList;
         }
 
-        private @NotNull CacheFilterResult doInfinite(C streamed, Consumer<? super ST> terminalOp, AtomicReference<List<CachingOperations.StreamCacheOperation>> streamCacheOperations) {
+        private @NotNull StreamWrapper.CacheFilterResult doInfinite(C streamed, Consumer<? super ST> terminalOp, AtomicReference<List<CachingOperations.StreamCacheOperation>> streamCacheOperations) {
             Stream<ST> toCache = infiniStream(streamed, streamCacheOperations);
 
             if (isAsync()) {
@@ -206,7 +208,7 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
                 toCache.forEach(terminalOp);
             }
 
-            return new CacheFilterResult<>((List) streamCacheOperations.get(), new ArrayList<>());
+            return new StreamWrapper.CacheFilterResult<>((List) streamCacheOperations.get(), new ArrayList<>());
         }
 
         private @NotNull ExecutorService retrieveExecutor() {
@@ -326,7 +328,7 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
         }
 
         @Override
-        public List<ST> cacheToList(C c, Consumer<? super ST> st) {
+        public CacheResult<ST> cacheToList(C c, Consumer<? super ST> st) {
             if (this.isCached())
                 throw new IllegalStateException();
 
@@ -335,7 +337,7 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
 
             this.cached = true;
 
-            return cachedL.results;
+            return new CacheResult<>(CACHED_RESULTS.values(), cachedL.results);
         }
 
         @Override
@@ -404,14 +406,14 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
             doCaching(c, terminalOp);
         }
 
-         @Override
-        public List<ST> cacheToList(C c, Consumer<? super ST> terminalOp) {
+        @Override
+        public CacheResult<ST> cacheToList(C c, Consumer<? super ST> terminalOp) {
              var created = doCaching(c, terminalOp);
 
-             return created.results;
+             return new CacheResult<>(CACHED_RESULTS.values(), created.results);
         }
 
-        private @NotNull CacheFilterResult<ST> doCaching(C c, Consumer<? super ST> terminalOp) {
+        private @NotNull StreamWrapper.CacheFilterResult<ST> doCaching(C c, Consumer<? super ST> terminalOp) {
             if (this.isCached())
                 throw new IllegalStateException();
 
@@ -421,7 +423,7 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
             return created;
         }
 
-        private void finalizeOps(CacheFilterResult<ST> created) {
+        private void finalizeOps(StreamWrapper.CacheFilterResult<ST> created) {
             created.res.forEach(sp -> {
                 switch (sp) {
                     case CachingOperations.StreamCachePredicate.Any n ->
@@ -572,14 +574,14 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
             this.cached.doCache(this.res, consumer);
     }
 
-    public List<ST> cacheResultsIfNotCachedWithList(Consumer<? super ST> consumer) {
+    public CacheResult<ST> cacheResultsIfNotCachedWithList(Consumer<? super ST> consumer) {
         if (!cached.isCached())
             return this.cached.cacheToList(this.res, consumer);
 
         throw new RuntimeException("Multiple terminal operations have been called.");
     }
 
-    public synchronized List<ST> throwIfCachedOrCacheWithList(boolean infinite, Consumer<? super ST> consumer) {
+    public synchronized CacheResult<ST> throwIfCachedOrCacheWithList(boolean infinite, Consumer<? super ST> consumer) {
         if (this.cached.isCached())
             throw new RuntimeException("Already cached!");
 
@@ -590,7 +592,7 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
         return throwIfCachedOrCacheWithList(false, consumer);
     }
 
-    public synchronized List<ST> throwIfCachedOrCacheWithList() {
+    public synchronized CacheResult<ST> throwIfCachedOrCacheWithList() {
         return cacheResultsIfNotCachedWithList(st -> {});
     }
 
@@ -625,9 +627,10 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
     }
 
     @Override
-    public List<ST> toList() {
+    public CacheResult<ST> toList() {
         return throwIfCachedOrCacheWithList();
     }
+
     @Override
     public void forEachOrdered(Consumer<? super ST> action) {
         throwIfCachedOrCache(action);
