@@ -18,6 +18,26 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class ResultTest {
 
+    @Test
+    public void testOr() {
+        var found = Result.<String, SingleError>ok((String) null)
+                .flatMapResult(e -> Result.ok("hello"))
+                .hasAnyOr(() -> Result.ok("whatever"));
+
+        assertThat(found.r().get()).isEqualTo("whatever");
+
+       found = Result.<String, SingleError>ok((String) null)
+                .flatMapResult(e -> Result.ok((String) null))
+                .hasAnyOr(() -> Result.ok("whatever"));
+
+       found = Result.<String, SingleError>ok((String) null)
+                .flatMapResult(e -> Result.ok((String) null))
+                .map(w -> "okay then...")
+                .hasAnyOr(() -> Result.ok("whatever"));
+
+        assertThat(found.r().get()).isEqualTo("whatever");
+    }
+
     @SneakyThrows
     @Test
     public void autoClosable() {
