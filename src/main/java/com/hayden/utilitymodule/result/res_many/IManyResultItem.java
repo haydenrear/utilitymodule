@@ -19,6 +19,10 @@ public interface IManyResultItem<R> extends IResultItem<R> {
         return stream().toList();
     }
 
+    default List<R> getAll() {
+        return toList();
+    }
+
     <V> IManyResultItem<V> flatMap(Function<R, IResultItem<V>> toMap);
 
     @Override

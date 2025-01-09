@@ -197,18 +197,23 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
             return resultList;
         }
 
-        private @NotNull StreamWrapper.CacheFilterResult doInfinite(C streamed, Consumer<? super ST> terminalOp, AtomicReference<List<CachingOperations.StreamCacheOperation>> streamCacheOperations) {
+        private @NotNull StreamWrapper.CacheFilterResult<ST> doInfinite(C streamed, Consumer<? super ST> terminalOp, AtomicReference<List<CachingOperations.StreamCacheOperation>> streamCacheOperations) {
             Stream<ST> toCache = infiniStream(streamed, streamCacheOperations);
 
+            List<ST> objects = Collections.synchronizedList(new ArrayList<>());
             if (isAsync()) {
                 try(final ExecutorService te = retrieveExecutor()) {
-                    toCache.forEach(n -> te.submit(() -> terminalOp.accept(n)));
+                    toCache.forEach(n -> te.submit(() -> {
+                        terminalOp.accept(n);
+                        // TODO: is this synchronization problem?
+                        objects.add(n);
+                    }));
                 }
             } else {
-                toCache.forEach(terminalOp);
+                toCache.peek(terminalOp).forEach(objects::add);
             }
 
-            return new StreamWrapper.CacheFilterResult<>((List) streamCacheOperations.get(), new ArrayList<>());
+            return new StreamWrapper.CacheFilterResult<>((List) streamCacheOperations.get(), objects);
         }
 
         private @NotNull ExecutorService retrieveExecutor() {

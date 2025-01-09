@@ -3,6 +3,7 @@ package com.hayden.utilitymodule.result;
 import com.hayden.utilitymodule.result.error.Err;
 import com.hayden.utilitymodule.result.ok.Ok;
 import com.hayden.utilitymodule.result.res_support.many.stream.StreamResult;
+import com.hayden.utilitymodule.result.res_ty.CachedCollectedResult;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -14,6 +15,16 @@ import java.util.stream.Stream;
 public interface ManyResult<R, E> extends Result<R, E> {
 
     @Override
+    Err<E> e();
+
+    @Override
+    Ok<R> r();
+
+    default List<R> getAll() {
+        return this.toList();
+    }
+
+    @Override
     default ManyResult<R, E> many() {
         return this;
     }
@@ -21,7 +32,6 @@ public interface ManyResult<R, E> extends Result<R, E> {
     default boolean isStreamResult() {
         return false;
     }
-
 
     Result<R, E> hasAnyOr(Supplier<Result<R, E>> s);
 
@@ -44,12 +54,6 @@ public interface ManyResult<R, E> extends Result<R, E> {
 
     @Override
     <U> Result<U, E> flatMap(Function<R, Result<U, E>> mapper);
-
-    @Override
-    Err<E> e();
-
-    @Override
-    Ok<R> r();
 
     @Override
     Stream<R> toStream();
@@ -104,8 +108,6 @@ public interface ManyResult<R, E> extends Result<R, E> {
     default <U, NE> Stream<Result<U, NE>> flatMapStreamResult(Function<R, Stream<Result<U, NE>>> mapper) {
         return Result.super.flatMapStreamResult(mapper);
     }
-
-
 
     @Override
     default <U> ManyResult<U, E> cast() {

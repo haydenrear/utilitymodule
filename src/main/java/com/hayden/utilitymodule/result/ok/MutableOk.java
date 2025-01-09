@@ -37,4 +37,7 @@ public class MutableOk<R> extends StdOk<R> {
         this.t = new ResultTyResult<>(Optional.ofNullable(toSet));
     }
 
+
+
+
 }

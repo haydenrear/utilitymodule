@@ -295,7 +295,7 @@ public interface Result<T, E> {
 
     default StreamResult<T, E> streamResult() {
         if (this instanceof StreamResult<T, E> s) {
-            return s.immutable();
+            return s;
         }
 
         else return new StreamResult<>(

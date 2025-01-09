@@ -61,19 +61,13 @@ public class Err<R> extends ResultTy<R> {
         super(r);
     }
 
-    @Override
-    public Stream<R> detachedStream() {
-        return this.t.detachedStream();
-    }
-
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public Err(Optional<R> r) {
         super(r);
     }
 
     public Err<R> addError(Err<R> e) {
-        List<R> list = Lists.newArrayList();
-        this.stream().filter(Objects::nonNull).forEach(list::add);
+        var list = this.toMutableList();
         e.forEach(list::add);
         return Err.err(new ListResultItem<>(list));
     }

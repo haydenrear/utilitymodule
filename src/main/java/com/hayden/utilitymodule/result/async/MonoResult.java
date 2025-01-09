@@ -57,11 +57,6 @@ public class MonoResult<R> implements IAsyncResultItem<R>, ISingleResultItem<R> 
     }
 
     @Override
-    public Stream<R> detachedStream() {
-        throw new RuntimeException();
-    }
-
-    @Override
     public <T> IResultItem<T> from(T r) {
         return new ResultTyResult<>(Optional.ofNullable(r));
     }

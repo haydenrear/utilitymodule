@@ -4,14 +4,19 @@ import com.google.common.collect.Lists;
 import com.hayden.utilitymodule.result.Result;
 import com.hayden.utilitymodule.result.res_many.IManyResultItem;
 import com.hayden.utilitymodule.result.res_many.ListResultItem;
+import com.hayden.utilitymodule.result.res_many.StreamResultItem;
 import com.hayden.utilitymodule.result.res_single.ISingleResultItem;
+import com.hayden.utilitymodule.result.res_support.many.stream.StreamWrapper;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public interface IResultItem<R> extends Result.Monadic<R> {
@@ -23,12 +28,13 @@ public interface IResultItem<R> extends Result.Monadic<R> {
 
         return new ResultTyResult<>(Optional.ofNullable(v));
     }
+    static <V> IResultItem<V> toRes(Stream<V> v) {
+        return new StreamResultItem<>(v);
+    }
 
     static <R> IResultItem<R> empty() {
         return new ResultTyResult<>(Optional.empty());
     }
-
-    Stream<R> detachedStream();
 
     <V> IResultItem<V> from(V r);
 
@@ -44,7 +50,6 @@ public interface IResultItem<R> extends Result.Monadic<R> {
     ISingleResultItem<R> single();
 
     IResultItem<R> filter(Predicate<R> p);
-
 
     R get();
 
@@ -96,4 +101,11 @@ public interface IResultItem<R> extends Result.Monadic<R> {
         return !isPresent();
     }
 
+    default List<R> toList() {
+        return this.stream().toList();
+    }
+
+    default List<R> toMutableList() {
+        return this.stream().collect(Collectors.toCollection(ArrayList::new));
+    }
 }

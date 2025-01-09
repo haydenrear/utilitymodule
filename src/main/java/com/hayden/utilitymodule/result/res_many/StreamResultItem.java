@@ -90,12 +90,6 @@ public class StreamResultItem<R> implements IStreamResultItem<R>, CachableStream
     }
 
     @Override
-    public Stream<R> detachedStream() {
-        var swapped = swap(this.r);
-        return swapped.r;
-    }
-
-    @Override
     public <T> IResultItem<T> from(T r) {
         return new StreamResultItem<>(Stream.ofNullable(r));
     }
@@ -107,7 +101,7 @@ public class StreamResultItem<R> implements IStreamResultItem<R>, CachableStream
 
     @Override
     public Stream<R> stream() {
-        return r.filter(Objects::nonNull);
+        return this.r.filter(Objects::nonNull);
     }
 
     @Override
@@ -118,7 +112,6 @@ public class StreamResultItem<R> implements IStreamResultItem<R>, CachableStream
     @Override
     public Mono<R> firstMono() {
         List<R> streamList = this.r.toList();
-        swap(streamList);
         if (streamList.isEmpty())
             return Mono.error(new RuntimeException("Called get Mono on list with more than 1."));
 
@@ -224,13 +217,17 @@ public class StreamResultItem<R> implements IStreamResultItem<R>, CachableStream
         return is;
     }
 
-    @Override
-    public StreamWrapper.CacheResult<R> toList() {
-        return this.r.throwIfCachedOrCacheWithList();
-    }
-
     public boolean isStream() {
         return true;
     }
 
+    @Override
+    public StreamWrapper.CacheResult<R> getAll() {
+        return this.r.toList();
+    }
+
+    @Override
+    public StreamWrapper.CacheResult<R> toList() {
+        return this.r.toList();
+    }
 }

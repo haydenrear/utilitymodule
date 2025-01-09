@@ -35,11 +35,6 @@ public class ListResultItem<R> implements IStreamResultItem<R> {
 
 
     @Override
-    public Stream<R> detachedStream() {
-        return this.r.stream();
-    }
-
-    @Override
     public <T> IResultItem<T> from(T r) {
         return new ListResultItem<>(Optional.ofNullable(r).stream().toList());
     }

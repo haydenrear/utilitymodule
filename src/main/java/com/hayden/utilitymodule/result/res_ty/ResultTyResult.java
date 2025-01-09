@@ -28,11 +28,6 @@ public record ResultTyResult<R>(Optional<R> r) implements ISingleResultItem<R> {
     }
 
     @Override
-    public Stream<R> detachedStream() {
-        return this.stream();
-    }
-
-    @Override
     public boolean isZeroOrOneAbstraction() {
         return true;
     }

@@ -35,10 +35,6 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
 
     private final StreamResultStreamWrapper<R, E> r;
 
-    public StreamResult<R, E> immutable() {
-        return new StreamResult<>(this.r.underlying);
-    }
-
     public boolean isStreamResult() {
         return true;
     }
@@ -58,6 +54,10 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
             }
 
             if (cachedCollectionResult == null) {
+                if (options.isInfinite())
+                    // TODO: separate ResultStreamWrapper structure adapting infinite result lists, always being added to the two other streams
+                    throw new RuntimeException("Infinite not implemented for result stream.");
+
                 var streamResult = this.toList();
 
                 var resultStream = new StreamResultItem<>(streamResult.stream()
@@ -187,6 +187,11 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
     public Ok<R> r() {
         var f = this.r.collectCachedResults();
         return Ok.ok(new ListResultItem<>(f));
+    }
+
+    @Override
+    public CachedCollectedResult<R, E> getAll() {
+        return this.r.collectCachedResults();
     }
 
     @Override
