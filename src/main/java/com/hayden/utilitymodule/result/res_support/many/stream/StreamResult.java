@@ -47,8 +47,7 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
                                          StreamResult<R, E> res) {
             super(options, underlying, CachingOperations.ResultStreamCacheOperation.class, res);
         }
-
-        public CachedCollectedResult<R, E> collectCachedResults() {
+        public CachedCollectedResult<R, E> collectCachedResults(Consumer<? super Result<R, E>> terminalOp) {
             if (cachedCollectionResult == null && this.cached.isCached()) {
                 throw new RuntimeException("Cached result is already collected");
             }
@@ -58,7 +57,7 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
                     // TODO: separate ResultStreamWrapper structure adapting infinite result lists, always being added to the two other streams
                     throw new RuntimeException("Infinite not implemented for result stream.");
 
-                var streamResult = this.toList();
+                var streamResult = this.toList(terminalOp);
 
                 var resultStream = new StreamResultItem<>(streamResult.stream()
                         .flatMap(r -> r.r().stream()));
@@ -74,31 +73,21 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
             return cachedCollectionResult;
         }
 
+        public CachedCollectedResult<R, E> collectCachedResults() {
+            return this.collectCachedResults(res-> {});
+        }
+
         @Override
         protected void cacheResultsIfNotCached(Consumer<? super Result<R, E>> consumer) {
-            collectCachedResults();
+            collectCachedResults(consumer);
         }
 
         public Ok<R> getOk() {
-            return Result.fromOpt(
-                            TypeReferenceDelegate.<CachingOperations.RetrieveRes<R, E>>create(CachingOperations.RetrieveRes.class),
-                            new SingleError.StandardError("Failed to parse type reference delegate for %s".formatted(CachingOperations.RetrieveFirstRes.class.getName()))
-                    )
-                    .flatMapResult(this::get)
-                    .peekError(se -> log.error("Found err: {}", se))
-                    .r()
-                    .orElse(Ok.empty());
+            return Ok.ok(new ListResultItem<>(collectCachedResults().results()));
         }
 
         public Err<E> getErr() {
-            return Result.fromOpt(
-                            TypeReferenceDelegate.<CachingOperations.RetrieveError<R, E>>create(CachingOperations.RetrieveError.class),
-                            new SingleError.StandardError("Failed to parse type reference delegate for %s".formatted(CachingOperations.RetrieveFirstRes.class.getName()))
-                    )
-                    .flatMapResult(this::get)
-                    .peekError(se -> log.error("Found err: {}", se))
-                    .r()
-                    .orElse(Err.empty());
+            return Err.err(new ListResultItem<>(collectCachedResults().errsList()));
         }
 
         public Result<R, E> first() {
@@ -185,8 +174,7 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
 
     @Override
     public Ok<R> r() {
-        var f = this.r.collectCachedResults();
-        return Ok.ok(new ListResultItem<>(f));
+        return this.r.getOk();
     }
 
     @Override
@@ -196,8 +184,7 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
 
     @Override
     public Err<E> e() {
-        var f = this.r.collectCachedResults();
-        return Err.err(new ListResultItem<>(f.errsList()));
+        return this.r.getErr();
     }
 
     @Override

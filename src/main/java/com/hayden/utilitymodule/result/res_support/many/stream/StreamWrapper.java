@@ -593,7 +593,7 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
         return cacheResultsIfNotCachedWithList(consumer);
     }
 
-    public synchronized List<ST> throwIfCachedOrCacheWithList(Consumer<? super ST> consumer) {
+    public synchronized CacheResult<ST> throwIfCachedOrCacheWithList(Consumer<? super ST> consumer) {
         return throwIfCachedOrCacheWithList(false, consumer);
     }
 
@@ -634,6 +634,10 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
     @Override
     public CacheResult<ST> toList() {
         return throwIfCachedOrCacheWithList();
+    }
+
+    public CacheResult<ST> toList(Consumer<? super ST> consumer) {
+        return throwIfCachedOrCacheWithList(consumer);
     }
 
     @Override

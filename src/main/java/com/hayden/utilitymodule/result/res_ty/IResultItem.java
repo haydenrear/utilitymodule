@@ -67,10 +67,6 @@ public interface IResultItem<R> extends Result.Monadic<R> {
 
     boolean isPresent();
 
-    default Optional<R> firstOptional(boolean keepAll) {
-        return firstOptional();
-    }
-
     default IManyResultItem<R> many() {
         if (this instanceof IManyResultItem<R> t) {
             return t;

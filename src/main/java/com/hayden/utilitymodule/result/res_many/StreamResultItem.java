@@ -32,12 +32,12 @@ public class StreamResultItem<R> implements IStreamResultItem<R>, CachableStream
 
     protected final static class ResultTyStreamWrapper<R> extends ResultStreamWrapper<StreamResultItem<R>, R> {
 
-        public ResultTyStreamWrapper(StreamResultOptions options, Flux<R> underlying, StreamResultItem<R> res) {
-            this(options, underlying.publishOn(Schedulers.fromExecutor(Executors.newVirtualThreadPerTaskExecutor())).toStream(), res);
-        }
-
         public ResultTyStreamWrapper(StreamResultOptions options, Mono<R> underlying, StreamResultItem<R> res) {
             this(options, underlying.flux(), res);
+        }
+
+        public ResultTyStreamWrapper(StreamResultOptions options, Flux<R> underlying, StreamResultItem<R> res) {
+            this(options, underlying.toStream(), res);
         }
 
         public ResultTyStreamWrapper(StreamResultOptions options, Stream<R> underlying, StreamResultItem<R> res) {
