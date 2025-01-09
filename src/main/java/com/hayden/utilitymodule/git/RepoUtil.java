@@ -7,11 +7,13 @@ import com.hayden.utilitymodule.result.Result;
 import com.hayden.utilitymodule.result.error.SingleError;
 import lombok.SneakyThrows;
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.ResetCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.diff.DiffFormatter;
 import org.eclipse.jgit.lib.Config;
 import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.patch.FileHeader;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
@@ -20,16 +22,79 @@ import org.eclipse.jgit.treewalk.TreeWalk;
 import org.eclipse.jgit.treewalk.filter.PathFilter;
 import org.eclipse.jgit.util.FS;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Predicate;
+
 
 public interface RepoUtil {
+
+    Logger log = LoggerFactory.getLogger(RepoUtil.class);
+
+    static CanonicalTreeParser getForRef(String pattern, Repository repository) throws IOException {
+
+
+        try (RevWalk revWalk = new RevWalk(repository)) {
+            ObjectId head = repository.resolve(pattern);
+            RevCommit headCommit = revWalk.parseCommit(head);
+            CanonicalTreeParser treeParser = new CanonicalTreeParser();
+            treeParser.reset(repository.newObjectReader(), headCommit.getTree());
+            return treeParser;
+        }
+    }
+
+    static Optional<RepoUtilError> doReset(Git git) throws GitAPIException {
+        try {
+            log.info("Doing reset");
+            ObjectId head = git.getRepository().resolve("HEAD^1");
+            git.reset().setMode(ResetCommand.ResetType.SOFT).setRef(head.name()).call();
+            return Optional.empty();
+        } catch (IOException e) {
+            return Optional.of(new RepoUtilError(Arrays.toString(e.getStackTrace())));
+        }
+    }
+
+    static void doTempCommit(Git holder) throws GitAPIException {
+        holder.add().addFilepattern(".").call();
+        var s = holder.status().call().getUncommittedChanges();
+        var toDelete = holder.status().call().getUncommittedChanges()
+                .stream()
+                .filter(Predicate.not(uncommitted -> holder.getRepository().getDirectory().getParentFile().toPath().resolve(uncommitted).toFile().exists()))
+                .toList();
+
+        for (var d : toDelete) {
+            holder.rm().addFilepattern(d).call();
+        }
+
+        holder.add().addFilepattern(".").call();
+
+        var committed = holder.commit().setMessage("temp").call();
+        log.info("Temp commit: {}, {}", committed, s);
+    }
+
+    static @NotNull OneResult<List<DiffEntry>, RepoUtilError> retrieveStagedChanges(Git git) {
+        try {
+            doTempCommit(git);
+            var gd = git.diff()
+                    .setOldTree(getForRef("HEAD^1", git.getRepository()))
+                    .setNewTree(getForRef("HEAD", git.getRepository()))
+                    .call();
+
+            return Result.fromOpt(Optional.ofNullable(gd), doReset(git)).one();
+        } catch (GitAPIException | IOException e) {
+            return Result.err(new RepoUtilError("Failed when retrieving staged diff: %s.".formatted(e.getMessage())));
+        }
+    }
 
     record GitInitError(String getMessage) implements SingleError {}
     record RepoUtilError(String getMessage) implements SingleError {}

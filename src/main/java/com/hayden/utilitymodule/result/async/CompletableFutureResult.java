@@ -128,7 +128,6 @@ public record CompletableFutureResult<R>(CompletableFuture<R> r, AtomicBoolean f
 
     @Override
     public R get() {
-        log.warn("Calling or else on closable. This probably means you have to close yourself...");
         Result.logClosableMaybeNotClosed();
         return this.firstOptional().orElse(null);
     }

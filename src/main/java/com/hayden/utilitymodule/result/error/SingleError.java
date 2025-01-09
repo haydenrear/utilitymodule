@@ -1,6 +1,14 @@
 package com.hayden.utilitymodule.result.error;
 
+import java.util.Arrays;
+import java.util.stream.Collectors;
+
 public interface SingleError {
+
+    static String parseStackTraceToString(Throwable e) {
+        return Arrays.stream(e.getStackTrace())
+                .map(StackTraceElement::toString).collect(Collectors.joining(System.lineSeparator()));
+    }
 
     default boolean isError() {
         return true;

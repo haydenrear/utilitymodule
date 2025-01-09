@@ -61,8 +61,30 @@ public interface Result<T, E> {
 
     }
 
+    default Result<T, E> onErrorMap(Supplier<T> mapper) {
+        return onErrorMap(Objects::nonNull, mapper);
+    }
+
+    default Result<T, E> onErrorMap(Predicate<E> matcher, Supplier<T> hasErr) {
+        if(this.e().filter(matcher).isPresent()) {
+            return Result.ok(hasErr.get());
+        }
+
+        return this;
+    }
+
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     static <T, E> Result<T, E> fromOpt(Optional<T> stringStringEntry, E gitAggregateError) {
+        return from(new StdOk<>(stringStringEntry), Err.err(gitAggregateError));
+    }
+
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    static <T, E> Result<T, E> fromOpt(Optional<T> opt) {
+        return from(new StdOk<>(opt), Err.empty());
+    }
+
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    static <T, E> Result<T, E> fromOpt(Optional<T> stringStringEntry, Optional<E> gitAggregateError) {
         return from(new StdOk<>(stringStringEntry), Err.err(gitAggregateError));
     }
 

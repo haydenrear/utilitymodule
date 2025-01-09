@@ -33,6 +33,7 @@ public interface ManyResult<R, E> extends Result<R, E> {
         return false;
     }
 
+
     Result<R, E> hasAnyOr(Supplier<Result<R, E>> s);
 
     Result<R, E> last(Consumer<Result<R, E>> last);

@@ -126,7 +126,6 @@ public class MonoResult<R> implements IAsyncResultItem<R>, ISingleResultItem<R> 
 
     @Override
     public R get() {
-        log.warn("Calling or else on closable. This probably means you have to close yourself...");
         Result.logClosableMaybeNotClosed();
         return this.firstOptional().orElse(null);
     }
