@@ -31,7 +31,7 @@ class StreamResultItemTest {
 
         many = found.many().toResultLists().get();
         assertThat(many).isNotNull();
-        assertThat(many).containsExactly("whatever");
+        assertThat(many).containsExactly("whatever", "ok");
     }
 
     @Test

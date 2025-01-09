@@ -47,13 +47,8 @@ public interface OneResult<R, E> extends ManyResult<R, E> {
 
             return m.many();
         } else {
-            if (this.r().isPresent()) {
-                var applied = mapper.apply(this.r().get());
-                Err<E> e1 = applied.e();
-                return Result.from(applied.r(), e1.addError(this.e())).one();
-            }
-
-            return this.cast();
+            var applied = this.r().map(mapper).stream();
+            return new StreamResult<>(applied).concatWith(this.e().stream().map(Result::err));
         }
     }
 
@@ -92,7 +87,10 @@ public interface OneResult<R, E> extends ManyResult<R, E> {
 
     @Override
     default ManyResult<R, E> many() {
-        return new StreamResult<>(Stream.of(Result.from(this.r(), this.e())));
+        return new StreamResult<>(Stream.concat(
+                this.r().stream()
+                        .map(Result::ok),
+                this.e().stream().map(Result::err)));
     }
 
     @Override

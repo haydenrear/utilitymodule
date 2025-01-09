@@ -4,7 +4,9 @@ import com.hayden.utilitymodule.result.OneResult;
 import com.hayden.utilitymodule.result.Result;
 import com.hayden.utilitymodule.result.error.Err;
 import com.hayden.utilitymodule.result.ok.Ok;
+import com.hayden.utilitymodule.result.res_support.many.stream.StreamResult;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -38,15 +40,10 @@ public interface CachingOperations {
 
     interface StreamCacheFunction<T, U> extends CachedOperation<T, U> {}
 
-    interface StreamCacheCollector<T, U extends Collection<V>, V> extends CachedOperation<T, U> {}
-
     sealed interface ResultStreamCacheOperation<T, U> extends StreamCacheOperation<T, U>
             permits
                 CachingOperations.ResultStreamCacheFunction,
                 CachingOperations.ResultStreamCachePredicate{ }
-
-//    sealed interface ResultStreamCacheCollectors<T extends Collection<R>, U extends Collection<V>, R, V> extends StreamCacheCollector<T, U, V>, Function<T, U>
-//            { }
 
     sealed interface ResultStreamCacheFunction<T, U> extends StreamCacheFunction<T, U>, ResultStreamCacheOperation<T, U>
             permits
@@ -79,13 +76,22 @@ public interface CachingOperations {
     record RetrieveError<T, E>() implements ResultStreamCacheFunction<Result<T, E>, Err<E>> {
         @Override
         public Err<E> apply(Result<T, E> teResult) {
+            if (teResult.isErrStream())
+                return Err.empty();
             return teResult.e();
         }
     }
 
-    record RetrieveRes<T, E>() implements ResultStreamCacheFunction<Result<T, E>, Ok<T>>{
+    record RetrieveRes<T, E>(List<Result<T, E>> results) implements ResultStreamCacheFunction<Result<T, E>, Ok<T>>{
+
+        public RetrieveRes() {
+            this(new ArrayList<>());
+        }
+
         @Override
         public Ok<T> apply(Result<T, E> teResult) {
+            if (teResult.isOkStream())
+                return Ok.empty();
             return teResult.r();
         }
     }
@@ -140,8 +146,6 @@ public interface CachingOperations {
         default Boolean apply(T t) {
             return this.test(t);
         }
-
-
     }
 
     interface PersistentCacheResult  {}
@@ -164,8 +168,8 @@ public interface CachingOperations {
     record HasResult<R, E>() implements StreamCachePredicate.Any<Result<R, E>>, ResultStreamCachePredicate<Result<R, E>>, PersistentCacheResult {
         @Override
         public boolean test(Result<R, E> o) {
-            if (o.r().isStream())
-                throw new RuntimeException("Cannot call HasResult on IResultTy when IResultTy is StreamResult.");
+            if (o.isOkStream())
+                return false;
 
             return o.isOk();
         }
@@ -174,8 +178,8 @@ public interface CachingOperations {
     record HasErr<R, E>() implements StreamCachePredicate.Any<Result<R, E>>, ResultStreamCachePredicate<Result<R, E>>, PersistentCacheResult {
         @Override
         public boolean test(Result<R, E> o) {
-            if (o.e().isStream())
-                throw new RuntimeException("Cannot call HasResult on IResultTy when IResultTy is StreamResult.");
+            if (o.isErrStream())
+                return false;
             return o.isError();
         }
     }

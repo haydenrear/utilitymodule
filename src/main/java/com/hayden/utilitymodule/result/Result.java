@@ -135,7 +135,6 @@ public interface Result<T, E> {
         return new StreamResult<>(r);
     }
 
-
     static <R, E> Result<R, E> ok(Mono<R> r) {
         return new One<>(new StdOk<>(r), Err.empty());
     }
@@ -145,7 +144,11 @@ public interface Result<T, E> {
     }
 
     static <R, E> Result<R, E> ok(Stream<R> r) {
-        return new One<>(new StdOk<>(r), Err.empty());
+        return okStream(r);
+    }
+
+    static <R, E> Result<R, E> okStream(Stream<R> r) {
+        return new StreamResult<>(r.map(Result::ok));
     }
 
     static <R, E> Result<R, E> ok(Ok<R> r) {
@@ -274,6 +277,14 @@ public interface Result<T, E> {
      */
     Ok<T> r();
 
+    default boolean isErrStream() {
+        return false;
+    }
+
+    default boolean isOkStream() {
+        return false;
+    }
+
     Stream<T> toStream();
 
     Stream<T> detachedStream();
@@ -283,11 +294,14 @@ public interface Result<T, E> {
     OneResult<T, E> one();
 
     default StreamResult<T, E> streamResult() {
-        if (this instanceof StreamResult s) {
-            return s;
+        if (this instanceof StreamResult<T, E> s) {
+            return s.immutable();
         }
 
-        else return new StreamResult<>(Stream.of(Result.ok(this.r()), Result.err(this.e())));
+        else return new StreamResult<>(
+                Stream.concat(
+                        this.r().stream().map(Result::ok),
+                        this.e().stream().map(Result::err)));
     }
 
     default OneResult<List<T>, List<E>> collectList() {
@@ -297,7 +311,6 @@ public interface Result<T, E> {
     default Stream<E> streamErr() {
         return e().stream();
     }
-
 
     default void ifPresent(Consumer<? super T> t) {
         this.r().ifPresent(t);
@@ -371,11 +384,7 @@ public interface Result<T, E> {
 
     default <U, NE> Stream<Result<U, NE>> flatMapStreamResult(Function<T, Stream<Result<U, NE>>> mapper) {
         var p = map(mapper);
-
-        if (p.r().isPresent())
-            return p.r().get();
-
-        return Stream.empty();
+        return p.toStream().flatMap(s -> s);
     }
 
     default <U> Result<U, E> cast() {

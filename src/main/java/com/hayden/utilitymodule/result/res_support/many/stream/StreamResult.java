@@ -35,8 +35,17 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
 
     private final StreamResultStreamWrapper<R, E> r;
 
+    public StreamResult<R, E> immutable() {
+        return new StreamResult<>(this.r.underlying);
+    }
+
+    public boolean isStreamResult() {
+        return true;
+    }
 
     protected final static class StreamResultStreamWrapper<R, E> extends ResultStreamWrapper<StreamResult<R, E>, Result<R, E>> {
+
+        volatile CachedCollectedResult<R, E> cachedCollectionResult;
 
         public StreamResultStreamWrapper(StreamResultOptions options, Stream<Result<R, E>> underlying,
                                          StreamResult<R, E> res) {
@@ -44,14 +53,30 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
         }
 
         public CachedCollectedResult<R, E> collectCachedResults() {
-            var streamResult = this.toList();
+            if (cachedCollectionResult == null && this.cached.isCached()) {
+                throw new RuntimeException("Cached result is already collected");
+            }
 
-            var resultStream = new StreamResultItem<>(streamResult.stream().flatMap(r -> r.r().stream()));
-            var errorStream = new StreamResultItem<>(streamResult.stream().flatMap(r -> r.e().stream()));
+            if (cachedCollectionResult == null) {
+                var streamResult = this.toList();
 
-            var res = resultStream.toList();
-            var errs = errorStream.toList();
-            return new CachedCollectedResult<>(res.res(), res.results(), errs.res(), errs.results(), null);
+                var resultStream = new StreamResultItem<>(streamResult.stream()
+                        .flatMap(r -> r.r().stream()));
+                var errorStream = new StreamResultItem<>(streamResult.stream()
+                        .flatMap(r -> r.e().stream()));
+
+                var res = resultStream.toList();
+                var errs = errorStream.toList();
+                this.cachedCollectionResult = new CachedCollectedResult<>(res.res(), res.results(), errs.res(), errs.results(), null);
+                return this.cachedCollectionResult;
+            }
+
+            return cachedCollectionResult;
+        }
+
+        @Override
+        protected void cacheResultsIfNotCached(Consumer<? super Result<R, E>> consumer) {
+            collectCachedResults();
         }
 
         public Ok<R> getOk() {
@@ -160,28 +185,25 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
 
     @Override
     public Ok<R> r() {
-        this.r.cacheResultsIfNotCached();
-        return this.r.getOk();
+        var f = this.r.collectCachedResults();
+        return Ok.ok(new ListResultItem<>(f));
     }
 
     @Override
     public Err<E> e() {
-        this.r.cacheResultsIfNotCached();
-        return this.r.getErr();
+        var f = this.r.collectCachedResults();
+        return Err.err(new ListResultItem<>(f.errsList()));
     }
 
     @Override
     public OneResult<R, E> one() {
-        var last = this.r.cacheResultsIfNotCachedWithList(c -> {});
+        var last = this.r.collectCachedResults();
         if (last.size() > 1) {
             log.warn("Called one() on StreamResult with size greater than 1. Discarding all other.");
         }
 
         return !last.isEmpty()
-               ? Optional.of(last.getFirst())
-                       .map(res -> Result.from(res.r(), res.e()))
-                       .map(Result::one)
-                       .orElse(null)
+               ? Result.from(Ok.ok(new ListResultItem<>(last.results())), Err.err(new ListResultItem<>(last.errsList()))).one()
                : Result.<E, R>empty().one();
     }
 
@@ -245,8 +267,11 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
     }
 
     public <U> StreamResult<U, E> flatMap(Function<R, Result<U, E>> mapper) {
-        return new StreamResult<>(
-                this.r.map(res -> res.flatMap(mapper)));
+        Stream<Result<U, E>> resultStream = this.r.map(res -> {
+            Result<U, E> ueResult = res.flatMap(mapper);
+            return ueResult;
+        });
+        return new StreamResult<>(resultStream);
     }
 
     public R firstResOrElse(R or) {
@@ -333,7 +358,7 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
 
     @Override
     public Stream<R> toStream() {
-        return this.r.flatMap(r -> r.r().stream());
+        return this.r.flatMap(Result::toStream);
     }
 
     @Override
@@ -360,6 +385,34 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
                 collected.res(), collected.results(),
                 collected.errs(), collected.errsList(),
                 this.r.cached.CACHED_RESULTS().values());
+    }
+
+    @Override
+    public boolean isErrStream() {
+        return true;
+    }
+
+    @Override
+    public boolean isOkStream() {
+        return true;
+    }
+
+    public StreamResult<R, E> concatWith(StreamResult<R, E> other) {
+        return new StreamResult<>(Stream.concat(this.r.underlying, other.r));
+    }
+
+    public StreamResult<R, E> concatWith(Stream<Result<R, E>> other) {
+        return new StreamResult<>(Stream.concat(this.r.underlying, other));
+    }
+
+    public Result<R, E> or(Supplier<Result<R, E>> s) {
+        var collected = this.collectCachedResults();
+
+        if (collected.results().isEmpty()) {
+            return s.get();
+        }
+
+        return this;
     }
 
 }

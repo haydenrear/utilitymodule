@@ -228,4 +228,9 @@ public class StreamResultItem<R> implements IStreamResultItem<R>, CachableStream
     public StreamWrapper.CacheResult<R> toList() {
         return this.r.throwIfCachedOrCacheWithList();
     }
+
+    public boolean isStream() {
+        return true;
+    }
+
 }
