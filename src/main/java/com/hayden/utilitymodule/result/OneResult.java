@@ -199,7 +199,7 @@ public interface OneResult<R, E> extends ManyResult<R, E> {
         }
     }
 
-    default Result<R, E> or(Supplier<Result<R, E>> s) {
+    default Result<R, E> or(Supplier<? extends Result<R, E>> s) {
         if (this.r().isPresent())
             return this;
 
