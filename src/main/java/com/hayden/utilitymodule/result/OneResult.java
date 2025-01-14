@@ -8,7 +8,6 @@ import com.hayden.utilitymodule.result.ok.Ok;
 import com.hayden.utilitymodule.result.res_many.ListResultItem;
 import com.hayden.utilitymodule.result.res_support.many.stream.StreamResult;
 import com.hayden.utilitymodule.result.res_support.one.One;
-import com.hayden.utilitymodule.result.res_ty.CachedCollectedResult;
 import com.hayden.utilitymodule.result.res_ty.IResultItem;
 
 import java.util.ArrayList;
@@ -353,4 +352,5 @@ public interface OneResult<R, E> extends ManyResult<R, E> {
 
         return r.stream();
     }
+
 }

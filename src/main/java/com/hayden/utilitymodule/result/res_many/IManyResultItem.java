@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -39,7 +40,8 @@ public interface IManyResultItem<R> extends IResultItem<R> {
     }
 
     private @NotNull Optional<R> getFirst() {
-        var l = Lists.newArrayList(toList());
+        var l = Lists.newArrayList(toList())
+                .stream().filter(Objects::nonNull).toList();
         if (l.size() > 1) {
             log.error("Called optional on stream result with more than one value. Returning first.");
         }

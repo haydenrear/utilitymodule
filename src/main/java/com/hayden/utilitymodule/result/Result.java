@@ -40,6 +40,7 @@ public interface Result<T, E> {
     Logger log = LoggerFactory.getLogger(Result.class);
 
 
+
     interface Monadic<R> {
 
         R get();
@@ -386,14 +387,20 @@ public interface Result<T, E> {
         return Result.from(this.r(), Err.err(this.e().peek(mapper)));
     }
 
+    default Result<T, E> dropErr() {
+        return mapError(e -> null);
+    }
+
     default <E1> Result<T, E1> mapError(Function<E, E1> mapper) {
         if (this.e().isMany()) {
-            return Result.from(this.r(), Err.err(new ListResultItem<>(this.e().stream().map(mapper).toList())));
+            return Result.from(this.r(), Err.err(new ListResultItem<>(this.e().stream().map(mapper).filter(Objects::nonNull).toList())));
         } else {
 
             if (this.e().isPresent()) {
-                Err<E1> r1 = this.e().mapErr(mapper);
-                return Result.from(this.r(), r1);
+                Err<E1> r1 = this.e().mapErr(mapper).filterErr(Objects::nonNull);
+                return r1.isPresent()
+                        ? Result.from(this.r(), r1)
+                       : Result.ok(this.r());
             }
 
             return this.castError();
