@@ -23,6 +23,11 @@ import java.util.stream.Stream;
 
 public interface OneResult<R, E> extends ManyResult<R, E> {
 
+    default Result<R, E> flatMapErr(Function<R, Result<R, E>> mapper) {
+        return flatMapResult(mapper);
+    }
+
+
     default IResultItem<R> toResultItem() {
         return this.r().isMany()
                ? this.r().many()

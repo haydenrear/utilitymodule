@@ -73,6 +73,14 @@ public interface Result<T, E> {
         return this;
     }
 
+    default Result<T, E> onErrorMap(Predicate<E> matcher, Function<E, T> hasErr) {
+        if(this.e().filter(matcher).isPresent()) {
+            return Result.ok(hasErr.apply(this.e().filter(matcher).get()));
+        }
+
+        return this;
+    }
+
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     static <T, E> Result<T, E> fromOpt(Optional<T> stringStringEntry, E gitAggregateError) {
         return from(new StdOk<>(stringStringEntry), Err.err(gitAggregateError));
