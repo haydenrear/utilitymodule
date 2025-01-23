@@ -3,12 +3,15 @@ package com.hayden.utilitymodule.sort;
 import com.hayden.utilitymodule.MapFunctions;
 import com.hayden.utilitymodule.proxies.ProxyUtil;
 import lombok.experimental.UtilityClass;
+import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
+import org.springframework.aop.framework.AopProxyUtils;
 
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+@Slf4j
 @UtilityClass
 public class GraphSort {
 
@@ -41,6 +44,7 @@ public class GraphSort {
         }
 
         default <T extends GraphSortable>  List<T> parseAllDeps(Map<Class<? extends T>, T> values) {
+            log.info("Parsing dependencies");
             return retrieve(new HashSet<>(), values);
         }
 
@@ -66,8 +70,14 @@ public class GraphSort {
                         }
                         prev.add(s.getName());
                     })
-                    .map(r::get)
-                    .flatMap(s -> s.retrieve(prev, r).stream())
+                    .flatMap(i -> {
+                        var f = r.get(i);
+                        return Optional.ofNullable(f).stream();
+                    })
+                    .flatMap(s -> {
+                        List<T> retrieve = s.retrieve(prev, r);
+                        return retrieve.stream();
+                    })
                     .collect(Collectors.toCollection(() -> out));
         }
 
@@ -99,6 +109,7 @@ public class GraphSort {
 
             // Initialize the dependencies map
             for (GraphSortable graph : graphs) {
+//                TODO: handle proxies
                 dependencies.put((Class<? extends T>) graph.getClass(), graph.dependsOn());
             }
 
