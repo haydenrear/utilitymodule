@@ -126,7 +126,6 @@ public class MonoResult<R> implements IAsyncResultItem<R>, ISingleResultItem<R> 
 
     @Override
     public R get() {
-        Result.logClosableMaybeNotClosed();
         return this.firstOptional().orElse(null);
     }
 

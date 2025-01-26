@@ -10,6 +10,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.Optional;
 import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -23,12 +24,17 @@ import java.util.stream.Stream;
  * @param <R>
  */
 @Slf4j
-public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable Callable<Void> onClose)
+public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable Callable<Void> onClose, AtomicBoolean closed)
         implements ISingleResultItem<R> {
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public ClosableResult(Optional<R> r) {
-        this(r, null);
+        this(r, null, new AtomicBoolean(false));
+    }
+
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    public ClosableResult(Optional<R> r, Callable<Void> onClose) {
+        this(r, onClose, new AtomicBoolean(false));
     }
 
 
@@ -58,7 +64,8 @@ public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable C
     @Override
     public Optional<R> firstOptional() {
         // TODO: should this fail?
-        Result.logClosableMaybeNotClosed();
+        if (!closed.get())
+            Result.logClosableMaybeNotClosed();
         return r();
     }
 
@@ -99,8 +106,10 @@ public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable C
 
     @Override
     public R get() {
-        log.warn("Calling or else on closable. This probably means you have to close yourself...");
-        Result.logClosableMaybeNotClosed();
+        if (!closed.get()) {
+            callOrElse();
+            Result.logClosableMaybeNotClosed();
+        }
         return this.r.orElse(null);
     }
 
@@ -137,16 +146,24 @@ public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable C
 
     @Override
     public R orElse(R o) {
-        log.warn("Calling or else on closable. This probably means you have to close yourself...");
-        Result.logClosableMaybeNotClosed();
+        if (!closed.get()) {
+            callOrElse();
+            Result.logClosableMaybeNotClosed();
+        }
         return r.orElse(o);
     }
 
     @Override
     public R orElseGet(Supplier<R> o) {
-        log.warn("Calling or else on closable. This probably means you have to close yourself...");
-        Result.logClosableMaybeNotClosed();
+        if (!closed.get()) {
+            callOrElse();
+            Result.logClosableMaybeNotClosed();
+        }
         return r.orElseGet(o);
+    }
+
+    private static void callOrElse() {
+        log.warn("Calling or else on closable. This probably means you have to close yourself...");
     }
 
     @Override
@@ -161,6 +178,7 @@ public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable C
 
     private void doClose() {
         try {
+            this.closed.set(true);
             log.debug("Doing close on ClosableResult closable.");
             this.r.ifPresent(rFound -> {
                 try {

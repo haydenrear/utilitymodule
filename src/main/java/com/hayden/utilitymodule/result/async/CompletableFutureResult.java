@@ -128,7 +128,6 @@ public record CompletableFutureResult<R>(CompletableFuture<R> r, AtomicBoolean f
 
     @Override
     public R get() {
-        Result.logClosableMaybeNotClosed();
         return this.firstOptional().orElse(null);
     }
 
