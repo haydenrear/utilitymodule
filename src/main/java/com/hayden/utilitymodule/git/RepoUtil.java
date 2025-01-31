@@ -42,8 +42,6 @@ public interface RepoUtil {
     Logger log = LoggerFactory.getLogger(RepoUtil.class);
 
     static CanonicalTreeParser getForRef(String pattern, Repository repository) throws IOException {
-
-
         try (RevWalk revWalk = new RevWalk(repository)) {
             ObjectId head = repository.resolve(pattern);
             RevCommit headCommit = revWalk.parseCommit(head);

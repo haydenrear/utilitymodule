@@ -5,9 +5,13 @@ import java.util.stream.Collectors;
 
 public interface SingleError {
 
-    static String parseStackTraceToString(Throwable e) {
-        return Arrays.stream(e.getStackTrace())
+    static String parseStackTraceToString(StackTraceElement[] e) {
+        return Arrays.stream(e)
                 .map(StackTraceElement::toString).collect(Collectors.joining(System.lineSeparator()));
+    }
+
+    static String parseStackTraceToString(Throwable e) {
+        return parseStackTraceToString(e.getStackTrace());
     }
 
     default boolean isError() {
