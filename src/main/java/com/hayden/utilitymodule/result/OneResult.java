@@ -185,7 +185,7 @@ public interface OneResult<R, E> extends ManyResult<R, E> {
     }
 
     @Override
-    default ManyResult<R, E> peekError(Consumer<E> mapper) {
+    default OneResult<R, E> peekError(Consumer<E> mapper) {
         return new One<>(this.r(), Err.err(this.e().peek(mapper)));
     }
 

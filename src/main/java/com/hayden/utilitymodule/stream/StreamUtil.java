@@ -7,6 +7,9 @@ import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 public class StreamUtil {
@@ -53,7 +56,15 @@ public class StreamUtil {
             return this;
         }
 
-
     }
 
+    public static <T> Stream<T> toStream(T t) {
+        return Optional.ofNullable(t).stream();
+    }
+
+    public static <T> Stream<T> toStream(Collection<T> t) {
+        return Optional.ofNullable(t)
+                .stream()
+                .flatMap(Collection::stream);
+    }
 }
