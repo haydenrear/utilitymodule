@@ -1,12 +1,23 @@
 package com.hayden.utilitymodule;
 
+import com.google.common.collect.Lists;
+
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class CollectionFunctions {
+
+    public static <V> List<V> toList(Iterable<V> iterable) {
+        return Lists.newArrayList(iterable);
+    }
+
+    public static <V> List<V> toList(Iterator<V> iterable) {
+        return Lists.newArrayList(iterable);
+    }
 
     public static <V extends Collection> Collection<?> flattenCollection(V v){
         List<Object> collect = (List<Object>) streamFromCollection(v)

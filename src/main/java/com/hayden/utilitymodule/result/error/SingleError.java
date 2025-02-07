@@ -23,7 +23,7 @@ public interface SingleError {
     }
 
     static SingleError fromE(Throwable error) {
-        return new StandardError(error);
+        return new StandardError("%s\n%s".formatted(error.getMessage(), parseStackTraceToString(error.getStackTrace())));
     }
 
     static SingleError fromE(Throwable error, String cause) {

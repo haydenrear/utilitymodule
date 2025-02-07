@@ -2,6 +2,7 @@ package com.hayden.utilitymodule.result.ok;
 
 import com.hayden.utilitymodule.result.res_many.IManyResultItem;
 import com.hayden.utilitymodule.result.res_ty.IResultItem;
+import org.springframework.http.ResponseEntity;
 
 import java.util.Optional;
 import java.util.function.Function;
@@ -32,6 +33,10 @@ public interface Ok<R> extends IResultItem<R> {
 
     static <R> Ok<R> empty() {
         return new StdOk<>(Optional.empty());
+    }
+
+    static <R> Ok<R> ok(ResponseEntity<R> r) {
+        return new ResponseEntityOk(r);
     }
 
     IResultItem<R> t();

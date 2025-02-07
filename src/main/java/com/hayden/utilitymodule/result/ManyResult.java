@@ -3,7 +3,6 @@ package com.hayden.utilitymodule.result;
 import com.hayden.utilitymodule.result.error.Err;
 import com.hayden.utilitymodule.result.ok.Ok;
 import com.hayden.utilitymodule.result.res_support.many.stream.StreamResult;
-import com.hayden.utilitymodule.result.res_ty.CachedCollectedResult;
 
 import java.util.List;
 import java.util.function.Consumer;

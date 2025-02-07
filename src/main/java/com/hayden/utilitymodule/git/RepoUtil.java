@@ -11,8 +11,11 @@ import org.eclipse.jgit.api.ResetCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.diff.DiffFormatter;
+import org.eclipse.jgit.errors.IncorrectObjectTypeException;
+import org.eclipse.jgit.errors.MissingObjectException;
 import org.eclipse.jgit.lib.Config;
 import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.patch.FileHeader;
 import org.eclipse.jgit.revwalk.RevCommit;
@@ -30,10 +33,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Predicate;
 
 
@@ -197,18 +197,25 @@ public interface RepoUtil {
         }
     }
 
-    static OneResult<RevCommit, RepoUtilError> getLatestCommit(Git repository) {
-        return Result.<RevWalk, RepoUtilError>tryFrom(() -> new RevWalk(repository.getRepository()))
-                .flatMapResult(rw -> {
-                    try {
-                        ObjectId head = repository.getRepository().resolve("HEAD");
-                        RevCommit commit = rw.parseCommit(head);
-                        return Result.ok(commit);
-                    } catch(IOException e) {
-                        return Result.err(new RepoUtilError(e.getMessage()));
-                    }
-                })
-                .one();
+    static Map.Entry<Ref, String> retrieveBranch(String branch, Git git) throws GitAPIException {
+        var branchStart = git.branchList().call().stream()
+                .filter(r -> r.getName().contains(branch))
+                .map(r -> Map.entry(r, branch))
+                .findAny()
+                .orElseThrow(() -> new RuntimeException("Branch %s not found.".formatted(branch)));
+        return branchStart;
+    }
+
+    static OneResult<RevCommit, RepoUtilError> getLatestCommit(Git git, String branch) {
+        try {
+            var branchStart = retrieveBranch(branch, git);
+            Iterator<RevCommit> commits = git.log().add(branchStart.getKey().getObjectId()).call().iterator();
+            return Result.ok(commits.next());
+        } catch (GitAPIException |
+                 IncorrectObjectTypeException |
+                 MissingObjectException e) {
+            return Result.err(new RepoUtilError(SingleError.parseStackTraceToString(e)));
+        }
     }
 
     static Result<List<DiffEntry>, RepoUtilError> retrieveDiffEntries(String childHash, String parentHash,

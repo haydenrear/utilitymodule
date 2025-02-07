@@ -32,7 +32,7 @@ public class StreamResultCollector<R, ERR>
                     .forEach(o -> r.r().get().add(o));
             Optional.ofNullable(e.getRight())
                     .stream()
-                    .flatMap(ResultTy::stream)
+                    .flatMap(IResultItem::stream)
                     .filter(Objects::nonNull)
                     .forEach(o -> r.e().get().add(o));
         };

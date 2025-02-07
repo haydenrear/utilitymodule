@@ -1,20 +1,12 @@
 package com.hayden.utilitymodule.result.res_support.many.stream.stream_cache;
 
-import com.hayden.utilitymodule.result.OneResult;
 import com.hayden.utilitymodule.result.Result;
 import com.hayden.utilitymodule.result.error.Err;
 import com.hayden.utilitymodule.result.ok.Ok;
-import com.hayden.utilitymodule.result.res_support.many.stream.StreamResult;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
-import java.util.Set;
 import java.util.function.*;
-import java.util.stream.Collector;
-import java.util.stream.Collectors;
-
-import static java.util.stream.Collectors.toList;
 
 public interface CachingOperations {
 
