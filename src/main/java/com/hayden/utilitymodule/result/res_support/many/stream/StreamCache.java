@@ -218,19 +218,19 @@ interface StreamCache<T extends CachingOperations.CachedOperation<ST, ?>, C exte
             try (final ExecutorService te = retrieveExecutor()) {
                 toCache.forEach(n -> te.submit(() -> {
                     terminalOp.accept(n);
-                    doAddRemoveInfinitCache(opts, n, objects);
+                    doAddRemoveInfiniCache(opts, n, objects);
                 }));
             }
         } else {
             toCache.peek(terminalOp)
-                    .forEach(n -> doAddRemoveInfinitCache(opts, n, objects));
+                    .forEach(n -> doAddRemoveInfiniCache(opts, n, objects));
         }
 
 
         return f;
     }
 
-    private static <ST> void doAddRemoveInfinitCache(StreamResultOptions opts, ST n, List<ST> objects) {
+    private static <ST> void doAddRemoveInfiniCache(StreamResultOptions opts, ST n, List<ST> objects) {
         if (opts.maxSize() != 0) {
             synchronized (objects) {
                 if (objects.size() > opts.maxSize()) {
