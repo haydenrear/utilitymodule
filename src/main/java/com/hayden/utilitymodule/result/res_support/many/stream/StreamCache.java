@@ -231,7 +231,7 @@ interface StreamCache<T extends CachingOperations.CachedOperation<ST, ?>, C exte
     }
 
     private static <ST> void doAddRemoveInfiniCache(StreamResultOptions opts, ST n, List<ST> objects) {
-        if (opts.maxSize() != 0) {
+        if (opts.maxSize() != 0 && objects.size() >= opts.maxSize()) {
             synchronized (objects) {
                 if (objects.size() > opts.maxSize()) {
                     IntStream.range(0, Math.max(objects.size() - opts.maxSize(), 1))
