@@ -8,12 +8,5 @@ import com.hayden.utilitymodule.result.ok.ResponseEntityOk;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 
-public record ResponseEntityOne<T>(Ok<ResponseEntity<T>> r, Err<BindingResult> err)
-        implements OneResult<ResponseEntity<T>, BindingResult> {
-
-    @Override
-    public Err<BindingResult> e() {
-        return this.err;
-    }
-
-}
+public record ResponseEntityOne<T>(Ok<ResponseEntity<T>> r, Err<BindingResult> e)
+        implements OneResult<ResponseEntity<T>, BindingResult> { }
