@@ -16,13 +16,17 @@ import com.hayden.utilitymodule.result.res_support.one.ClosableOne;
 import com.hayden.utilitymodule.result.res_support.one.MutableOne;
 import com.hayden.utilitymodule.result.res_support.one.One;
 import com.hayden.utilitymodule.result.res_support.many.stream.StreamResult;
+import com.hayden.utilitymodule.result.res_support.one.ResponseEntityOne;
 import com.hayden.utilitymodule.result.res_ty.CachedCollectedResult;
 import com.hayden.utilitymodule.result.res_ty.ClosableResult;
 import com.hayden.utilitymodule.result.res_ty.IResultItem;
 import jakarta.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.ResponseEntity;
 import org.springframework.util.Assert;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.MapBindingResult;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -140,6 +144,12 @@ public interface Result<T, E> {
 
     static <R, E> OneResult<R, E> ok(R r) {
         return new One<>(new StdOk<>(r), Err.empty());
+    }
+
+    static <R> OneResult<ResponseEntity<R>, BindingResult> ok(ResponseEntity<R> r) {
+        return new ResponseEntityOne<>(
+                Ok.ok(r),
+                Err.err(new MapBindingResult(new HashMap<>(), "Binding")));
     }
 
     static <R, E> MutableResult<R, E> mutableOk(R r) {

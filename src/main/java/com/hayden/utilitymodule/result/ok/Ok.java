@@ -35,7 +35,7 @@ public interface Ok<R> extends IResultItem<R> {
         return new StdOk<>(Optional.empty());
     }
 
-    static <R> Ok<R> ok(ResponseEntity<R> r) {
+    static <R> Ok<ResponseEntity<R>> ok(ResponseEntity<R> r) {
         return new ResponseEntityOk(r);
     }
 
