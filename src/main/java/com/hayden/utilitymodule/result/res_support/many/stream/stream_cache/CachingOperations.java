@@ -3,6 +3,7 @@ package com.hayden.utilitymodule.result.res_support.many.stream.stream_cache;
 import com.hayden.utilitymodule.result.Result;
 import com.hayden.utilitymodule.result.error.Err;
 import com.hayden.utilitymodule.result.ok.Ok;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,6 +13,7 @@ public interface CachingOperations {
 
     interface CachedOperation<T, U> extends Function<T, U> {}
 
+    // TODO: more ops?
     interface InfiniteOperation<T, U> extends CachedOperation<T, U> {}
 
     interface OnClosedOperation<T, U> extends InfiniteOperation<T, U> {}
@@ -157,21 +159,27 @@ public interface CachingOperations {
         }
     }
 
+    @Slf4j
     record HasResult<R, E>() implements StreamCachePredicate.Any<Result<R, E>>, ResultStreamCachePredicate<Result<R, E>>, PersistentCacheResult {
         @Override
         public boolean test(Result<R, E> o) {
-            if (o.isOkStream())
+            if (o.isOkStream()) {
+                log.error("Could not check if had ok because ok was of stream type, cachable cannot be cached inside of cache.");
                 return false;
+            }
 
             return o.isOk();
         }
     }
 
+    @Slf4j
     record HasErr<R, E>() implements StreamCachePredicate.Any<Result<R, E>>, ResultStreamCachePredicate<Result<R, E>>, PersistentCacheResult {
         @Override
         public boolean test(Result<R, E> o) {
-            if (o.isErrStream())
+            if (o.isErrStream()) {
+                log.error("Could not check if had error because error was of stream type, cachable cannot be cached inside of cache.");
                 return false;
+            }
             return o.isError();
         }
     }
