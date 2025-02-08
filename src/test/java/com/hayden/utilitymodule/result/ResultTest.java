@@ -145,7 +145,7 @@ public class ResultTest {
                     assertThat(se.getMessage()).isEqualTo("hello there...");
                     g.getAndIncrement();
                 })
-                .onErrorMapToResult(
+                .onErrorFlatMapResult(
                         () -> Result.ok("hello!"),
                         fs -> Result.ok("whatever"))
                 .ifPresent(fi -> {
@@ -187,13 +187,13 @@ public class ResultTest {
         assertThat(b.r().get()).isEqualTo("hello!");
 
         var c = Result.<String, SingleError>err(SingleError.fromMessage("hello!"))
-                .onErrorMapToResult(() -> Result.ok(1), r -> r.map(s -> 2));
+                .onErrorFlatMapResult(() -> Result.ok(1), r -> r.map(s -> 2));
 
         assertThat(c.isError()).isFalse();
         assertThat(c.r().get()).isEqualTo(1);
 
         c = Result.<String, SingleError>err(SingleError.fromMessage("hello!"))
-                .onErrorMapToResult(
+                .onErrorFlatMapResult(
                         e -> false,
                         () -> Result.ok(1),
                         r -> Result.ok(2));
@@ -202,7 +202,7 @@ public class ResultTest {
         assertThat(c.r().get()).isEqualTo(2);
 
         c = Result.<String, SingleError>err(SingleError.fromMessage("hello!"))
-                .onErrorMapToResult(
+                .onErrorFlatMapResult(
                         e -> false,
                         () -> Result.ok(1),
                         r -> Result.err(SingleError.fromMessage("hello!")));

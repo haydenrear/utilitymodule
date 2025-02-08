@@ -43,8 +43,6 @@ public interface Result<T, E> {
 
     Logger log = LoggerFactory.getLogger(Result.class);
 
-
-
     interface Monadic<R> {
 
         R get();
@@ -75,17 +73,17 @@ public interface Result<T, E> {
     }
 
     default Result<Object, E> onErrorMapTo(Predicate<E> hasErr, Supplier<Object> mapTo) {
-        return onErrorMapToRes(hasErr, mapTo, () -> (Result<Object, E>) this);
+        return onErrorMapToResult(hasErr, mapTo, () -> (Result<Object, E>) this);
     }
 
-    default <U, V> Result<U, V> onErrorMapToResult(Supplier<Result<U, V>> mapTo,
-                                                   Function<Result<T, E>, Result<U, V>> fallback) {
-        return onErrorMapToResult(e -> true, mapTo, fallback);
+    default <U, V> Result<U, V> onErrorFlatMapResult(Supplier<Result<U, V>> mapTo,
+                                                     Function<Result<T, E>, Result<U, V>> fallback) {
+        return onErrorFlatMapResult(e -> true, mapTo, fallback);
     }
 
-    default <U, V> Result<U, V> onErrorMapToResult(Predicate<E> hasErr,
-                                                   Supplier<Result<U, V>> mapTo,
-                                                   Function<Result<T, E>, Result<U, V>> fallback) {
+    default <U, V> Result<U, V> onErrorFlatMapResult(Predicate<E> hasErr,
+                                                     Supplier<Result<U, V>> mapTo,
+                                                     Function<Result<T, E>, Result<U, V>> fallback) {
         if(this.e().filter(hasErr).isPresent()) {
             return mapTo.get();
         }
@@ -97,7 +95,7 @@ public interface Result<T, E> {
         return onErrorMapTo(e -> true, hasErr, fallback);
     }
 
-    default <V> Result<V, E> onErrorMapToRes(Predicate<E> matcher, Supplier<V> hasErr, Supplier<Result<V, E>> fallback) {
+    default <V> Result<V, E> onErrorMapToResult(Predicate<E> matcher, Supplier<V> hasErr, Supplier<Result<V, E>> fallback) {
         if(this.e().filter(matcher).isPresent()) {
             return Result.ok(hasErr.get());
         }

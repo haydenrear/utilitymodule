@@ -6,6 +6,7 @@ import com.hayden.utilitymodule.result.res_ty.IResultItem;
 
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 public class ClosableOk<R extends AutoCloseable> extends ResultTy<R> implements Ok<R> {
 
@@ -39,6 +40,18 @@ public class ClosableOk<R extends AutoCloseable> extends ResultTy<R> implements 
         return t;
     }
 
+    public Exception getExcept() {
+
+        if(this.t instanceof ClosableResult<R> c)
+            return c.caught();
+
+        return null;
+    }
+
+    public boolean isExcept(Predicate<Exception> exc) {
+        return this.t instanceof ClosableResult<R> c && exc.test(c.caught());
+    }
+
     public ClosableOk<R> except(Function<Exception, R> function) {
         if (this.t instanceof ClosableResult<R> c && c.caught() != null) {
             return new ClosableOk<>(function.apply(c.caught()));
@@ -46,6 +59,15 @@ public class ClosableOk<R extends AutoCloseable> extends ResultTy<R> implements 
 
         return this;
     }
+
+    public ClosableOk<R> except(Predicate<Exception> onExc, Function<Exception, R> function) {
+        if (this.t instanceof ClosableResult<R> c && onExc.test(c.caught())) {
+            return new ClosableOk<>(function.apply(c.caught()));
+        }
+
+        return this;
+    }
+
 
     public <E> Optional<E> exceptErr(Function<Exception, E> function) {
         if (this.t instanceof ClosableResult<R> c && c.caught() != null) {
