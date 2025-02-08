@@ -69,7 +69,7 @@ public interface Result<T, E> {
     }
 
     default Result<Object, E> onErrorMapTo(Supplier<Object> mapTo) {
-        return onErrorMapTo(e -> true, mapTo);
+        return onErrorMapTo(Objects::nonNull, mapTo);
     }
 
     default Result<Object, E> onErrorMapTo(Predicate<E> hasErr, Supplier<Object> mapTo) {
@@ -78,7 +78,7 @@ public interface Result<T, E> {
 
     default <U, V> Result<U, V> onErrorFlatMapResult(Supplier<Result<U, V>> mapTo,
                                                      Function<Result<T, E>, Result<U, V>> fallback) {
-        return onErrorFlatMapResult(e -> true, mapTo, fallback);
+        return onErrorFlatMapResult(Objects::nonNull, mapTo, fallback);
     }
 
     default <U, V> Result<U, V> onErrorFlatMapResult(Predicate<E> hasErr,
@@ -92,7 +92,7 @@ public interface Result<T, E> {
     }
 
     default <V> Result<V, E> onErrorMapTo(Supplier<V> hasErr, Supplier<V> fallback) {
-        return onErrorMapTo(e -> true, hasErr, fallback);
+        return onErrorMapTo(Objects::nonNull, hasErr, fallback);
     }
 
     default <V> Result<V, E> onErrorMapToResult(Predicate<E> matcher, Supplier<V> hasErr, Supplier<Result<V, E>> fallback) {
