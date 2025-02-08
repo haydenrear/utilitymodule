@@ -5,6 +5,7 @@ import com.hayden.utilitymodule.result.res_ty.ClosableResult;
 import com.hayden.utilitymodule.result.res_ty.IResultItem;
 
 import java.util.Optional;
+import java.util.function.Function;
 
 public class ClosableOk<R extends AutoCloseable> extends ResultTy<R> implements Ok<R> {
 
@@ -36,6 +37,22 @@ public class ClosableOk<R extends AutoCloseable> extends ResultTy<R> implements 
     @Override
     public IResultItem<R> t() {
         return t;
+    }
+
+    public ClosableOk<R> except(Function<Exception, R> function) {
+        if (this.t instanceof ClosableResult<R> c && c.caught() != null) {
+            return new ClosableOk<>(function.apply(c.caught()));
+        }
+
+        return this;
+    }
+
+    public <E> Optional<E> exceptErr(Function<Exception, E> function) {
+        if (this.t instanceof ClosableResult<R> c && c.caught() != null) {
+            return Optional.ofNullable(function.apply(c.caught()));
+        }
+
+        return Optional.empty();
     }
 
     public R getClosableQuietly() {

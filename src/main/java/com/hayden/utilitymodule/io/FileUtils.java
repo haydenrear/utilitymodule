@@ -251,33 +251,33 @@ public class FileUtils {
         if (!f.exists())
             return Result.err(SingleError.fromMessage("File %s did not exist.".formatted(f.getAbsolutePath())));
 
-        try {
-            return Result.<BufferedReader, SingleError>ok(Files.newBufferedReader(f.toPath()))
-                    .map(bfr -> new Iterator<>() {
+        return Result.<BufferedReader, SingleError>tryFrom(() -> Files.newBufferedReader(f.toPath()))
+                .except(exc -> {
+                    throw new RuntimeException(exc);
+                })
+                .map(bfr -> new Iterator<>() {
 
-                        @SneakyThrows
-                        @Override
-                        public boolean hasNext() {
-                            if (!bfr.ready()) {
-                                bfr.close();
-                                return false;
-                            }
-
-                            return true;
+                    @SneakyThrows
+                    @Override
+                    public boolean hasNext() {
+                        if (!bfr.ready()) {
+                            bfr.close();
+                            return false;
                         }
 
-                        @SneakyThrows
-                        @Override
-                        public String next() {
-                            if (hasNext())
-                                return bfr.readLine();
+                        return true;
+                    }
 
-                            return null;
-                        }
-                    });
-        } catch (IOException e) {
-            return Result.err(SingleError.fromE(e));
-        }
+                    @SneakyThrows
+                    @Override
+                    public String next() {
+                        if (hasNext())
+                            return bfr.readLine();
+
+                        return null;
+                    }
+                })
+                ;
 
     }
 

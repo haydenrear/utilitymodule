@@ -59,7 +59,156 @@ public class ResultTest {
                 });
 
         assertEquals(2, i.get());
+
         assertThat(ClosableResult.hasOpenResources()).isFalse();
+
+        var j = new AtomicInteger();
+        var q = new AtomicInteger();
+        Result.<FileInputStream, SingleError>tryFrom(
+                        () -> {
+                            throw new RuntimeException("hello!") ;
+                        },
+                        () -> {
+                            j.getAndIncrement();
+                            return null;
+                        })
+                .except(e -> {
+                    q.getAndIncrement();
+                    return null;
+                })
+                .ifPresent(fi -> j.getAndIncrement());
+
+        assertThat(ClosableResult.hasOpenResources()).isFalse();
+        assertEquals(1, q.get());
+        assertEquals(0, j.get());
+
+        var a = new AtomicInteger();
+        var b = new AtomicInteger();
+        try {
+            Result.<FileInputStream, SingleError>tryFrom(
+                            () -> {
+                                throw new Exception("hello!");
+                            },
+                            () -> {
+                                a.getAndIncrement();
+                                return null;
+                            })
+                    .exceptRuntime()
+                    .ifPresent(fi -> j.getAndIncrement());
+        } catch (RuntimeException e) {
+            b.getAndIncrement();
+            assertThat(e.getCause()).isInstanceOf(Exception.class);
+            assertThat(e.getCause().getMessage()).isEqualTo("hello!");
+        }
+
+        assertThat(ClosableResult.hasOpenResources()).isFalse();
+        assertEquals(1, b.get());
+        assertEquals(0, a.get());
+
+
+        var c = new AtomicInteger();
+        var d = new AtomicInteger();
+        var e = new AtomicInteger();
+        Result.<FileInputStream, SingleError>tryFrom(
+                        () -> {
+                            throw new Exception("hello!");
+                        },
+                        () -> {
+                            c.getAndIncrement();
+                            return null;
+                        })
+                .exceptErr(exc -> SingleError.fromMessage("hello there..."))
+                .peekError(se -> {
+                    assertThat(se.getMessage()).isEqualTo("hello there...");
+                    d.getAndIncrement();
+                })
+                .ifPresent(fi -> e.getAndIncrement());
+
+        assertThat(ClosableResult.hasOpenResources()).isFalse();
+        assertEquals(1, d.get());
+        assertEquals(0, c.get());
+        assertEquals(0, e.get());
+
+        var f = new AtomicInteger();
+        var g = new AtomicInteger();
+        var h = new AtomicInteger();
+        Result.<FileInputStream, SingleError>tryFrom(
+                        () -> {
+                            throw new Exception("hello!");
+                        },
+                        () -> {
+                            f.getAndIncrement();
+                            return null;
+                        })
+                .exceptErr(exc -> SingleError.fromMessage("hello there..."))
+                .peekError(se -> {
+                    assertThat(se.getMessage()).isEqualTo("hello there...");
+                    g.getAndIncrement();
+                })
+                .onErrorMapToResult(
+                        () -> Result.ok("hello!"),
+                        fs -> Result.ok("whatever"))
+                .ifPresent(fi -> {
+                    h.getAndIncrement();
+                    assertThat(fi).isEqualTo("hello!");
+                });
+
+        assertThat(ClosableResult.hasOpenResources()).isFalse();
+        assertEquals(1, g.get());
+        assertEquals(0, f.get());
+        assertEquals(1, h.get());
+
+    }
+
+    @Test
+    public void onErrorMap() {
+        var res = Result.<String, SingleError>err(SingleError.fromMessage("hello!"))
+                .onErrorMap(se -> true, () -> "whatever!");
+
+        assertThat(res.isError()).isFalse();
+        assertThat(res.one().r().get()).isEqualTo("whatever!");
+
+        Result<Integer, SingleError> o = Result.<String, SingleError>err(SingleError.fromMessage("hello!"))
+                .onErrorMapTo(se -> true, () -> 1, () -> 2);
+
+        assertThat(o.one().r().get()).isEqualTo(1);
+        assertThat(o.isError()).isFalse();
+
+        Result<Object, SingleError> b = Result.<String, SingleError>err(SingleError.fromMessage("hello!"))
+                .onErrorMapTo(se -> false, () -> 1);
+
+        assertThat(b.isError()).isTrue();
+        assertThat(b.e().get().getMessage()).isEqualTo("hello!");
+
+        b = Result.<String, SingleError>ok("hello!")
+                .onErrorMapTo(se -> false, () -> 1);
+
+        assertThat(b.isError()).isFalse();
+        assertThat(b.r().get()).isEqualTo("hello!");
+
+        var c = Result.<String, SingleError>err(SingleError.fromMessage("hello!"))
+                .onErrorMapToResult(() -> Result.ok(1), r -> r.map(s -> 2));
+
+        assertThat(c.isError()).isFalse();
+        assertThat(c.r().get()).isEqualTo(1);
+
+        c = Result.<String, SingleError>err(SingleError.fromMessage("hello!"))
+                .onErrorMapToResult(
+                        e -> false,
+                        () -> Result.ok(1),
+                        r -> Result.ok(2));
+
+        assertThat(c.isError()).isFalse();
+        assertThat(c.r().get()).isEqualTo(2);
+
+        c = Result.<String, SingleError>err(SingleError.fromMessage("hello!"))
+                .onErrorMapToResult(
+                        e -> false,
+                        () -> Result.ok(1),
+                        r -> Result.err(SingleError.fromMessage("hello!")));
+
+        assertThat(c.isError()).isTrue();
+        assertThat(c.e().get().getMessage()).isEqualTo("hello!");
     }
 
     @Test

@@ -4,6 +4,7 @@ import com.hayden.utilitymodule.result.Result;
 import com.hayden.utilitymodule.result.res_single.ISingleResultItem;
 import com.hayden.utilitymodule.result.res_support.one.ResultTy;
 import jakarta.annotation.Nullable;
+import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -24,19 +25,19 @@ import java.util.stream.Stream;
  * @param <R>
  */
 @Slf4j
-public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable Callable<Void> onClose, AtomicBoolean closed)
+@Builder
+public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable Exception caught, @Nullable Callable<Void> onClose, AtomicBoolean closed)
         implements ISingleResultItem<R> {
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public ClosableResult(Optional<R> r) {
-        this(r, null, new AtomicBoolean(false));
+        this(r, null, null, new AtomicBoolean(false));
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public ClosableResult(Optional<R> r, Callable<Void> onClose) {
-        this(r, onClose, new AtomicBoolean(false));
+        this(r, null, onClose, new AtomicBoolean(false));
     }
-
 
     @Override
     public Stream<R> stream() {

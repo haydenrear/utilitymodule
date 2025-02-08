@@ -1,5 +1,6 @@
 package com.hayden.utilitymodule.result.closable;
 
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Queue;
@@ -30,6 +31,18 @@ public class ClosableMonitor {
 
     public synchronized boolean hasOpenResources() {
         return !q.isEmpty();
+    }
+
+    @SneakyThrows
+    public void closeAll() {
+        q.forEach(a -> {
+            try {
+                a.close();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+        q.clear();
     }
 
     private <T extends AutoCloseable> void warningLogger(T ret) {

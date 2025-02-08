@@ -70,6 +70,49 @@ public interface Result<T, E> {
         return onErrorMap(Objects::nonNull, mapper);
     }
 
+    default Result<Object, E> onErrorMapTo(Supplier<Object> mapTo) {
+        return onErrorMapTo(e -> true, mapTo);
+    }
+
+    default Result<Object, E> onErrorMapTo(Predicate<E> hasErr, Supplier<Object> mapTo) {
+        return onErrorMapToRes(hasErr, mapTo, () -> (Result<Object, E>) this);
+    }
+
+    default <U, V> Result<U, V> onErrorMapToResult(Supplier<Result<U, V>> mapTo,
+                                                   Function<Result<T, E>, Result<U, V>> fallback) {
+        return onErrorMapToResult(e -> true, mapTo, fallback);
+    }
+
+    default <U, V> Result<U, V> onErrorMapToResult(Predicate<E> hasErr,
+                                                   Supplier<Result<U, V>> mapTo,
+                                                   Function<Result<T, E>, Result<U, V>> fallback) {
+        if(this.e().filter(hasErr).isPresent()) {
+            return mapTo.get();
+        }
+
+        return fallback.apply(this);
+    }
+
+    default <V> Result<V, E> onErrorMapTo(Supplier<V> hasErr, Supplier<V> fallback) {
+        return onErrorMapTo(e -> true, hasErr, fallback);
+    }
+
+    default <V> Result<V, E> onErrorMapToRes(Predicate<E> matcher, Supplier<V> hasErr, Supplier<Result<V, E>> fallback) {
+        if(this.e().filter(matcher).isPresent()) {
+            return Result.ok(hasErr.get());
+        }
+
+        return fallback.get();
+    }
+
+    default <V> Result<V, E> onErrorMapTo(Predicate<E> matcher, Supplier<V> hasErr, Supplier<V> fallback) {
+        if(this.e().filter(matcher).isPresent()) {
+            return Result.ok(hasErr.get());
+        }
+
+        return Result.from(Ok.ok(fallback.get()), this.e());
+    }
+
     default Result<T, E> onErrorMap(Predicate<E> matcher, Supplier<T> hasErr) {
         if(this.e().filter(matcher).isPresent()) {
             return Result.ok(hasErr.get());
@@ -108,22 +151,42 @@ public interface Result<T, E> {
                : from(Ok.empty(), Err.err(gitAggregateError));
     }
 
+    static <T extends AutoCloseable, E> com.hayden.utilitymodule.result.Result<T, E> tryFromThrow(T o) {
+        return tryFromThrow(o, () -> null);
+    }
 
-    static <T extends AutoCloseable, E> com.hayden.utilitymodule.result.Result<T, E> tryFrom(T o, Callable<Void> onClose) {
+    static <T extends AutoCloseable, E> com.hayden.utilitymodule.result.Result<T, E> tryFromThrow(Callable<T> o) {
         try {
-            log.debug("Doing try from with result ty. Means there was a closable opened. Will log debug on close.");
+            return tryFromThrow(o.call(), () -> null);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    static <T extends AutoCloseable, E> com.hayden.utilitymodule.result.Result<T, E> tryFromThrow(T o, Callable<Void> onClose) {
+        try {
             return Result.tryOk(new ClosableResult<>(Optional.ofNullable(o), onClose));
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }
     }
 
-    static <T extends AutoCloseable, E> com.hayden.utilitymodule.result.ClosableResult<T, E> tryFrom(Callable<T> o) {
+    static <T extends AutoCloseable, E> com.hayden.utilitymodule.result.ClosableResult<T, E> tryFrom(Callable<T> o, Callable<Void> onClose) {
+        log.debug("Doing try from with result ty. Means there was a closable opened. Will log debug on close.");
         try {
-            return Result.tryOk(o.call());
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
+            return Result.tryOk(new ClosableResult<>(Optional.ofNullable(o.call()), onClose));
+        } catch (Exception e) {
+            return Result.tryOk(ClosableResult.<T>builder().caught(e).r(Optional.empty()).build());
         }
+    }
+
+    static <T extends AutoCloseable, E> com.hayden.utilitymodule.result.Result<T, E> tryFrom(T o, Callable<Void> onClose) {
+        log.debug("Doing try from with result ty. Means there was a closable opened. Will log debug on close.");
+        return Result.tryOk(new ClosableResult<>(Optional.ofNullable(o), onClose));
+    }
+
+    static <T extends AutoCloseable, E> com.hayden.utilitymodule.result.ClosableResult<T, E> tryFrom(Callable<T> o) {
+        return tryFrom(o, () -> null);
     }
 
     static <T, E> Result<T, E> stream(Mono<T> o) {
