@@ -34,7 +34,7 @@ public class ClosableMonitor {
     }
 
     @SneakyThrows
-    public void closeAll() {
+    public synchronized void closeAll() {
         q.forEach(a -> {
             try {
                 a.close();
