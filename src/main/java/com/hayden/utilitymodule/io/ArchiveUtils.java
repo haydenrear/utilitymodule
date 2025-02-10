@@ -25,8 +25,12 @@ public interface ArchiveUtils {
     }
 
     static Result<List<String>, SingleError> prepareTestRepos(Path basePath, String tarFile) {
+        return prepareTestRepos(basePath, basePath, tarFile) ;
+    }
 
-        var out = basePath.toFile();
+    static Result<List<String>, SingleError> prepareTestRepos(Path basePath, Path outPath, String tarFile) {
+
+        var out = outPath.toFile();
         out.mkdirs();
 
         try(

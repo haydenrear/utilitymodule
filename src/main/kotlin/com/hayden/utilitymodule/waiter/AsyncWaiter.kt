@@ -22,6 +22,10 @@ class AsyncWaiter<T>(val waitFor: () -> T?,
             return AsyncWaiter(waitFor, matcher).doWait()
         }
 
+        fun <T> doCallWaiter(waitFor: () -> T?, matcher: (T?) -> Boolean, wait: Duration, between: Duration): T? {
+            return AsyncWaiter(waitFor, matcher, wait, between).doWait()
+        }
+
     }
 
 

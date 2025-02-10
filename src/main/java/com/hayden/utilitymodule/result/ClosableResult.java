@@ -5,7 +5,6 @@ import com.hayden.utilitymodule.result.closable.ClosableMonitor;
 import com.hayden.utilitymodule.result.ok.ClosableOk;
 
 import java.util.Objects;
-import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -22,6 +21,13 @@ public interface ClosableResult<T extends AutoCloseable, E> extends OneResult<T,
 
     default Result<T, E> except(Function<Exception, T> toDo) {
         return except(Objects::nonNull, toDo);
+    }
+
+    default Result<T, E> exceptEmpty(Consumer<Exception> toDo) {
+        return except(Objects::nonNull, f -> {
+            toDo.accept(f);
+            return null;
+        });
     }
 
     default Result<T, E> except(Predicate<Exception> exc,
