@@ -1,5 +1,7 @@
 package com.hayden.utilitymodule.security;
 
+import com.hayden.utilitymodule.result.Result;
+import com.hayden.utilitymodule.result.error.SingleError;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
@@ -7,12 +9,15 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Security;
+import java.util.Base64;
 import java.util.Optional;
 import java.util.Set;
 
@@ -40,6 +45,19 @@ public class SignatureUtil {
             }
             return Optional.empty();
         });
+    }
+
+    public static @NotNull String hashToString(String toHash, MessageDigest digest) {
+        return hashToString(toHash.getBytes(StandardCharsets.UTF_8), digest);
+    }
+
+    public static @NotNull String hashToString(String toHash, MessageDigest digest, Charset charsets) {
+        return hashToString(toHash.getBytes(charsets), digest);
+    }
+
+    public static @NotNull String hashToString(byte[] toHash, MessageDigest digest) {
+        byte[] dig = digest.digest(toHash);
+        return Base64.getEncoder().encodeToString(dig);
     }
 
     public static Optional<byte[]> TakeMessageDigest(byte[] input, @Nullable String algorithm) {

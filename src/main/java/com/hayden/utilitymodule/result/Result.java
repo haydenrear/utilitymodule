@@ -32,10 +32,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.*;
 import java.util.concurrent.Callable;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
+import java.util.function.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -81,11 +78,30 @@ public interface Result<T, E> {
         return onErrorFlatMapResult(Objects::nonNull, mapTo, fallback);
     }
 
+    default <U, V> Result<U, V> onErrorFlatMapResult(Function<E, Result<U, V>> mapTo,
+                                                     Function<Result<T, E>, Result<U, V>> fallback) {
+        return onErrorFlatMapResult(Objects::nonNull, mapTo, fallback);
+    }
+
+    default Result<T, E> onErrorFlatMapResult(Function<E, Result<T, E>> mapTo) {
+        return onErrorFlatMapResult(Objects::nonNull, mapTo, e -> e);
+    }
+
     default <U, V> Result<U, V> onErrorFlatMapResult(Predicate<E> hasErr,
                                                      Supplier<Result<U, V>> mapTo,
                                                      Function<Result<T, E>, Result<U, V>> fallback) {
         if(this.e().filter(hasErr).isPresent()) {
             return mapTo.get();
+        }
+
+        return fallback.apply(this);
+    }
+
+    default <U, V> Result<U, V> onErrorFlatMapResult(Predicate<E> hasErr,
+                                                     Function<E, Result<U, V>> mapTo,
+                                                     Function<Result<T, E>, Result<U, V>> fallback) {
+        if(this.e().filter(hasErr).isPresent()) {
+            return mapTo.apply(this.e().get());
         }
 
         return fallback.apply(this);
