@@ -255,27 +255,44 @@ public class FileUtils {
                 .except(exc -> {
                     throw new RuntimeException(exc);
                 })
-                .map(bfr -> new Iterator<>() {
+                .map(bfr -> {
+                    final boolean[] isClosed = {false};
+                    return new Iterator<>() {
 
-                    @SneakyThrows
-                    @Override
-                    public boolean hasNext() {
-                        if (!bfr.ready()) {
-                            bfr.close();
-                            return false;
+                        @SneakyThrows
+                        @Override
+                        public boolean hasNext() {
+                            if (isClosed[0])
+                                return false;
+                            try {
+                                if (!bfr.ready()) {
+                                    bfr.close();
+                                    isClosed[0] = true;
+                                    return false;
+                                }
+                            } catch (IOException e) {
+                                log.error("{}", SingleError.parseStackTraceToString(e));
+                                isClosed[0] = true;
+                                return false;
+                            }
+
+                            return true;
                         }
 
-                        return true;
-                    }
+                        @SneakyThrows
+                        @Override
+                        public String next() {
+                            try {
+                                if (hasNext())
+                                    return bfr.readLine();
+                            } catch (IOException e) {
+                                log.error("{}", SingleError.parseStackTraceToString(e));
+                            }
 
-                    @SneakyThrows
-                    @Override
-                    public String next() {
-                        if (hasNext())
-                            return bfr.readLine();
-
-                        return null;
-                    }
+                            isClosed[0] = true;
+                            return null;
+                        }
+                    };
                 })
                 ;
 

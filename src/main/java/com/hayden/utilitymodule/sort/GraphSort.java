@@ -66,7 +66,7 @@ public class GraphSort {
                     .stream()
                     .peek(s -> {
                         if (prev.contains(s.getName()) && r.get(s).dependsOn().contains(selfG.getClass())) {
-                            throw new RuntimeException("Found cycle.");
+                            throw new RuntimeException("Found cycle.: %s, %s".formatted(s.getName(), r.getClass().getName()));
                         }
                         prev.add(s.getName());
                     })
