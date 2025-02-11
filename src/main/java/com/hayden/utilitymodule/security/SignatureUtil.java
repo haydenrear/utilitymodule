@@ -25,26 +25,37 @@ import java.util.Set;
 @Slf4j
 public class SignatureUtil {
 
-    public static Optional<byte[]> TakeMessageDigest(byte[] input) {
+    public record SignatureErr(String getMessage) implements SingleError {
+
+        public SignatureErr(Throwable message) {
+            this(SingleError.parseStackTraceToString(message));
+        }
+
+    }
+
+    public static Result<byte[], SignatureErr> TakeMessageDigest(byte[] input) {
         return TakeMessageDigest(input, null);
     }
 
-    public static Optional<byte[]> TakeMessageDigest(Path input, @Nullable String algorithm) {
-        return retrieveDigestAlgorithm(algorithm).flatMap(s -> {
-            try {
-                return Optional.of(MessageDigest.getInstance(s));
-            } catch (NoSuchAlgorithmException e) {
-                log.error("Could not retrieve message digest instance: {}", e.getMessage());
-            }
-            return Optional.empty();
-        }).flatMap(md -> {
-            try(InputStream is = Files.newInputStream(input); DigestInputStream ds = new DigestInputStream(is, md)) {
-                return Optional.of(ds.getMessageDigest().digest());
-            } catch (IOException e) {
-                log.error("Could not create digest input stream: {}.", e.getMessage());
-            }
-            return Optional.empty();
-        });
+    public static Result<byte[], SignatureErr> TakeMessageDigest(Path input, @Nullable String algorithm) {
+        return retrieveDigestAlgorithm(algorithm)
+                .flatMapResult(s -> {
+                    try {
+                        return Result.ok(MessageDigest.getInstance(s));
+                    } catch (
+                            NoSuchAlgorithmException e) {
+                        log.error("Could not take message digest", e);
+                        return Result.err(new SignatureErr(e));
+                    }
+                })
+                .flatMapResult(md -> {
+                    try (InputStream is = Files.newInputStream(input); DigestInputStream ds = new DigestInputStream(is, md)) {
+                        return Result.ok(ds.getMessageDigest().digest());
+                    } catch (IOException e) {
+                        log.error("Could not create digest input stream: {}.", e.getMessage());
+                        return Result.err(new SignatureErr(e));
+                    }
+                });
     }
 
     public static @NotNull String hashToString(String toHash, MessageDigest digest) {
@@ -60,22 +71,23 @@ public class SignatureUtil {
         return Base64.getEncoder().encodeToString(dig);
     }
 
-    public static Optional<byte[]> TakeMessageDigest(byte[] input, @Nullable String algorithm) {
-        Optional<String> retrieveDigestAlgorithm = retrieveDigestAlgorithm(algorithm);
+    public static Result<byte[], SignatureErr> TakeMessageDigest(byte[] input, @Nullable String algorithm) {
+        var retrieveDigestAlgorithm = retrieveDigestAlgorithm(algorithm);
         return retrieveDigestAlgorithm
-                .flatMap(md5Algorithm -> {
+                .flatMapResult(md5Algorithm -> {
                     try {
                         byte[] digest = MessageDigest.getInstance(md5Algorithm).digest(input);
-                        return Optional.of(digest);
-                    } catch (NoSuchAlgorithmException e) {
+                        return Result.ok(digest);
+                    } catch (
+                            NoSuchAlgorithmException e) {
                         log.error("Error attempting to get {}: {}.", md5Algorithm, e.getMessage());
+                        return Result.err(new SignatureErr(e));
                     }
-                    return Optional.empty();
                 });
     }
 
     @NotNull
-    private static Optional<String> retrieveDigestAlgorithm(@Nullable String algorithm) {
+    private static Result<String, SignatureErr> retrieveDigestAlgorithm(@Nullable String algorithm) {
         Set<String> messageDigestAlgorithms = Security.getAlgorithms(MessageDigest.class.getSimpleName());
         Optional<String> retrieveDigestAlgorithm = messageDigestAlgorithms
                 .stream().filter(a -> a.equals(algorithm))
@@ -83,7 +95,7 @@ public class SignatureUtil {
                 .or(() -> messageDigestAlgorithms.stream().filter(s -> s.equals("MD5"))
                         .findAny()
                 );
-        return retrieveDigestAlgorithm;
+        return Result.fromOpt(retrieveDigestAlgorithm);
     }
 
 }
