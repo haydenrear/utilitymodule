@@ -43,7 +43,16 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
 
         volatile CachedCollectedResult<R, E> cachedCollectionResult;
 
-        public StreamResultStreamWrapper(StreamResultOptions options, Stream<Result<R, E>> underlying,
+        public StreamResultStreamWrapper(StreamResultOptions options,
+                                         Stream<Result<R, E>> underlying,
+                                         StreamResult<R, E> res,
+                                         CachedCollectedResult<R, E> cachedCollectionResult) {
+            super(options, underlying, CachingOperations.ResultStreamCacheOperation.class, res);
+            this.cachedCollectionResult = cachedCollectionResult;
+        }
+
+        public StreamResultStreamWrapper(StreamResultOptions options,
+                                         Stream<Result<R, E>> underlying,
                                          StreamResult<R, E> res) {
             super(options, underlying, CachingOperations.ResultStreamCacheOperation.class, res);
         }
@@ -60,9 +69,17 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
                 var streamResult = this.toList(terminalOp);
 
                 var resultStream = new StreamResultItem<>(streamResult.stream()
-                        .flatMap(r -> r.r().stream()));
+                        .flatMap(r -> {
+//                            if (r.isOkStream())
+//                                throw new RuntimeException();
+                            return r.r().stream();
+                        }));
                 var errorStream = new StreamResultItem<>(streamResult.stream()
-                        .flatMap(r -> r.e().stream()));
+                        .flatMap(r -> {
+//                            if (r.isErrStream())
+//                                throw new RuntimeException();
+                            return r.e().stream();
+                        }));
 
                 var res = resultStream.toList();
                 var errs = errorStream.toList();
@@ -115,6 +132,14 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
 
     public StreamResult(Stream<Result<R, E>> r) {
         this(r, StreamResultOptions.builder().build());
+    }
+
+    private StreamResult(CachedCollectedResult<R, E> results,
+                         StreamResultOptions options) {
+        Stream<Result<R, E>> o = Stream.concat(
+                results.stream().map(Result::ok),
+                results.errsList().stream().map(Result::err));
+        this.r = new StreamResultStreamWrapper<R, E>(options, o, this, results);
     }
 
     public StreamResult(Stream<Result<R, E>> r, StreamResultOptions options) {
@@ -213,7 +238,7 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
             return s.get().many();
         }
 
-        return this;
+        return new StreamResult<>(this.r.cachedCollectionResult, this.r.options);
     }
 
     @Override

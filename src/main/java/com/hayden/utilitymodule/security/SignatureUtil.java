@@ -30,20 +30,18 @@ public class SignatureUtil {
         public SignatureErr(Throwable message) {
             this(SingleError.parseStackTraceToString(message));
         }
-
     }
 
-    public static Result<byte[], SignatureErr> TakeMessageDigest(byte[] input) {
-        return TakeMessageDigest(input, null);
+    public static Result<byte[], SignatureErr> takeMessageDigest(byte[] input) {
+        return takeMessageDigest(input, null);
     }
 
-    public static Result<byte[], SignatureErr> TakeMessageDigest(Path input, @Nullable String algorithm) {
+    public static Result<byte[], SignatureErr> takeMessageDigest(Path input, @Nullable String algorithm) {
         return retrieveDigestAlgorithm(algorithm)
                 .flatMapResult(s -> {
                     try {
                         return Result.ok(MessageDigest.getInstance(s));
-                    } catch (
-                            NoSuchAlgorithmException e) {
+                    } catch (NoSuchAlgorithmException e) {
                         log.error("Could not take message digest", e);
                         return Result.err(new SignatureErr(e));
                     }
@@ -71,15 +69,14 @@ public class SignatureUtil {
         return Base64.getEncoder().encodeToString(dig);
     }
 
-    public static Result<byte[], SignatureErr> TakeMessageDigest(byte[] input, @Nullable String algorithm) {
+    public static Result<byte[], SignatureErr> takeMessageDigest(byte[] input, @Nullable String algorithm) {
         var retrieveDigestAlgorithm = retrieveDigestAlgorithm(algorithm);
         return retrieveDigestAlgorithm
                 .flatMapResult(md5Algorithm -> {
                     try {
                         byte[] digest = MessageDigest.getInstance(md5Algorithm).digest(input);
                         return Result.ok(digest);
-                    } catch (
-                            NoSuchAlgorithmException e) {
+                    } catch (NoSuchAlgorithmException e) {
                         log.error("Error attempting to get {}: {}.", md5Algorithm, e.getMessage());
                         return Result.err(new SignatureErr(e));
                     }
@@ -93,8 +90,7 @@ public class SignatureUtil {
                 .stream().filter(a -> a.equals(algorithm))
                 .findAny()
                 .or(() -> messageDigestAlgorithms.stream().filter(s -> s.equals("MD5"))
-                        .findAny()
-                );
+                        .findAny());
         return Result.fromOpt(retrieveDigestAlgorithm);
     }
 

@@ -313,6 +313,12 @@ public interface OneResult<R, E> extends ManyResult<R, E> {
                 AssertUtil.assertTrue(() -> !(ueResult instanceof StreamResult<U,E>),
                         () -> "Cannot flatMap from One to StreamResult successfully - call many() first and then flatMapResult instead " +
                               "of calling flatMapResult to ResultStream on OneResult - or else only returns the first result.");
+
+                if (ueResult.isOkStream()) {
+//                    Stream<Result<U, E>> errStream = Stream.of(Result.err(ueResult.e().addError(this.e())));
+                    Stream<Result<U, E>> okStream = ueResult.toStream().map(Result::ok);
+                    return Result.from(okStream).many();
+                }
                 var s = ueResult.one();
                 return Result.from(s.r(), s.e().addError(this.e()))
                         .one();

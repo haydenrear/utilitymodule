@@ -17,6 +17,23 @@ import static org.junit.jupiter.api.Assertions.*;
 class StreamResultItemTest {
 
     @Test
+    public void testStreamResultItem() {
+        var o = Result.ok("ok")
+                .many()
+                .flatMapResult(s -> {
+                    return Result.from(Stream.of(Result.ok("whatever"), Result.ok("wy")));
+                })
+                .hasAnyOr(() -> Result.ok("w"));
+
+        var s = Result.ok("ok")
+                .many()
+                .flatMapResult(u -> {
+                    return Result.empty();
+                })
+                .hasAnyOr(() -> Result.ok("w"));
+    }
+
+    @Test
     public void testMapToStreamResult() {
         var found = Result.ok("whatever")
                 .flatMapToStreamResult(w -> Result.from(Stream.of(Result.ok("whatever"), Result.ok("ok"))))
