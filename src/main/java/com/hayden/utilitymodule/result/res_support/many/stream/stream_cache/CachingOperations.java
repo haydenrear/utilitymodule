@@ -32,7 +32,7 @@ public interface CachingOperations {
                             CachingOperations.ResultTyPredicate,
                             CachingOperations.ResultTyStreamCacheFunction { }
 
-    interface StreamCacheFunction<T, U> extends CachedOperation<T, U> {}
+    interface StreamCacheFunction<T, U> extends CachedOperation<T, U>, InfiniteOperation<T, U> { }
 
     sealed interface ResultStreamCacheOperation<T, U> extends StreamCacheOperation<T, U>
             permits
@@ -97,7 +97,7 @@ public interface CachingOperations {
         }
     }
 
-    interface StreamCachePredicate<T> extends Predicate<T>, CachedOperation<T, Boolean>{
+    interface StreamCachePredicate<T> extends Predicate<T>, CachedOperation<T, Boolean>, InfiniteOperation<T, Boolean> {
 
         non-sealed interface Any<T> extends CachingOperations.ResultTyPredicate<T>, CachingOperations.ResultStreamCachePredicate<T> {
             @Override
@@ -133,7 +133,9 @@ public interface CachingOperations {
         }
     }
 
-    sealed interface ResultStreamCachePredicate<T> extends StreamCachePredicate<T>, ResultStreamCacheOperation<T, Boolean>
+    sealed interface ResultStreamCachePredicate<T> extends
+                StreamCachePredicate<T>,
+                ResultStreamCacheOperation<T, Boolean>
             permits HasErr, HasResult, IsAnyNonNull, IsCompletelyEmpty, OnCloseResultTy, StreamCachePredicate.All, StreamCachePredicate.Any {
 
         @Override
@@ -164,7 +166,8 @@ public interface CachingOperations {
         @Override
         public boolean test(Result<R, E> o) {
             if (o.isOkStream()) {
-                log.error("Could not check if had ok because ok was of stream type, cachable cannot be cached inside of cache.");
+                if (log.isDebugEnabled())
+                    log.error("Could not check if had ok because ok was of stream type, cachable cannot be cached inside of cache.");
                 return false;
             }
 
@@ -177,7 +180,8 @@ public interface CachingOperations {
         @Override
         public boolean test(Result<R, E> o) {
             if (o.isErrStream()) {
-                log.error("Could not check if had error because error was of stream type, cachable cannot be cached inside of cache.");
+                if (log.isDebugEnabled())
+                    log.error("Could not check if had error because error was of stream type, cachable cannot be cached inside of cache.");
                 return false;
             }
             return o.isError();

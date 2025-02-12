@@ -3,12 +3,16 @@ package com.hayden.utilitymodule.result;
 import com.hayden.utilitymodule.assert_util.AssertUtil;
 import com.hayden.utilitymodule.result.closable.ClosableMonitor;
 import com.hayden.utilitymodule.result.ok.ClosableOk;
+import com.hayden.utilitymodule.result.res_ty.IResultItem;
 
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+
+import static com.hayden.utilitymodule.result.res_ty.ClosableResult.isSameClosable;
+import static com.hayden.utilitymodule.result.res_ty.ClosableResult.logClosableEqualsErr;
 
 public interface ClosableResult<T extends AutoCloseable, E> extends OneResult<T, E>, AutoCloseable {
 
@@ -18,6 +22,11 @@ public interface ClosableResult<T extends AutoCloseable, E> extends OneResult<T,
     ClosableMonitor closableMonitor = new ClosableMonitor();
 
     ClosableOk<T> r();
+
+    @Override
+    default boolean isClosable() {
+        return true;
+    }
 
     default Result<T, E> except(Function<Exception, T> toDo) {
         return except(Objects::nonNull, toDo);
@@ -69,6 +78,39 @@ public interface ClosableResult<T extends AutoCloseable, E> extends OneResult<T,
         });
     }
 
+    @Override
+    default <U> ManyResult<U, E> flatMapResult(Function<T, Result<U, E>> mapper) {
+        var res = OneResult.super.flatMapResult(toMap -> {
+            var applied = mapper.apply(toMap);
+            if (!applied.isClosable()) {
+                this.r().doClose();
+                return applied;
+            }
+
+            return applied.peek(u -> {
+                if (isSameClosable(this.r(), u)) {
+                    this.r().doClose();
+                }
+            });
+        });
+
+
+        return res;
+    }
+
+    private <U> void doClose(ManyResult<U, E> c) {
+        log.warn("Performing equals on closable in flat map to check to see if need to perform close.");
+
+        if (com.hayden.utilitymodule.result.res_ty.ClosableResult.isSameClosable(this.r(), c))
+        if (!this.r().matches(c)) {
+            try {
+                this.r().t().doClose();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
     default Result<T, E> exceptErr(Function<Exception, E> toDo) {
         return r().exceptErr(toDo)
                 .map(Result::<T, E>err)
@@ -77,6 +119,10 @@ public interface ClosableResult<T extends AutoCloseable, E> extends OneResult<T,
 
     static boolean hasOpenResources() {
         return closableMonitor.hasOpenResources();
+    }
+
+    static void registerClosed(AutoCloseable closeable) {
+        closableMonitor.registerClosed(closeable);
     }
 
     static void closeAllOpenResources() {

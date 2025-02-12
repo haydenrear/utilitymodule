@@ -6,6 +6,7 @@ import com.hayden.utilitymodule.result.Result;
 import com.hayden.utilitymodule.result.error.SingleError;
 import com.hayden.utilitymodule.result.res_support.many.stream.stream_cache.CachableStream;
 import com.hayden.utilitymodule.result.res_support.many.stream.stream_cache.CachingOperations;
+import lombok.Getter;
 import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
@@ -34,6 +35,7 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
 
     protected final StreamResultOptions options;
 
+    @Getter
     final StreamCache<? extends CachingOperations.CachedOperation, C, ST> cached;
 
     protected final class InfiniCache implements StreamCache<CachingOperations.InfiniteOperation<ST, ?>, C, ST> {

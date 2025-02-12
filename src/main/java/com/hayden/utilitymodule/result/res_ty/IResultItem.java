@@ -28,12 +28,17 @@ public interface IResultItem<R> extends Result.Monadic<R> {
 
         return new ResultTyResult<>(Optional.ofNullable(v));
     }
+
     static <V> IResultItem<V> toRes(Stream<V> v) {
         return new StreamResultItem<>(v);
     }
 
     static <R> IResultItem<R> empty() {
         return new ResultTyResult<>(Optional.empty());
+    }
+
+    default boolean isClosable() {
+        return false;
     }
 
     <V> IResultItem<V> from(V r);

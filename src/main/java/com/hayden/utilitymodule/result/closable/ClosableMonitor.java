@@ -33,6 +33,11 @@ public class ClosableMonitor {
         return !q.isEmpty();
     }
 
+    public synchronized void registerClosed(AutoCloseable closeable) {
+        q.stream().filter(a -> a == closeable).findFirst()
+                .ifPresent(a -> q.remove(a));
+    }
+
     @SneakyThrows
     public synchronized void closeAll() {
         q.forEach(a -> {

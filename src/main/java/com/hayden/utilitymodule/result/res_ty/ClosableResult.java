@@ -1,6 +1,9 @@
 package com.hayden.utilitymodule.result.res_ty;
 
+import com.hayden.utilitymodule.result.ManyResult;
 import com.hayden.utilitymodule.result.Result;
+import com.hayden.utilitymodule.result.ok.ClosableOk;
+import com.hayden.utilitymodule.result.res_many.IManyResultItem;
 import com.hayden.utilitymodule.result.res_single.ISingleResultItem;
 import com.hayden.utilitymodule.result.res_support.one.ResultTy;
 import jakarta.annotation.Nullable;
@@ -37,6 +40,16 @@ public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable E
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public ClosableResult(Optional<R> r, Callable<Void> onClose) {
         this(r, null, onClose, new AtomicBoolean(false));
+    }
+
+    @Override
+    public IManyResultItem<R> many() {
+        throw new UnsupportedOperationException("Many result items not supported for closable types.");
+    }
+
+    @Override
+    public boolean isClosable() {
+        return true;
     }
 
     @Override
@@ -86,13 +99,7 @@ public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable E
 
     @Override
     public <T> IResultItem<T> from(Optional<T> r) {
-        if (r.isEmpty())
-            return new ResultTyResult<>(Optional.empty());
-        else if (r.get() instanceof AutoCloseable a) {
-            return (IResultItem<T>) new ClosableResult<>(Optional.of(a));
-        }
-
-        return new ResultTyResult<>(r);
+        return IResultItem.toRes(r.orElse(null));
     }
 
     @Override
@@ -120,21 +127,55 @@ public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable E
 
     @Override
     public <T> IResultItem<T> flatMap(Function<R, IResultItem<T>> toMap) {
-        return from(r.flatMap(t -> {
-            var applied = toMap.apply(t);
-            if ((applied.isOne() && applied.get() != t) || applied.isMany())
-                doClose();
+        return r.map(t -> {
+                    var applied = toMap.apply(t);
 
-            return applied.firstOptional();
-        }));
+                    if (isSameClosable(t, applied))
+                        return applied;
+
+                    doClose();
+
+                    return applied;
+                })
+                .orElse(IResultItem.empty());
+    }
+
+    public static <R extends AutoCloseable, T> boolean isSameClosable(ClosableOk<R> closable, T applied) {
+        logClosableEqualsErr();
+        if (closable.isEmpty())
+            return false;
+
+        var t = closable.get();
+
+        return isSameClosable(t, applied);
+    }
+
+    public static <R extends AutoCloseable, T> boolean isSameClosable(ClosableOk<R> closable, IResultItem<T> applied) {
+        logClosableEqualsErr();
+        if (closable.isEmpty())
+            return false;
+
+        var t = closable.get();
+
+        return applied.isClosable() && applied.isOne() && applied.isPresent() && isSameClosable(t, applied.get());
+    }
+
+    public static <R extends AutoCloseable, T> boolean isSameClosable(R t, T applied) {
+        logClosableEqualsErr();
+        return applied == t;
+    }
+
+    public static void logClosableEqualsErr() {
+        log.warn("Performed object equals to check if should close.");
     }
 
     @Override
     public <T> IResultItem<T> map(Function<R, T> toMap) {
         return from(r.map(m -> {
             var toApply = toMap.apply(m);
-            if (toApply != m)
+            if (isSameClosable(m, toApply)) {
                 doClose();
+            }
 
             return toApply;
         }));
@@ -177,13 +218,19 @@ public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable E
         r.ifPresent(consumer);
     }
 
-    private void doClose() {
+    public void doClose() {
         try {
+            if (this.closed.get()) {
+                log.warn("Called close multiple times on ClosableResult.");
+                return;
+            }
+
             this.closed.set(true);
             log.debug("Doing close on ClosableResult closable.");
             this.r.ifPresent(rFound -> {
                 try {
                     rFound.close();
+                    com.hayden.utilitymodule.result.ClosableResult.registerClosed(rFound);
                 } catch (Exception ex) {
                     throw new RuntimeException(ex);
                 }

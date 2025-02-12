@@ -24,7 +24,7 @@ import java.util.stream.Stream;
 
 import static com.hayden.utilitymodule.result.res_support.many.stream.StreamWrapper.StandardCache.finalizeOps;
 
-interface StreamCache<T extends CachingOperations.CachedOperation<ST, ?>, C extends CachableStream<ST, C>, ST> {
+public interface StreamCache<T extends CachingOperations.CachedOperation<ST, ?>, C extends CachableStream<ST, C>, ST> {
 
     Logger log = LoggerFactory.getLogger(StreamCache.class);
 
@@ -35,8 +35,7 @@ interface StreamCache<T extends CachingOperations.CachedOperation<ST, ?>, C exte
     boolean isCached();
 
     default void doCache(C c) {
-        doCache(c, st -> {
-        });
+        doCache(c, st -> {});
     }
 
     void doCache(C c, Consumer<? super ST> terminalOp);
@@ -50,8 +49,7 @@ interface StreamCache<T extends CachingOperations.CachedOperation<ST, ?>, C exte
     Optional<ExecutorService> executor();
 
     default List<ST> cacheToList(C c) {
-        return this.cacheToList(c, cst -> {
-        });
+        return this.cacheToList(c, cst -> {});
     }
 
     void resetCache();
@@ -313,9 +311,9 @@ interface StreamCache<T extends CachingOperations.CachedOperation<ST, ?>, C exte
     }
 
     default <W extends CachingOperations.CachedOperation<U, V>, U, V> OneResult<V, SingleError.StandardError> get(Class<W> clazz) {
-        return Result.fromOpt(
+        return Result.fromOptOrErr(
                         TypeReferenceDelegate.<W>create(clazz),
-                        new SingleError.StandardError("Failed to cast to type ref for %s".formatted(clazz.getName()))
+                        () -> new SingleError.StandardError("Failed to cast to type ref for %s".formatted(clazz.getName()))
                 )
                 .flatMapResult(this::get)
                 .one();

@@ -2,13 +2,17 @@ package com.hayden.utilitymodule.result.res_support.many.stream;
 
 import com.hayden.utilitymodule.result.Result;
 import com.hayden.utilitymodule.result.error.SingleError;
+import com.hayden.utilitymodule.result.res_many.StreamResultItem;
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class StreamWrapperTest {
+
 
 
     @Test

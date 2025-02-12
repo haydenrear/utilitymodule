@@ -16,7 +16,7 @@ public interface IManyResultItem<R> extends IResultItem<R> {
 
     Logger log = LoggerFactory.getLogger(IManyResultItem.class);
 
-    <V> IManyResultItem<V> flatMap(Function<R, IResultItem<V>> toMap);
+    <V> IResultItem<V> flatMap(Function<R, IResultItem<V>> toMap);
 
     /**
      * @param r

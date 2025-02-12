@@ -28,7 +28,7 @@ import java.util.stream.Stream;
 @Slf4j
 public class StreamResultItem<R> implements IStreamResultItem<R>, CachableStream<R, StreamResultItem<R>> {
 
-    private final ResultTyStreamWrapper<R> r;
+    final ResultTyStreamWrapper<R> r;
 
     protected final static class ResultTyStreamWrapper<R> extends ResultStreamWrapper<StreamResultItem<R>, R> {
 
@@ -70,6 +70,10 @@ public class StreamResultItem<R> implements IStreamResultItem<R>, CachableStream
 
     public StreamResultItem(Stream<R> r) {
         this.r = new ResultTyStreamWrapper<>(StreamResultOptions.builder().build(), r, this);
+    }
+
+    public StreamResultItem(Stream<R> r, StreamResultOptions options) {
+        this.r = new ResultTyStreamWrapper<>(options, r, this);
     }
 
     public static <R> StreamResultItem<R> of(Stream<IResultItem<R>> stream) {
@@ -215,6 +219,11 @@ public class StreamResultItem<R> implements IStreamResultItem<R>, CachableStream
         swap(lst);
 
         return is;
+    }
+
+    @Override
+    public void forEach(Consumer<? super R> consumer) {
+        this.r.forEach(consumer);
     }
 
     public boolean isStream() {

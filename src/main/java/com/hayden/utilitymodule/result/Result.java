@@ -61,6 +61,10 @@ public interface Result<T, E> {
 
     }
 
+    default boolean isClosable() {
+        return false;
+    }
+
     default Result<T, E> onErrorMap(Supplier<T> mapper) {
         return onErrorMap(Objects::nonNull, mapper);
     }
@@ -163,6 +167,12 @@ public interface Result<T, E> {
         return stringStringEntry.isPresent()
                ? from(Ok.ok(stringStringEntry), Err.empty())
                : from(Ok.empty(), Err.err(gitAggregateError));
+    }
+
+    static <T, E> Result<T, E> fromOptOrErr(Optional<T> stringStringEntry, Supplier<E> gitAggregateError) {
+        return stringStringEntry.isPresent()
+               ? from(Ok.ok(stringStringEntry), Err.empty())
+               : from(Ok.empty(), Err.err(gitAggregateError.get()));
     }
 
     static <T extends AutoCloseable, E> com.hayden.utilitymodule.result.Result<T, E> tryFromThrow(T o) {
@@ -287,6 +297,12 @@ public interface Result<T, E> {
 
     static <R, E> Result<R, E> from(R r, E e) {
         return new One<>(Ok.ok(r), Err.err(e));
+    }
+
+    static <R, E> Result<R, E> fromOr(R r, Supplier<E> e) {
+        return Optional.ofNullable(r)
+                .map(Result::<R, E>ok)
+                .orElseGet(() -> Result.<R, E>err(e.get()).one());
     }
 
     static <R, E> Result<R, E> from(IResultItem<R> r, IResultItem<E> e) {
@@ -439,9 +455,9 @@ public interface Result<T, E> {
     }
 
     default boolean hasErr(Predicate<E> e) {
-        if (this.e().isMany())
+        if (this.e().isMany()) {
             return this.e().many().has(e);
-        else {
+         } else {
             return this.e().filterErr(e)
                     .isPresent();
         }

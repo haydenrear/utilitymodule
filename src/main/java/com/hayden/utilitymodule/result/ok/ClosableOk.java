@@ -36,8 +36,16 @@ public class ClosableOk<R extends AutoCloseable> extends ResultTy<R> implements 
     }
 
     @Override
-    public IResultItem<R> t() {
-        return t;
+    public ClosableResult<R> t() {
+        return (ClosableResult<R>) t;
+    }
+
+    public boolean matches(Object m) {
+        return t().filter(r -> m == r).isPresent();
+    }
+
+    public void doClose() {
+        this.t().doClose();
     }
 
     public Exception getExcept() {

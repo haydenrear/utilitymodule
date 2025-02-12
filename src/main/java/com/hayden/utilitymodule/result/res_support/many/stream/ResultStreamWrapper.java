@@ -1,7 +1,11 @@
 package com.hayden.utilitymodule.result.res_support.many.stream;
 
+import com.hayden.utilitymodule.reflection.TypeReferenceDelegate;
+import com.hayden.utilitymodule.result.Result;
+import com.hayden.utilitymodule.result.error.SingleError;
 import com.hayden.utilitymodule.result.res_support.many.stream.stream_cache.CachableStream;
 import com.hayden.utilitymodule.result.res_support.many.stream.stream_cache.CachingOperations;
+import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Comparator;
@@ -17,6 +21,7 @@ import java.util.stream.Stream;
  * @param <C>
  * @param <ST>
  */
+@Slf4j
 public abstract class ResultStreamWrapper<C extends CachableStream<ST, C>, ST> extends StreamWrapper<C, ST> {
 
     public ResultStreamWrapper(StreamResultOptions options, Stream<ST> underlying,

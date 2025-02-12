@@ -1,5 +1,6 @@
 package com.hayden.utilitymodule.io;
 
+import com.hayden.utilitymodule.result.ClosableResult;
 import com.hayden.utilitymodule.result.error.SingleError;
 import com.hayden.utilitymodule.result.Result;
 import jakarta.annotation.Nonnull;
@@ -267,6 +268,7 @@ public class FileUtils {
                             try {
                                 if (!bfr.ready()) {
                                     bfr.close();
+                                    ClosableResult.registerClosed(bfr);
                                     isClosed[0] = true;
                                     return false;
                                 }
@@ -293,8 +295,7 @@ public class FileUtils {
                             return null;
                         }
                     };
-                })
-                ;
+                });
 
     }
 
