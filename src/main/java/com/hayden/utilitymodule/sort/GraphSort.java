@@ -109,7 +109,7 @@ public class GraphSort {
 
             // Initialize the dependencies map
             for (GraphSortable graph : graphs) {
-//                TODO: handle proxies
+//                TODO: handle proxies - jdk proxies and cglib proxies both
                 dependencies.put((Class<? extends T>) graph.getClass(), graph.dependsOn());
             }
 
