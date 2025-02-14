@@ -1,6 +1,7 @@
 package com.hayden.utilitymodule.result;
 
 import com.hayden.utilitymodule.result.error.Err;
+import com.hayden.utilitymodule.result.error.SingleError;
 import com.hayden.utilitymodule.result.ok.Ok;
 import com.hayden.utilitymodule.result.res_support.many.stream.StreamResult;
 
@@ -9,6 +10,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public interface ManyResult<R, E> extends Result<R, E> {
@@ -18,6 +20,16 @@ public interface ManyResult<R, E> extends Result<R, E> {
 
     @Override
     Ok<R> r();
+
+    default String errorMessage() {
+        return e().stream().map(e -> {
+            if (e instanceof SingleError s) {
+                return s.getMessage();
+            }
+
+            else return e.toString();
+        }).collect(Collectors.joining(", "));
+    }
 
     default List<R> getAll() {
         return this.toList();
