@@ -7,7 +7,9 @@ import java.util.Set;
 
 public interface AggregateError<T extends SingleError> extends SingleError, Agg, AggregateParamError<T> {
 
-    interface StdAggregateError extends AggregateError<SingleError> {}
+    interface StdAggregateError extends AggregateError<SingleError> {
+
+    }
 
     default void addItem(T o) {
         this.addError(o);
