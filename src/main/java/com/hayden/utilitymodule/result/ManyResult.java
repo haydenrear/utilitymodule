@@ -21,14 +21,15 @@ public interface ManyResult<R, E> extends Result<R, E> {
     @Override
     Ok<R> r();
 
+    @Override
     default String errorMessage() {
-        return e().stream().map(e -> {
-            if (e instanceof SingleError s) {
-                return s.getMessage();
-            }
-
-            else return e.toString();
-        }).collect(Collectors.joining(", "));
+        return e().stream()
+                .map(e -> {
+                    if (e instanceof SingleError s) {
+                        return s.getMessage();
+                    } else return e.toString();
+                })
+                .collect(Collectors.joining(", "));
     }
 
     default List<R> getAll() {

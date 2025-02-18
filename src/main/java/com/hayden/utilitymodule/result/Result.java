@@ -6,6 +6,7 @@ import com.hayden.utilitymodule.result.agg.AggregateError;
 import com.hayden.utilitymodule.result.agg.AggregateParamError;
 import com.hayden.utilitymodule.result.agg.Responses;
 import com.hayden.utilitymodule.result.error.Err;
+import com.hayden.utilitymodule.result.error.SingleError;
 import com.hayden.utilitymodule.result.map.StreamResultCollector;
 import com.hayden.utilitymodule.result.ok.ClosableOk;
 import com.hayden.utilitymodule.result.ok.MutableOk;
@@ -39,6 +40,12 @@ import java.util.stream.Stream;
 public interface Result<T, E> {
 
     Logger log = LoggerFactory.getLogger(Result.class);
+
+    default String errorMessage() {
+        return this.e()
+                .map(err -> err instanceof SingleError s ? s.getMessage() : err.toString())
+                .orElse("No error message to be printed.");
+    }
 
     interface Monadic<R> {
 
