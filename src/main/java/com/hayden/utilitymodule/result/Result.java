@@ -461,6 +461,10 @@ public interface Result<T, E> {
         return r().isEmpty();
     }
 
+    default boolean hasErr() {
+        return this.e().isPresent();
+    }
+
     default boolean hasErr(Predicate<E> e) {
         if (this.e().isMany()) {
             return this.e().many().has(e);
