@@ -108,6 +108,11 @@ public interface Result<T, E> {
         return fallback.apply(this);
     }
 
+    default Result<T, E> onErrorFlatMapResult(Predicate<E> hasErr,
+                                              Function<E, Result<T, E>> mapTo) {
+        return onErrorFlatMapResult(hasErr, mapTo, e -> e);
+    }
+
     default <U, V> Result<U, V> onErrorFlatMapResult(Predicate<E> hasErr,
                                                      Function<E, Result<U, V>> mapTo,
                                                      Function<Result<T, E>, Result<U, V>> fallback) {
@@ -463,6 +468,14 @@ public interface Result<T, E> {
 
     default boolean hasErr() {
         return this.e().isPresent();
+    }
+
+    default Result<T, E> dropEmptyAgg() {
+        if (this.isOk() && this.hasErr() && this.hasErr(err -> err instanceof AggregateError<?> a && a.errors().isEmpty()))  {
+            return Result.ok(this.r());
+        }
+
+        return this;
     }
 
     default boolean hasErr(Predicate<E> e) {
