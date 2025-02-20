@@ -10,14 +10,11 @@ import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ResetCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.diff.DiffEntry;
-import org.eclipse.jgit.diff.DiffFormatter;
 import org.eclipse.jgit.errors.IncorrectObjectTypeException;
 import org.eclipse.jgit.errors.MissingObjectException;
-import org.eclipse.jgit.lib.Config;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
-import org.eclipse.jgit.patch.FileHeader;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
@@ -28,7 +25,6 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -95,7 +91,22 @@ public interface RepoUtil {
     }
 
     record GitInitError(String getMessage) implements SingleError {}
-    record RepoUtilError(String getMessage) implements SingleError {}
+
+    record RepoUtilError(String getMessage) implements SingleError {
+        public RepoUtilError(Throwable getMessage) {
+            this(SingleError.parseStackTraceToString(getMessage));
+        }
+    }
+
+    static Result<Git, RepoUtilError> cloneRepo(File gitDir, String toClone, String branch) {
+        return Result.<Git, RepoUtilError>tryFrom(() ->
+                Git.cloneRepository().setFs(FS.detect())
+                        .setDirectory(gitDir)
+                        .setURI(toClone)
+                        .setBranch(branch)
+                        .call())
+                .flatExcept(exc -> Result.err(new RepoUtilError(exc)));
+    }
 
     static ClosableResult<Git, GitInitError> initGit(Path path) {
         if (path.toFile().isDirectory() && !path.toFile().getName().endsWith(".git")) {

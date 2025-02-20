@@ -44,6 +44,10 @@ public interface ClosableResult<T extends AutoCloseable, E> extends OneResult<T,
         return Result.ok(r().except(exc, toDo));
     }
 
+    default Result<T, E> flatExcept(Function<Exception, Result<T, E>> toDo) {
+        return flatExcept(exc -> true, toDo, e -> e);
+    }
+
     default <U, V> Result<U, V> flatExcept(Predicate<Exception> exc,
                                            Function<Exception, Result<U, V>> toDo,
                                            Function<Result<T, E>, Result<U, V>> fallbackMapper) {
