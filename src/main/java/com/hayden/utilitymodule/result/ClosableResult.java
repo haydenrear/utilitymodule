@@ -45,7 +45,7 @@ public interface ClosableResult<T extends AutoCloseable, E> extends OneResult<T,
     }
 
     default Result<T, E> flatExcept(Function<Exception, Result<T, E>> toDo) {
-        return flatExcept(exc -> true, toDo, e -> e);
+        return flatExcept(Objects::nonNull, toDo, e -> e);
     }
 
     default <U, V> Result<U, V> flatExcept(Predicate<Exception> exc,

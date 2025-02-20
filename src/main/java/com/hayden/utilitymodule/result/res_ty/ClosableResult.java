@@ -166,7 +166,7 @@ public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable E
     }
 
     public static void logClosableEqualsErr() {
-        log.warn("Performed object equals to check if should close.");
+        log.debug("Performed object equals to check if should close.");
     }
 
     @Override
@@ -205,7 +205,7 @@ public record ClosableResult<R extends AutoCloseable>(Optional<R> r, @Nullable E
     }
 
     private static void callOrElse() {
-        log.warn("Calling or else on closable. This probably means you have to close yourself...");
+        log.debug("Calling or else on closable. This probably means you have to close yourself...");
     }
 
     @Override

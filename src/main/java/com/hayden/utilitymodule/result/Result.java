@@ -342,7 +342,7 @@ public interface Result<T, E> {
     }
 
     static void logClosableMaybeNotClosed() {
-        log.warn("Called a function on closable that maybe means close was not closed.");
+        log.debug("Called a function on closable that maybe means close was not closed.");
     }
 
     static void logAsync() {

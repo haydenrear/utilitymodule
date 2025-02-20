@@ -19,7 +19,10 @@ import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
 import org.eclipse.jgit.treewalk.TreeWalk;
+import org.eclipse.jgit.treewalk.filter.IndexDiffFilter;
+import org.eclipse.jgit.treewalk.filter.NotIgnoredFilter;
 import org.eclipse.jgit.treewalk.filter.PathFilter;
+import org.eclipse.jgit.treewalk.filter.SkipWorkTreeFilter;
 import org.eclipse.jgit.util.FS;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -238,7 +241,9 @@ public interface RepoUtil {
             var newTree = new CanonicalTreeParser();
             var p = git.getRepository().resolve("%s^{tree}".formatted(parentHash));
             newTree.reset(reader, p);
-            var diffEntries = git.diff().setOldTree(oldTree).setNewTree(newTree).setContextLines(0).call();
+            var diffEntries = git.diff().setOldTree(oldTree).setNewTree(newTree)
+//                    .setPathFilter(PathFilter.create(childHash))
+                    .setContextLines(0).call();
             return Result.ok(diffEntries);
         } catch (GitAPIException | IOException e) {
             return Result.err(new RepoUtilError(e.getMessage()));

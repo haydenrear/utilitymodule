@@ -51,7 +51,7 @@ public class ClosableMonitor {
     }
 
     private <T extends AutoCloseable> void warningLogger(T ret) {
-        log.warn("Testing if {} exists in {}", ret, this.getClass().getName());
+        log.debug("Testing if {} exists in {}", ret, this.getClass().getName());
     }
 
 }
