@@ -1,5 +1,6 @@
 package com.hayden.utilitymodule.reflection;
 
+import com.hayden.utilitymodule.result.error.SingleError;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,6 +27,10 @@ public interface Defaults {
             field.setAccessible(true);  // Allow access to private fields
 
             try {
+                if (field.isAnnotationPresent(NullHasMeaning.class)) {
+                    log.debug("Skipping setting of field {}, null has meaning", field.getName());
+                    continue;
+                }
                 // Check if the value in toSetFor is null and if the field exists in toSetFrom
                 Object valueInToSetFor = field.get(toSetFor);
                 if (valueInToSetFor != null) {
@@ -40,7 +45,12 @@ public interface Defaults {
                 }
             } catch (IllegalAccessException e) {
                 // Handle the case where reflection access fails (e.g., if the field is inaccessible)
-                log.error("Unable to access field: {}", field.getName());
+                log.error("Unable to access field: {}, {}",
+                        field.getName(), SingleError.parseStackTraceToString(e));
+                if (log.isDebugEnabled()) {
+                    throw new RuntimeException(e);
+                }
+
             }
         }
 
