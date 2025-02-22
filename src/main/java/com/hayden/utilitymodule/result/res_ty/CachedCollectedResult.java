@@ -1,7 +1,5 @@
 package com.hayden.utilitymodule.result.res_ty;
 
-import com.hayden.utilitymodule.result.Result;
-import com.hayden.utilitymodule.result.res_support.many.stream.StreamWrapper;
 import com.hayden.utilitymodule.result.res_support.many.stream.stream_cache.CachingOperations;
 import lombok.experimental.Delegate;
 
