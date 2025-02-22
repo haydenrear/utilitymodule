@@ -33,27 +33,22 @@ public class SignatureUtil {
     }
 
     public static Result<byte[], SignatureErr> takeMessageDigest(byte[] input) {
-        return takeMessageDigest(input, null);
+        return takeMessageDigest(input, (String) null);
     }
 
     public static Result<byte[], SignatureErr> takeMessageDigest(Path input, @Nullable String algorithm) {
         return retrieveDigestAlgorithm(algorithm)
-                .flatMapResult(s -> {
-                    try {
-                        return Result.ok(MessageDigest.getInstance(s));
-                    } catch (NoSuchAlgorithmException e) {
-                        log.error("Could not take message digest", e);
-                        return Result.err(new SignatureErr(e));
-                    }
-                })
-                .flatMapResult(md -> {
-                    try (InputStream is = Files.newInputStream(input); DigestInputStream ds = new DigestInputStream(is, md)) {
-                        return Result.ok(ds.getMessageDigest().digest());
-                    } catch (IOException e) {
-                        log.error("Could not create digest input stream: {}.", e.getMessage());
-                        return Result.err(new SignatureErr(e));
-                    }
-                });
+                .flatMapResult(s -> takeMessageDigest(input, s));
+    }
+
+    public static Result<byte[], SignatureErr> takeMessageDigest(Path input, MessageDigest digest) {
+        try (InputStream is = Files.newInputStream(input);
+             DigestInputStream ds = new DigestInputStream(is, digest)) {
+            return Result.ok(ds.getMessageDigest().digest());
+        } catch (IOException e) {
+            log.error("Could not create digest input stream: {}.", e.getMessage());
+            return Result.err(new SignatureErr(e));
+        }
     }
 
     public static @NotNull String hashToString(String toHash, MessageDigest digest) {
@@ -67,6 +62,10 @@ public class SignatureUtil {
     public static @NotNull String hashToString(byte[] toHash, MessageDigest digest) {
         byte[] dig = digest.digest(toHash);
         return Base64.getEncoder().encodeToString(dig);
+    }
+
+    public static @NotNull byte[] hashToBytes(byte[] toHash, MessageDigest digest) {
+        return digest.digest(toHash);
     }
 
     public static Result<byte[], SignatureErr> takeMessageDigest(byte[] input, @Nullable String algorithm) {
