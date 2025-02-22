@@ -23,6 +23,14 @@ import java.util.stream.Stream;
 @Slf4j
 public class FileUtils {
 
+    public static File replaceHomeDir(Path homeDir, String subDir) {
+        if (subDir.startsWith("~/"))  {
+            return homeDir.resolve(subDir.replace("~/", "")).toFile();
+        }
+
+        return new File(subDir);
+    }
+
     public static InputStream getResourceAsStream(String value) {
         return FileUtils.class.getClassLoader().getResourceAsStream(value);
     }
@@ -98,10 +106,14 @@ public class FileUtils {
 
     }
 
-    public static boolean doOnFilesRecursive(Path path, Function<Path, Boolean> toDo) {
+    public static boolean doOnFilesRecursive(Path path, Function<Path, Boolean> toDo, boolean parallel) {
         var did = Optional.ofNullable(path.toFile().listFiles())
-                .stream()
-                .flatMap(Arrays::stream)
+                .stream();
+
+        if (parallel)
+            did = did.parallel();
+
+        var value = did.flatMap(Arrays::stream)
                 .map(p -> {
                     if (p.isFile()) {
                         return toDo.apply(p.toPath());
@@ -116,8 +128,17 @@ public class FileUtils {
 
         Boolean didDeletePath = toDo.apply(path);
 
-        boolean didDeleteAll = did.stream().allMatch(Boolean::booleanValue);
+        boolean didDeleteAll = value.stream().allMatch(Boolean::booleanValue);
         return didDeletePath && didDeleteAll;
+
+    }
+
+    public static boolean doOnFilesRecursive(Path path, Function<Path, Boolean> toDo) {
+        return doOnFilesRecursive(path, toDo, false);
+    }
+
+    public static boolean doOnFilesRecursiveParallel(Path path, Function<Path, Boolean> toDo) {
+        return doOnFilesRecursive(path, toDo, true);
     }
 
     public static Stream<Path> GetFilesRecursive(Path path) {
