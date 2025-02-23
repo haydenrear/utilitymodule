@@ -6,6 +6,8 @@ import com.hayden.utilitymodule.result.Result;
 import jakarta.annotation.Nonnull;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.util.Assert;
 
 import java.io.*;
@@ -22,6 +24,75 @@ import java.util.stream.Stream;
 
 @Slf4j
 public class FileUtils {
+
+    public static File newTemporaryFolder() {
+        String tempFileName = UUID.randomUUID().toString();
+        return newFolder(temporaryFolderPath() + tempFileName);
+    }
+
+    public static String temporaryFolderPath() {
+        return File.separator + System.getProperty("java.io.tmpdir");
+    }
+
+    public static File newFolder(String path) {
+        File file = createFileIfPathIsNotANonEmptyDirectory(path);
+
+        try {
+            if (!file.mkdir()) {
+                throw cannotCreateNewFile(path, "a file was found with the same path");
+            } else {
+                return file;
+            }
+        } catch (Exception e) {
+            throw cannotCreateNewFile(path, e);
+        }
+    }
+
+    public static File newFile(String path) {
+        File file = createFileIfPathIsNotANonEmptyDirectory(path);
+
+        try {
+            if (!file.createNewFile()) {
+                throw cannotCreateNewFile(path, "a file was found with the same path");
+            } else {
+                return file;
+            }
+        } catch (IOException e) {
+            throw cannotCreateNewFile(path, (Exception)e);
+        }
+    }
+
+    private static File createFileIfPathIsNotANonEmptyDirectory(String path) {
+        File file = new File(path);
+        if (file.isDirectory() && !ArrayUtils.isEmpty(file.list())) {
+            throw cannotCreateNewFile(path, "a non-empty directory was found with the same path");
+        } else {
+            return file;
+        }
+    }
+
+    private static UncheckedIOException cannotCreateNewFile(String path, String reason) {
+        throw cannotCreateNewFile(path, reason, (Exception)null);
+    }
+
+    private static UncheckedIOException cannotCreateNewFile(String path, Exception cause) {
+        throw cannotCreateNewFile(path, (String)null, cause);
+    }
+
+    private static UncheckedIOException cannotCreateNewFile(String path, String reason, Exception cause) {
+        String message = String.format("Unable to create the new file %s", path);
+        if (!StringUtils.isEmpty(reason)) {
+            message = message + ": " + reason;
+        }
+
+        if (cause == null) {
+            throw new RuntimeException(message);
+        } else if (cause instanceof IOException) {
+            throw new UncheckedIOException(message, (IOException)cause);
+        } else {
+            throw new RuntimeException(message, cause);
+        }
+    }
 
     public static File replaceHomeDir(Path homeDir, String subDir) {
         if (subDir.startsWith("~/"))  {

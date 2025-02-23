@@ -1,6 +1,8 @@
 package com.hayden.utilitymodule.git;
 
 
+import com.hayden.utilitymodule.io.ArchiveUtils;
+import com.hayden.utilitymodule.io.FileUtils;
 import com.hayden.utilitymodule.result.ClosableResult;
 import com.hayden.utilitymodule.result.OneResult;
 import com.hayden.utilitymodule.result.Result;
@@ -19,10 +21,7 @@ import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
 import org.eclipse.jgit.treewalk.TreeWalk;
-import org.eclipse.jgit.treewalk.filter.IndexDiffFilter;
-import org.eclipse.jgit.treewalk.filter.NotIgnoredFilter;
 import org.eclipse.jgit.treewalk.filter.PathFilter;
-import org.eclipse.jgit.treewalk.filter.SkipWorkTreeFilter;
 import org.eclipse.jgit.util.FS;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -32,6 +31,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.function.Predicate;
 
@@ -100,6 +100,61 @@ public interface RepoUtil {
             this(SingleError.parseStackTraceToString(getMessage));
         }
     }
+
+    static Result<Path, RepoUtilError> cloneIfRemote(String url, String branchName) {
+        if (url.startsWith("http") || url.startsWith("git") || url.startsWith("ssh")) {
+            var gitDir = FileUtils.newTemporaryFolder();
+            return RepoUtil.cloneRepo(gitDir, url, branchName)
+                    .mapError(gitInitError -> new RepoUtilError("Failed to clone git repo: %s.".formatted(gitInitError.getMessage())))
+                    .map(git -> gitDir.toPath());
+        }
+
+        return returnEmptyOrErrIfNotExists(url);
+    }
+
+    static Result<Path, RepoUtilError> decompressIfArchive(String url) {
+        if (url.endsWith(".tar")) {
+            if (!new File(url).exists()) {
+                return Result.err(new RepoUtilError("Repo archive %s did not exist.".formatted(url)));
+            }
+            var tempDir = FileUtils.newTemporaryFolder();
+            Path tarPath = Paths.get(url);
+            Path unzippedPath = tempDir.toPath();
+            var unzipped = ArchiveUtils.prepareTestRepos(tarPath.getParent(), unzippedPath, tarPath.getFileName().toString());
+            return unzipped
+                    .mapError(se -> new RepoUtilError(se.getMessage()))
+                    .map(unzippedFiles -> unzippedPath);
+        }
+
+        return returnEmptyOrErrIfNotExists(url);
+    }
+
+    static Result<Path, RepoUtilError> doDecompressCloneRepo(String url, String branchName) {
+        return decompressIfArchive(url)
+                .one()
+                .or(() -> cloneIfRemote(url, branchName))
+                .one()
+                .or(() -> returnPathOrErrIfNotExists(url));
+    }
+
+    private static @NotNull Result<Path, RepoUtilError> returnEmptyOrErrIfNotExists(String url) {
+        var f = new File(url);
+
+        if (f.exists())
+            return Result.empty();
+
+        return Result.err(new RepoUtilError("Failed to clone git repo - %s did not exist.".formatted(url)));
+    }
+
+    private static @NotNull Result<Path, RepoUtilError> returnPathOrErrIfNotExists(String url) {
+        var f = new File(url);
+
+        if (f.exists())
+            return Result.ok(f.toPath());
+
+        return Result.err(new RepoUtilError("Failed to clone git repo - %s did not exist.".formatted(url)));
+    }
+
 
     static Result<Git, RepoUtilError> cloneRepo(File gitDir, String toClone, String branch) {
         return Result.<Git, RepoUtilError>tryFrom(() ->
