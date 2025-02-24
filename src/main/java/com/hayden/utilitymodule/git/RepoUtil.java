@@ -131,8 +131,10 @@ public interface RepoUtil {
 
     static Result<Path, RepoUtilError> doDecompressCloneRepo(String url, String branchName) {
         return decompressIfArchive(url)
+                .dropErr()
                 .one()
                 .or(() -> cloneIfRemote(url, branchName))
+                .dropErr()
                 .one()
                 .or(() -> returnPathOrErrIfNotExists(url));
     }
