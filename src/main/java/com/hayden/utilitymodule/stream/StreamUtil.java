@@ -1,5 +1,6 @@
 package com.hayden.utilitymodule.stream;
 
+import com.hayden.utilitymodule.result.res_ty.IResultItem;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -60,6 +61,11 @@ public class StreamUtil {
 
     public static <T> Stream<T> toStream(T t) {
         return Optional.ofNullable(t).stream();
+    }
+
+    public static <T> Stream<T> toStream(IResultItem<T> t) {
+        return Optional.ofNullable(t).stream()
+                .flatMap(IResultItem::stream);
     }
 
     public static <T> Stream<T> toStream(T[] t) {
