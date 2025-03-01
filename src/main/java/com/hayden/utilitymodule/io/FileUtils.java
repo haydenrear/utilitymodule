@@ -124,6 +124,26 @@ public class FileUtils {
 
     public record FileError(String message) {}
 
+    public static Result<Boolean, FileError> appendToFileRes(String data, Path file) {
+        try {
+            if (isFileInvalidNotCreatable(file)) {
+                var f = "Failed to write to file %s. Could not create file".formatted(file.toFile());
+                log.error(f);
+                return Result.err(new FileError(f));
+            }
+
+            if (data != null)
+                try (FileWriter fw = new FileWriter(file.toFile(), true)) {
+                    fw.write(data);
+                }
+
+            return Result.ok(true);
+        } catch (IOException e) {
+            var f = "Failed to write to file: %s.".formatted(e.getMessage());
+            return Result.err(new FileError(f));
+        }
+    }
+
     public static Result<Boolean, FileError> writeToFileRes(String data, Path file) {
         try {
             if (isFileInvalidNotCreatable(file)) {
@@ -338,6 +358,25 @@ public class FileUtils {
         } catch (IOException e) {
             return Result.err(SingleError.fromE(e));
         }
+    }
+
+    public static Result<Boolean, FileError> doesFileMatchContent(File f, String content) {
+        return FileUtils.readToLazyIterator(f)
+                .map(iter -> {
+                    int i = 0;
+                    var array = content.split(System.lineSeparator());
+                    while (iter.hasNext()) {
+                        var first = iter.next();
+                        var second = array[i];
+                        if (!Objects.equals(first, second)) {
+                            return false;
+                        }
+                        i += 1;
+                    }
+
+                    return true;
+                })
+                .mapError(se -> new FileError(se.getMessage()));
     }
 
     public static @Nonnull Result<Iterator<String>, SingleError> readToLazyIterator(File f) {
