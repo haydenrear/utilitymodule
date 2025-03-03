@@ -11,6 +11,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.util.Assert;
 
 import java.io.*;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CoderResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -419,7 +421,11 @@ public class FileUtils {
                                 if (hasNext())
                                     return bfr.readLine();
                             } catch (IOException e) {
-                                log.error("{}", SingleError.parseStackTraceToString(e));
+                                if (e instanceof CharacterCodingException c) {
+                                    log.debug("Found character coding exception: {}", SingleError.parseStackTraceToString(c));
+                                } else {
+                                    log.error("{}", SingleError.parseStackTraceToString(e));
+                                }
                             }
 
                             isClosed[0] = true;

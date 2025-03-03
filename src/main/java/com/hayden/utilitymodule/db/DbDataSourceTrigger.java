@@ -1,8 +1,10 @@
 package com.hayden.utilitymodule.db;
 
+import com.hayden.utilitymodule.assert_util.AssertUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -43,14 +45,18 @@ public class DbDataSourceTrigger {
         return doWithWriteLock(() -> this.currentKey = globalCurrent);
     }
 
-    public String initializeGetKey() {
+    public String initializeKeyTo(String newKey) {
         if (countDownLatch.getCount() > 0) {
             synchronized (lock) {
                 if (countDownLatch.getCount() > 0) {
-                    return doWithWriteLock(() -> {
+                    doWithWriteLock(() -> {
                         countDownLatch.countDown();
                         this.setInitializedInner();
+                        this.currentKey = newKey;
                     });
+                    AssertUtil.assertTrue(() -> Objects.equals(newKey, this.currentKey),
+                            "Global key was not correctly set in write lock.");
+                    log.info("Initial global current key: {}", this.currentKey);
                 }
             }
         }
