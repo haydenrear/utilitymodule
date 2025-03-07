@@ -8,6 +8,7 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.eclipse.jgit.api.Git;
 import org.springframework.util.Assert;
 
 import java.io.*;
@@ -124,6 +125,42 @@ public class FileUtils {
         }
     }
 
+    public static Result<Path, FileError> getPathFor(Path old, Path newPath, Map<String, String> replace) {
+        return Result.fromOptOrErr(FileUtils.searchForFileRecursive(newPath, old.toFile().getName())
+                .filter(p -> p.toFile().exists())
+                .or(() -> {
+                    var res = old.resolve(newPath);
+
+                    if (res.toFile().exists())
+                        return Optional.of(res);
+
+                    if (old.isAbsolute()) {
+                        Path next = old;
+                        List<String> pathSegments = new ArrayList<>();
+                        while (next.getParent() != null && !newPath.toAbsolutePath().startsWith(next.toAbsolutePath())) {
+                            pathSegments.add(next.toFile().getName());
+                            next = next.getParent();
+                        }
+
+                        Path toResolve = newPath;
+
+                        for (var p : pathSegments.reversed().subList(1, pathSegments.size())) {
+                            var maybeResolve = toResolve.resolve(replace.getOrDefault(p, p));
+                            if (!maybeResolve.toFile().exists()) {
+                                toResolve = toResolve.resolve(p);
+                            } else {
+                                toResolve = maybeResolve;
+                            }
+                        }
+
+                        return Optional.of(toResolve);
+                    }
+
+                    return Optional.empty();
+
+                }), () -> new FileError("Could not find file: %s.".formatted(newPath)));
+    }
+
     public record FileError(String message) {}
 
     public static Result<Boolean, FileError> appendToFileRes(String data, Path file) {
@@ -197,6 +234,26 @@ public class FileUtils {
         createDirs(file);
         file.toFile().createNewFile();
 
+    }
+
+    public static Optional<Path> searchForFileRecursive(Path path, String fileName) {
+        var did = Optional.ofNullable(path.toFile().listFiles())
+                .stream();
+
+        return did.flatMap(Arrays::stream)
+                .flatMap(p -> {
+                    if (p.isFile() && p.getName().equals(fileName)) {
+                        return Stream.of(p.toPath());
+                    } else if (p.isDirectory()) {
+                        var didDelete = searchForFileRecursive(p.toPath(), fileName);
+                        if (didDelete.isPresent()) {
+                            return didDelete.stream();
+                        }
+                    }
+
+                    return Stream.empty();
+                })
+                .findAny();
     }
 
     public static boolean doOnFilesRecursive(Path path, Function<Path, Boolean> toDo, boolean parallel) {
@@ -362,11 +419,19 @@ public class FileUtils {
         }
     }
 
+    public static String randomFilename(String appendTo) {
+        return "%s-%s" .formatted(UUID.randomUUID().toString().replaceAll("-", ""), appendTo);
+    }
+
     public static Result<Boolean, FileError> doesFileMatchContent(File f, String content) {
         return FileUtils.readToLazyIterator(f)
                 .map(iter -> {
                     int i = 0;
-                    var array = content.split(System.lineSeparator());
+                    String[] array;
+                    if (content == null)
+                        array = new String[] {null};
+                    else
+                        array = content.split(System.lineSeparator());
                     while (iter.hasNext()) {
                         var first = iter.next();
                         var second = array[i];
@@ -375,6 +440,7 @@ public class FileUtils {
                         }
                         i += 1;
                     }
+
 
                     return true;
                 })

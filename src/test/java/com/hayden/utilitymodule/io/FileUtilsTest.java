@@ -8,7 +8,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
@@ -33,6 +35,15 @@ public class FileUtilsTest {
 
         Path subDir = Files.createDirectory(testDir.resolve("subDir"));
         Files.createFile(subDir.resolve("file3.txt"));
+    }
+
+    @Test
+    public void doParsePath() {
+        var foundPath = FileUtils.getPathFor(Paths.get("/Users/hayde/IdeaProjects/drools/commitdiffcontext/com/hayden/commitdiffcontext"),
+                Paths.get("/Users/hayde/IdeaProjects/drools_test"), Map.of("commitdiffcontext", "commit-diff-context"));
+        assertThat(foundPath).isNotNull();
+        assertThat(foundPath.isOk()).isTrue();
+        assertThat(foundPath.r().get().toAbsolutePath().toString()).isEqualTo("/Users/hayde/IdeaProjects/drools_test/commit-diff-context/com/hayden/commitdiffcontext");
     }
 
     @Test

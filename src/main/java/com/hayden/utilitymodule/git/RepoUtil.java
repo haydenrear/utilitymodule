@@ -11,9 +11,11 @@ import lombok.SneakyThrows;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ResetCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.api.errors.NoFilepatternException;
 import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.errors.IncorrectObjectTypeException;
 import org.eclipse.jgit.errors.MissingObjectException;
+import org.eclipse.jgit.lib.AnyObjectId;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
@@ -34,6 +36,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 
 public interface RepoUtil {
@@ -77,6 +80,57 @@ public interface RepoUtil {
 
         var committed = holder.commit().setMessage("temp").call();
         log.info("Temp commit: {}, {}", committed, s);
+    }
+
+    static <T> @NotNull OneResult<T, RepoUtilError> doInsideCommitStaged(Git git, Supplier<T> toDo) {
+        try {
+            git.add().addFilepattern(".").call();
+            git.stashCreate().call();
+            var retrieved = toDo.get();
+            return Result.ok(retrieved);
+        } catch (GitAPIException e) {
+            return Result.err(new RepoUtilError(e));
+        } finally {
+            try {
+                git.stashApply().call();
+            } catch (GitAPIException e) {
+                log.error("Error applying stash or reset .", e);
+            }
+        }
+    }
+
+    static <T> @NotNull OneResult<T, RepoUtilError> doInsideReset(Git git, String resetTo, Supplier<T> toDo) {
+        try {
+            git.add().addFilepattern(".").call();
+            // save staged changes in case have any
+            var created = git.stashCreate().call();
+            ObjectId head = git.getRepository().resolve("HEAD");
+            return Result.<ObjectId, RepoUtilError>fromOpt(Optional.ofNullable(head))
+                    .map(AnyObjectId::name)
+                    .flatMapResult(toResetTo -> {
+                        try {
+                            git.reset().setRef(resetTo)
+                                    .setMode(ResetCommand.ResetType.HARD)
+                                    .call();
+                            var retrieved = toDo.get();
+                            return Result.ok(retrieved);
+                        } catch (GitAPIException e) {
+                            return Result.err(new RepoUtilError(e));
+                        } finally {
+                            try {
+                                git.reset().setRef(toResetTo).setMode(ResetCommand.ResetType.HARD).call();
+                                if (created != null) {
+                                    git.stashApply().call();
+                                }
+                            } catch (GitAPIException e) {
+                                log.error("Error applying stash or reset .", e);
+                            }
+                        }
+                    })
+                    .one();
+        } catch (IOException | GitAPIException e) {
+            return Result.err(new RepoUtilError(e));
+        }
     }
 
     static @NotNull OneResult<List<DiffEntry>, RepoUtilError> retrieveStagedChanges(Git git) {
