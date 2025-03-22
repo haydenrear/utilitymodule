@@ -295,6 +295,10 @@ public interface Result<T, E> {
         return new One<>(r, Err.empty());
     }
 
+    static <R, E> OneResult<R, E> err(Optional<E> r) {
+        return new One<>(Ok.empty(), Err.err(r));
+    }
+
     static <R, E> OneResult<R, E> err(E r) {
         return new One<>(Ok.empty(), Err.err(r));
     }

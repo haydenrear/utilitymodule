@@ -6,6 +6,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.function.BiFunction;
+import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -266,6 +267,12 @@ public class MapFunctions {
             Stream<Map.Entry<T,U>> entryStream
     ) {
         return entryStream.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (k1, k2) -> k1));
+    }
+
+    public static <T,U, MAP extends Map<T, U>> MAP CollectMapDoOnDuplicates(
+            Stream<Map.Entry<T,U>> entryStream, BinaryOperator<U> mapper, Supplier<MAP> mapSupplier
+    ) {
+        return entryStream.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, mapper, mapSupplier));
     }
 
     public static <T,U> Map<T,List<U>> CollectMapGroupBy(

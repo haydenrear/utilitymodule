@@ -11,7 +11,6 @@ import lombok.SneakyThrows;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ResetCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
-import org.eclipse.jgit.api.errors.NoFilepatternException;
 import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.errors.IncorrectObjectTypeException;
 import org.eclipse.jgit.errors.MissingObjectException;
@@ -23,6 +22,8 @@ import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
 import org.eclipse.jgit.treewalk.TreeWalk;
+import org.eclipse.jgit.treewalk.filter.NotTreeFilter;
+import org.eclipse.jgit.treewalk.filter.OrTreeFilter;
 import org.eclipse.jgit.treewalk.filter.PathFilter;
 import org.eclipse.jgit.util.FS;
 import org.jetbrains.annotations.NotNull;
@@ -85,14 +86,14 @@ public interface RepoUtil {
     static <T> @NotNull OneResult<T, RepoUtilError> doInsideCommitStaged(Git git, Supplier<T> toDo) {
         try {
             git.add().addFilepattern(".").call();
-            git.stashCreate().call();
+            git.commit().setMessage("temp").call();
             var retrieved = toDo.get();
             return Result.ok(retrieved);
         } catch (GitAPIException e) {
             return Result.err(new RepoUtilError(e));
         } finally {
             try {
-                git.stashApply().call();
+                git.reset().setMode(ResetCommand.ResetType.SOFT).setRef("HEAD~1").call();
             } catch (GitAPIException e) {
                 log.error("Error applying stash or reset .", e);
             }
@@ -344,7 +345,8 @@ public interface RepoUtil {
     }
 
     static Result<List<DiffEntry>, RepoUtilError> retrieveDiffEntries(String childHash, String parentHash,
-                                                                      Git git) {
+                                                                      Git git,
+                                                                      Set<String> excludePattern) {
         try (var reader = git.getRepository().newObjectReader()) {
             var oldTree = new CanonicalTreeParser();
             var r = git.getRepository().resolve("%s^{tree}".formatted(childHash));
@@ -352,8 +354,15 @@ public interface RepoUtil {
             var newTree = new CanonicalTreeParser();
             var p = git.getRepository().resolve("%s^{tree}".formatted(parentHash));
             newTree.reset(reader, p);
+            Path parent = git.getRepository().getDirectory().toPath().getParent();
             var diffEntries = git.diff().setOldTree(oldTree).setNewTree(newTree)
-//                    .setPathFilter(PathFilter.create(childHash))
+                    .setPathFilter(
+                            NotTreeFilter.create(
+                                    OrTreeFilter.create(
+                                            excludePattern.stream()
+                                                    .map(w -> new WildcardPathFilter(w, parent))
+                                                    .toArray(WildcardPathFilter[]::new))
+                            ))
                     .setContextLines(0).call();
             return Result.ok(diffEntries);
         } catch (GitAPIException | IOException e) {
