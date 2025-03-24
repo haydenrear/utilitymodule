@@ -15,6 +15,7 @@ class LazyDelegatingIteratorTest {
     public void testLazyDelegatingIterator() {
         LazyDelegatingIterator<Integer> iterator = new LazyDelegatingIterator<>(
                 IntStream.range(0, 10).boxed().map(i -> IntStream.range(0, i).boxed().toList().iterator())
+                        .map(LazyDelegatingIterator::new)
                         .toList(),
                 IntStream.range(0, 10).boxed().toList().iterator());
 

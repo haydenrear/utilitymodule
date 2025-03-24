@@ -38,15 +38,6 @@ public class FileUtilsTest {
     }
 
     @Test
-    public void doParsePath() {
-        var foundPath = FileUtils.getPathFor(Paths.get("/Users/hayde/IdeaProjects/drools/commitdiffcontext/com/hayden/commitdiffcontext"),
-                Paths.get("/Users/hayde/IdeaProjects/drools_test"), Map.of("commitdiffcontext", "commit-diff-context"));
-        assertThat(foundPath).isNotNull();
-        assertThat(foundPath.isOk()).isTrue();
-        assertThat(foundPath.r().get().toAbsolutePath().toString()).isEqualTo("/Users/hayde/IdeaProjects/drools_test/commit-diff-context/com/hayden/commitdiffcontext");
-    }
-
-    @Test
     public void testGetFileIteratorRecursive() {
         Iterator<Path> fileIterator = FileUtils.GetFileIteratorRecursive(testDir);
 

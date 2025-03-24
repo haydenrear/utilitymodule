@@ -15,6 +15,10 @@ public class LazyIterator<T extends LazyIterator.HasChildren<T>> implements Iter
     private final Deque<T> futureNodes;
     private int currentIndex;
 
+    public LazyIterator(List<T> receivedChildren) {
+        this(receivedChildren, -1);
+    }
+
     public LazyIterator(List<T> receivedChildren, int recP) {
         this.receivedChildren = receivedChildren;
         this.futureNodes = new ArrayDeque<>();
@@ -45,12 +49,14 @@ public class LazyIterator<T extends LazyIterator.HasChildren<T>> implements Iter
     }
 
     private @NotNull void addNextFutureNode() {
-        T nextNode = receivedChildren.get(currentIndex);
-        futureNodes.add(nextNode);
-        Iterator<T> fileNodeIterator = nextNode.childrenIter();
-        if (fileNodeIterator.hasNext())
-            futureNodes.addAll(Lists.newArrayList(fileNodeIterator));
-        currentIndex += 1;
+        if (currentIndex < receivedChildren.size()) {
+            T nextNode = receivedChildren.get(currentIndex);
+            futureNodes.add(nextNode);
+            Iterator<T> fileNodeIterator = nextNode.childrenIter();
+            if (fileNodeIterator.hasNext())
+                futureNodes.addAll(Lists.newArrayList(fileNodeIterator));
+            currentIndex += 1;
+        }
     }
 
     public void reset() {
