@@ -1,30 +1,31 @@
 package com.hayden.utilitymodule.iter;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 import java.util.function.Consumer;
 
-public class LazyDelegatingIterator<T> implements Iterator<T> {
+public class DepthFirstLazyDelegatingIterator<T> implements Iterator<T> {
 
-    Iterator<T> next;
+    Iterator<T> curr;
     int childrenIndex = 0;
     final List<? extends Iterator<T>> iterators;
     volatile boolean didIterate = false;
 
-    public LazyDelegatingIterator(List<? extends Iterator<T>> iterators, Iterator<T> starting) {
-        this.next = starting;
-        this.iterators = iterators;
+    Queue<Iterator<T>> nextQueues = new ArrayDeque<>();
+
+    public DepthFirstLazyDelegatingIterator(Iterator<T> iterators) {
+        this.iterators = Collections.singletonList(iterators);
+        this.curr = iterators;
     }
 
-    public LazyDelegatingIterator(Iterator<T> starting) {
-        this(new ArrayList<>(), starting);
+    public DepthFirstLazyDelegatingIterator(List<? extends Iterator<T>> iterators) {
+        this.curr = iterators.getFirst();
+        this.iterators = iterators;
     }
 
     public void doOverAll(Consumer<T> c) {
         throwIfAlreadyIterated();
-        while (next.hasNext()) {
-            c.accept(next.next());
+        while (curr.hasNext()) {
+            c.accept(curr.next());
         }
         didIterate = true;
     }
@@ -37,7 +38,7 @@ public class LazyDelegatingIterator<T> implements Iterator<T> {
     @Override
     public boolean hasNext() {
         throwIfAlreadyIterated();
-        if (next.hasNext()) {
+        if (curr.hasNext()) {
             return true;
         } else if (hasNextChild(childrenIndex)) {
             incrementNext();
@@ -48,11 +49,20 @@ public class LazyDelegatingIterator<T> implements Iterator<T> {
         }
     }
 
+    private void setNext() {
+        this.curr = nextQueues.poll();
+        if (this.curr == null)
+            throw new RuntimeException();
+        while (this.curr != null && !this.curr.hasNext()) {
+            this.curr = nextQueues.poll();
+        }
+    }
+
     @Override
     public T next() {
         throwIfAlreadyIterated();
-        if (next.hasNext()) {
-            return next.next();
+        if (curr.hasNext()) {
+            return curr.next();
         } else {
             if (hasNextChild(childrenIndex)) {
                 incrementNext();
@@ -67,12 +77,12 @@ public class LazyDelegatingIterator<T> implements Iterator<T> {
     private boolean hasNextChild(int childrenIndex) {
         if (iterators.isEmpty())
             return false;
-        return childrenIndex < iterators.size();
+        return childrenIndex + 1 < iterators.size();
     }
 
     private void incrementNext() {
-        next = iterators.get(childrenIndex);
         childrenIndex += 1;
+        curr = iterators.get(childrenIndex);
     }
 
     public boolean shortCircuitThisIterator() {
