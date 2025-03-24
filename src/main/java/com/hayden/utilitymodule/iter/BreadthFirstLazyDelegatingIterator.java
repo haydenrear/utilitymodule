@@ -7,6 +7,7 @@ import java.util.function.Consumer;
 
 public class BreadthFirstLazyDelegatingIterator<T> implements Iterator<T> {
 
+    @Nullable
     Iterator<T> next;
     final List<? extends Iterator<T>> iterators;
     volatile boolean didIterate = false;
@@ -23,14 +24,6 @@ public class BreadthFirstLazyDelegatingIterator<T> implements Iterator<T> {
         this.iterators = iterators;
     }
 
-    public void doOverAll(Consumer<T> c) {
-        throwIfAlreadyIterated();
-        while (next.hasNext()) {
-            c.accept(next.next());
-        }
-        didIterate = true;
-    }
-
     private void throwIfAlreadyIterated() {
         if (didIterate)
             throw new RuntimeException("Already iterated!");
@@ -39,7 +32,7 @@ public class BreadthFirstLazyDelegatingIterator<T> implements Iterator<T> {
     @Override
     public boolean hasNext() {
         throwIfAlreadyIterated();
-        if (next.hasNext()) {
+        if (next != null && next.hasNext()) {
             return true;
         } else {
             return this.iterators.stream()

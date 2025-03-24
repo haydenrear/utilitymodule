@@ -22,14 +22,6 @@ public class DepthFirstLazyDelegatingIterator<T> implements Iterator<T> {
         this.iterators = iterators;
     }
 
-    public void doOverAll(Consumer<T> c) {
-        throwIfAlreadyIterated();
-        while (curr.hasNext()) {
-            c.accept(curr.next());
-        }
-        didIterate = true;
-    }
-
     private void throwIfAlreadyIterated() {
         if (didIterate)
             throw new RuntimeException("Already iterated!");
