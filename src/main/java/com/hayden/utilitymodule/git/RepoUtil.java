@@ -56,7 +56,7 @@ public interface RepoUtil {
 
     static Optional<RepoUtilError> doReset(Git git) throws GitAPIException {
         try {
-            log.info("Doing reset");
+            log.debug("Doing reset");
             ObjectId head = git.getRepository().resolve("HEAD^1");
             git.reset().setMode(ResetCommand.ResetType.SOFT).setRef(head.name()).call();
             return Optional.empty();
@@ -80,7 +80,7 @@ public interface RepoUtil {
         holder.add().addFilepattern(".").call();
 
         var committed = holder.commit().setMessage("temp").call();
-        log.info("Temp commit: {}, {}", committed, s);
+        log.debug("Temp commit: {}, {}", committed, s);
     }
 
     static <T> @NotNull OneResult<T, RepoUtilError> doInsideCommitStaged(Git git, Supplier<T> toDo) {
@@ -98,6 +98,10 @@ public interface RepoUtil {
                 log.error("Error applying stash or reset .", e);
             }
         }
+    }
+
+    static <T> @NotNull OneResult<T, RepoUtilError> doInsideStash(Git git, Supplier<T> toDo) {
+        return doInsideReset(git, "HEAD", toDo);
     }
 
     static <T> @NotNull OneResult<T, RepoUtilError> doInsideReset(Git git, String resetTo, Supplier<T> toDo) {

@@ -43,7 +43,7 @@ public interface IManyResultItem<R> extends IResultItem<R> {
         var l = Lists.newArrayList(toList())
                 .stream().filter(Objects::nonNull).toList();
         if (l.size() > 1) {
-            log.error("Called optional on stream result with more than one value. Returning first.");
+           log.error("Called optional on stream result with more than one value. Returning first.");
         }
 
         if (l.size() != 1 && !l.isEmpty())

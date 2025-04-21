@@ -1,6 +1,8 @@
 package com.hayden.utilitymodule.result.agg;
 
 import com.hayden.utilitymodule.result.error.SingleError;
+import com.hayden.utilitymodule.string.StringUtil;
+import io.micrometer.common.util.StringUtils;
 
 import java.util.List;
 import java.util.Set;
@@ -12,7 +14,7 @@ public interface AggregateParamError<T extends SingleError>
     Set<T> errors();
 
     default boolean isError() {
-        return !errors().isEmpty();
+        return !errors().isEmpty() && !StringUtils.isBlank(this.getMessage());
     }
 
     default Set<String> getMessages() {

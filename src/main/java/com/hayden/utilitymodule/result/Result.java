@@ -22,6 +22,7 @@ import com.hayden.utilitymodule.result.res_ty.CachedCollectedResult;
 import com.hayden.utilitymodule.result.res_ty.ClosableResult;
 import com.hayden.utilitymodule.result.res_ty.IResultItem;
 import jakarta.annotation.Nullable;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -474,8 +475,16 @@ public interface Result<T, E> {
         return this.e().isPresent();
     }
 
+    default Result<T, E> dropEmptyErr() {
+        if (this.isOk() && StringUtils.isEmpty(this.errorMessage()))  {
+            return Result.ok(this.r());
+        }
+
+        return this;
+    }
+
     default Result<T, E> dropEmptyAgg() {
-        if (this.isOk() && this.hasErr() && this.hasErr(err -> err instanceof AggregateError<?> a && a.errors().isEmpty()))  {
+        if (this.isOk() && this.hasErr() && this.hasErr(err -> err instanceof AggregateError<?> a && (a.errors().isEmpty() || StringUtils.isEmpty(a.getMessage()))))  {
             return Result.ok(this.r());
         }
 

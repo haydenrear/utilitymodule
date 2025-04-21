@@ -502,21 +502,25 @@ public class FileUtils {
 
     }
 
-    public static boolean hasParentDirectoryMatching(Predicate<Path> toMatch, Path starting) {
+    public static Path retrieveParentDirectoryMatching(Predicate<Path> toMatch, Path starting) {
         starting = starting.toAbsolutePath();
         if (toMatch.test(starting))
-            return true;
+            return starting;
 
         if (isRoot(starting))
-            return false;
+            return null;
 
         while (!isRoot(starting)) {
             starting = starting.getParent();
             if (toMatch.test(starting))
-                return true;
+                return starting;
         }
 
-        return false;
+        return null;
+    }
+
+    public static boolean hasParentDirectoryMatching(Predicate<Path> toMatch, Path starting) {
+        return retrieveParentDirectoryMatching(toMatch, starting.toAbsolutePath()) != null;
     }
 
     public static boolean isRoot(Path starting) {

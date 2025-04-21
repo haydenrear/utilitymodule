@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
@@ -39,6 +40,30 @@ class RepoUtilTest {
                         var statusCall2 = git.status().call();
                         assertThat(statusCall2.getUncommittedChanges().size()).isEqualTo(1);
                         assertThat(statusCall2.getUncommittedChanges().stream().anyMatch(s -> s.contains("another.txt"))).isTrue();
+
+                        git.add().addFilepattern(".").call();
+                        git.commit().setMessage("commit").call();
+
+
+
+                        stageFile(git, newTemp, "another-1.txt");
+
+                        AtomicBoolean b = new AtomicBoolean(false);
+
+                        o = RepoUtil.doInsideStash(git, () -> {
+
+                            b.set(true);
+
+                            assertThat(newTemp.resolve("another-1.txt").toFile().exists()).isFalse();
+
+                            return "ok";
+
+                        });
+
+                        assertThat(newTemp.resolve("another-1.txt").toFile().exists()).isTrue();
+
+                        assertThat(b.get()).isTrue();
+                        assertThat(o.isOk()).isTrue();
 
                     } catch (IOException |
                              GitAPIException e) {
