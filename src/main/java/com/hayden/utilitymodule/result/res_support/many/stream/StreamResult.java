@@ -69,17 +69,9 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
                 var streamResult = this.toList(terminalOp);
 
                 var resultStream = new StreamResultItem<>(streamResult.stream()
-                        .flatMap(r -> {
-//                            if (r.isOkStream())
-//                                throw new RuntimeException();
-                            return r.r().stream();
-                        }));
+                        .flatMap(r -> r.r().stream()));
                 var errorStream = new StreamResultItem<>(streamResult.stream()
-                        .flatMap(r -> {
-//                            if (r.isErrStream())
-//                                throw new RuntimeException();
-                            return r.e().stream();
-                        }));
+                        .flatMap(r -> r.e().stream()));
 
                 var res = resultStream.toList();
                 var errs = errorStream.toList();
@@ -214,7 +206,7 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
 
     @Override
     public OneResult<R, E> one() {
-        var last = this.r.collectCachedResults();
+        var last = this.collectCachedResults();
         if (last.size() > 1) {
             log.warn("Called one() on StreamResult with size greater than 1. Discarding all other.");
         }
@@ -234,11 +226,13 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
     }
 
     public ManyResult<R, E> hasAnyOr(Supplier<Result<R, E>> s) {
-        if (!this.r.hasAnyResult(this))  {
-            return s.get().many();
-        }
+        if (!this.collectCachedResults().isEmpty())
+            return new StreamResult<>(this.r.cachedCollectionResult, this.r.options);
 
-        return new StreamResult<>(this.r.cachedCollectionResult, this.r.options);
+        if (this.r.hasAnyResult())
+            return new StreamResult<>(this.r.cachedCollectionResult, this.r.options);
+
+        return s.get().many();
     }
 
     @Override
@@ -292,11 +286,8 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
     }
 
     public R firstResOrElse(R or) {
-        if (this.r.hasAnyResult(this)) {
-            return retrieveFirstCachedResIfExists();
-        }
-
-        return or;
+        return this.hasAnyOr(() -> Result.ok(or))
+                .r().get();
     }
 
     public R hasFirstErrOrElseGet(Function<Err<E>, R> or) {
@@ -321,8 +312,11 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
 
     @Override
     public StreamResult<R, E> firstErrOr(Supplier<Err<E>> s) {
+        if (!this.collectCachedResults().errs().isEmpty())
+            return new StreamResult<>(this.r.cachedCollectionResult, this.r.options);
+
         if (this.r.hasAnyError(this))
-            return new StreamResult<>(Stream.concat(this.stream(), Stream.of(Result.err(s.get()))));
+            return new StreamResult<>(this.r.cachedCollectionResult, this.r.options);
 
         return this;
     }
@@ -332,7 +326,7 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
     }
 
     public boolean isOk() {
-        return r.hasAnyResult(this);
+        return !this.collectCachedResults().isEmpty();
     }
 
     public Optional<R> oneOptional() {
@@ -423,13 +417,7 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
     }
 
     public Result<R, E> or(Supplier<Result<R, E>> s) {
-        var collected = this.collectCachedResults();
-
-        if (collected.results().isEmpty()) {
-            return s.get();
-        }
-
-        return this;
+        return this.hasAnyOr(s);
     }
 
 }

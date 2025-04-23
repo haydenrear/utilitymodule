@@ -70,8 +70,6 @@ public interface CachingOperations {
     record RetrieveError<T, E>() implements ResultStreamCacheFunction<Result<T, E>, Err<E>> {
         @Override
         public Err<E> apply(Result<T, E> teResult) {
-            if (teResult.isErrStream())
-                return Err.empty();
             return teResult.e();
         }
     }
@@ -84,8 +82,6 @@ public interface CachingOperations {
 
         @Override
         public Ok<T> apply(Result<T, E> teResult) {
-            if (teResult.isOkStream())
-                return Ok.empty();
             return teResult.r();
         }
     }

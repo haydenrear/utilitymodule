@@ -13,9 +13,12 @@ public class StreamResultTest {
 
     @Test
     public void resultStreamToResultStreamFlatMap() {
-        Result.from(Stream.of(Result.ok(Stream.of("one", "two"))))
+        var res = Result.from(Stream.of(Result.ok(Stream.of("one", "two"))))
                 .flatMapResult(e -> Result.from(Stream.<String>of("first", "second").map(ei -> Result.<String, Object>ok(ei))))
                 .toList();
+
+        assertThat(res.size()).isEqualTo(4);
+        assertThat(res).containsExactlyElementsOf(List.of("first", "second", "first", "second"));
     }
 
     @Test
@@ -23,11 +26,62 @@ public class StreamResultTest {
         var found = Result.ok(Stream.of("first", "second", "third"))
                 .flatMapResult(s -> Result.from(Stream.of(Result.ok("first"), Result.ok("second"), Result.ok("third"))))
                 .toList();
+
+        assertThat(found).containsExactlyElementsOf(List.of("first", "second", "third", "first", "second", "third", "first", "second", "third"));
+
         var foundAgain = Result.ok(Stream.of("first", "second", "third"))
                 .flatMapResult(s -> Result.empty())
                 .many()
                 .hasAnyOr(() -> Result.ok("whatever"))
                 .r().get();
+
+        assertThat(foundAgain).isEqualTo("whatever");
+
+        var foundThird = Result.stream(Stream.of("first", "second", "third"))
+                .map(e -> e)
+                .flatMapResult(n -> {
+                    return Result.ok("whatever")
+                            .flatMapResult(e -> Result.from(Stream.of(Result.ok("hello!"), Result.ok("world!"), Result.ok("world!"))));
+                })
+                .toList();
+
+        assertThat(foundThird.size()).isEqualTo(9);
+
+        var foundFourth = Result.stream(Stream.of("first", "second", "third"))
+                .map(e -> e)
+                .flatMapResult(n -> {
+                    return Result.ok("whatever")
+                            .flatMapResult(e -> Result.from(Stream.of(Result.ok("hello!"), Result.ok("world!"), Result.ok("world!"))));
+                })
+                .many()
+                .hasAnyOr(() -> Result.ok("ouch"))
+                .toList();
+
+        assertThat(foundFourth.size()).isEqualTo(9);
+
+        var foundFifth = Result.stream(Stream.of("first", "second", "third"))
+                .map(e -> e)
+                .flatMapResult(n -> {
+                    return Result.ok("whatever")
+                            .flatMapResult(e -> Result.ok("touche"))
+                            .one();
+                })
+                .many()
+                .hasAnyOr(() -> Result.ok("ouch"))
+                .toList();
+
+        assertThat(foundFifth.size()).isEqualTo(3);
+        assertThat(foundFifth).hasSameElementsAs(List.of("touche", "touche", "touche"));
+
+        var foundSixth = Result.stream(Stream.of("first", "second", "third"))
+                .map(e -> e)
+                .flatMapResult(n -> Result.empty())
+                .many()
+                .hasAnyOr(() -> Result.ok("ouch"))
+                .toList();
+
+        assertThat(foundSixth.size()).isEqualTo(1);
+        assertThat(foundSixth).hasSameElementsAs(List.of("ouch"));
     }
 
     @Test
