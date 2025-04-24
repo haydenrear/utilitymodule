@@ -312,13 +312,15 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
 
     @Override
     public StreamResult<R, E> firstErrOr(Supplier<Err<E>> s) {
-        if (!this.collectCachedResults().errs().isEmpty())
+        if (!this.collectCachedResults().errsList().isEmpty())
             return new StreamResult<>(this.r.cachedCollectionResult, this.r.options);
 
         if (this.r.hasAnyError(this))
             return new StreamResult<>(this.r.cachedCollectionResult, this.r.options);
 
-        return this;
+        s.get().firstOptional()
+                .ifPresent(this.r.cachedCollectionResult.errsList()::add);
+        return new StreamResult<>(this.r.cachedCollectionResult, this.r.options);
     }
 
     public <U> StreamResult<U, E> flatMapResult(Function<R, Result<U, E>> mapper) {
