@@ -301,6 +301,8 @@ public interface Result<T, E> {
     }
 
     static <R, E> OneResult<R, E> err(E r) {
+        if (r != null)
+            log.error("Found error {}", r);
         return new One<>(Ok.empty(), Err.err(r));
     }
 
