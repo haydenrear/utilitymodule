@@ -1,6 +1,5 @@
 package com.hayden.utilitymodule;
 
-import ai.djl.metric.Metric;
 import ai.djl.ndarray.NDArray;
 import ai.djl.ndarray.NDManager;
 import ai.djl.ndarray.index.NDIndex;
@@ -9,7 +8,6 @@ import lombok.experimental.UtilityClass;
 import org.apache.commons.lang3.ArrayUtils;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 
 @UtilityClass

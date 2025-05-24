@@ -5,7 +5,7 @@ plugins {
     id("com.hayden.log")
     id("com.hayden.kotlin")
     id("com.hayden.messaging")
-    id("com.hayden.ai")
+    id("com.hayden.ai-nd")
     id("com.hayden.security")
     id("com.hayden.bom-plugin")
     id("com.hayden.git")

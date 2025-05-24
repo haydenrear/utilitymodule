@@ -32,6 +32,7 @@ import org.springframework.validation.MapBindingResult;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.function.*;
@@ -117,7 +118,12 @@ public interface Result<T, E> {
     default <U, V> Result<U, V> onErrorFlatMapResult(Predicate<E> hasErr,
                                                      Function<E, Result<U, V>> mapTo,
                                                      Function<Result<T, E>, Result<U, V>> fallback) {
-        if(this.e().filter(hasErr).isPresent()) {
+        if(this.e().filter(e -> {
+            if (e instanceof SingleError err)
+                return err.isError();
+
+            return true;
+        }).filter(hasErr).isPresent()) {
             return mapTo.apply(this.e().get());
         }
 
@@ -301,8 +307,17 @@ public interface Result<T, E> {
     }
 
     static <R, E> OneResult<R, E> err(E r) {
-        if (r != null)
-            log.error("Found error {}", r);
+        if (r != null) {
+            try {
+                Object getMessage = r.getClass().getMethod("getMessage").invoke(r);
+                if (getMessage instanceof String s && !s.isBlank())
+                    log.error("Found error {}", s);
+            } catch (NoSuchMethodException |
+                     IllegalAccessException |
+                     InvocationTargetException e) {
+                log.error("Found error", e);
+            }
+        }
         return new One<>(Ok.empty(), Err.err(r));
     }
 

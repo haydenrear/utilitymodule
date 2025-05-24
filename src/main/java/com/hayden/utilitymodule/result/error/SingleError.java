@@ -1,5 +1,7 @@
 package com.hayden.utilitymodule.result.error;
 
+import io.micrometer.common.util.StringUtils;
+
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
@@ -15,7 +17,7 @@ public interface SingleError {
     }
 
     default boolean isError() {
-        return true;
+        return !StringUtils.isBlank(this.getMessage());
     }
 
     static SingleError fromMessage(String error) {
