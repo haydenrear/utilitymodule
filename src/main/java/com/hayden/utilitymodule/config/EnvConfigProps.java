@@ -15,4 +15,6 @@ public class EnvConfigProps {
 
     Path projectDir;
 
+    Path errorLog = null;
+
 }
