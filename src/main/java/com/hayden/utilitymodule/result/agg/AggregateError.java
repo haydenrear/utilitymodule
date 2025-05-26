@@ -9,6 +9,14 @@ public interface AggregateError<T extends SingleError> extends SingleError, Agg,
 
     interface StdAggregateError extends AggregateError<SingleError> {
 
+        record SimpleStdAggregateError(Set<SingleError> errors) implements StdAggregateError {
+
+            public SimpleStdAggregateError(SingleError errors) {
+                this(Sets.newHashSet(errors));
+            }
+
+        }
+
     }
 
     default void addItem(T o) {
