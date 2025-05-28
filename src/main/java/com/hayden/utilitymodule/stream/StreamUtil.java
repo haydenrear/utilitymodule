@@ -1,5 +1,6 @@
 package com.hayden.utilitymodule.stream;
 
+import com.google.common.collect.Lists;
 import com.hayden.utilitymodule.result.res_ty.IResultItem;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -7,10 +8,7 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Stream;
 
 public class StreamUtil {
@@ -61,6 +59,10 @@ public class StreamUtil {
 
     public static <T> Stream<T> toStream(T t) {
         return Optional.ofNullable(t).stream();
+    }
+
+    public static <T> Stream<T> toStream(Iterator<T> t) {
+        return Lists.newArrayList(t).stream();
     }
 
     public static <T> Stream<T> toStream(IResultItem<T> t) {
