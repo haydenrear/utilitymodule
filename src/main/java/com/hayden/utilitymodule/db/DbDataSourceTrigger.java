@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 @Slf4j
 @Component
@@ -52,6 +53,7 @@ public class DbDataSourceTrigger {
                     doWithWriteLock(() -> {
                         countDownLatch.countDown();
                         this.setInitializedInner();
+                        this.threadKey.set(newKey);
                         this.currentKey = newKey;
                     });
                     AssertUtil.assertTrue(() -> Objects.equals(newKey, this.currentKey),
@@ -69,7 +71,8 @@ public class DbDataSourceTrigger {
      * @return
      */
     public String currentKey() {
-        return Optional.ofNullable(threadKey.get())
+        String value = threadKey.get();
+        return Optional.ofNullable(value)
                 .orElseGet(() -> {
                     this.reentrantReadWriteLock.readLock().lock();
                     try {
@@ -79,12 +82,11 @@ public class DbDataSourceTrigger {
                     }
                 });
     }
-
-    public String doWithKey(Consumer<SetKey> setKeyConsumer) {
+    public <T> T doOnKey(Function<SetKey, T> setKeyConsumer) {
         String prev = currentKey;
         try {
             this.threadKey.set(currentKey); // thread local makes no problem with deadlock!
-            setKeyConsumer.accept(new SetKey() {
+            var toRet = setKeyConsumer.apply(new SetKey() {
                 @Override
                 public String curr() {
                     return threadKey.get();
@@ -115,10 +117,17 @@ public class DbDataSourceTrigger {
                     doSetKey(prev);
                 }
             });
-            return this.threadKey.get();
+            return toRet;
         } finally {
             this.threadKey.remove();
         }
+    }
+
+    public String doWithKey(Consumer<SetKey> setKeyConsumer) {
+        return doOnKey(sKey -> {
+            setKeyConsumer.accept(sKey);
+            return this.threadKey.get();
+        });
     }
 
     public String doWithWriteLock(Runnable toDo) {
