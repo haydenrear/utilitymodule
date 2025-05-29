@@ -236,16 +236,28 @@ public class FileUtils {
 
     }
 
-    public static Optional<Path> searchForFileRecursive(Path path, String fileName) {
+    public static Optional<Path> getTestWorkDir() {
+        return getTestWorkDir(new File("./").toPath()) ;
+    }
+
+    public static Optional<Path> getTestWorkDir(Path path) {
+        return searchForRecursive(path, f -> f.isDirectory() && Objects.equals(f.getName(), "test_work"));
+    }
+
+    public static Optional<Path> searchForRecursive(Path path, Predicate<File> fileName) {
+
+        if (fileName.test(path.toFile()))
+            return Optional.of(path);
+
         var did = Optional.ofNullable(path.toFile().listFiles())
                 .stream();
 
         return did.flatMap(Arrays::stream)
                 .flatMap(p -> {
-                    if (p.isFile() && p.getName().equals(fileName)) {
+                    if (fileName.test(p)) {
                         return Stream.of(p.toPath());
                     } else if (p.isDirectory()) {
-                        var didDelete = searchForFileRecursive(p.toPath(), fileName);
+                        var didDelete = searchForRecursive(p.toPath(), fileName);
                         if (didDelete.isPresent()) {
                             return didDelete.stream();
                         }
@@ -254,6 +266,10 @@ public class FileUtils {
                     return Stream.empty();
                 })
                 .findAny();
+    }
+
+    public static Optional<Path> searchForFileRecursive(Path path, String fileName) {
+        return searchForRecursive(path, p -> p.isFile() && fileName.equals(p.getName()));
     }
 
     public static boolean doOnFilesRecursive(Path path, Function<Path, Boolean> toDo, boolean parallel) {

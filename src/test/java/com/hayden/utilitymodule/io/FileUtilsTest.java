@@ -4,6 +4,7 @@ package com.hayden.utilitymodule.io;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -35,6 +36,16 @@ public class FileUtilsTest {
 
         Path subDir = Files.createDirectory(testDir.resolve("subDir"));
         Files.createFile(subDir.resolve("file3.txt"));
+    }
+
+    @Test
+    public void findTestWorkDir() {
+        var tw = FileUtils.getTestWorkDir(new File("./").toPath());
+        assertThat(tw).isNotEmpty();
+        var t = tw.get();
+        var listed = t.toFile().listFiles();
+        assertThat(listed.length).isNotZero();
+        assertThat(listed[0].getName()).isEqualTo("one");
     }
 
     @Test
