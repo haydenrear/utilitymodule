@@ -2,6 +2,7 @@ package com.hayden.utilitymodule.db;
 
 import com.hayden.utilitymodule.assert_util.AssertUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.Objects;
@@ -82,6 +83,8 @@ public class DbDataSourceTrigger {
                     }
                 });
     }
+
+
     public <T> T doOnKey(Function<SetKey, T> setKeyConsumer) {
         String prev = currentKey;
         try {
