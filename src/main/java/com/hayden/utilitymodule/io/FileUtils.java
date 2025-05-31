@@ -8,12 +8,10 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.eclipse.jgit.api.Git;
 import org.springframework.util.Assert;
 
 import java.io.*;
 import java.nio.charset.CharacterCodingException;
-import java.nio.charset.CoderResult;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
@@ -271,8 +269,8 @@ public class FileUtils {
     public static Optional<Path> searchForFileRecursive(Path path, String fileName) {
         return searchForRecursive(path, p -> p.isFile() && fileName.equals(p.getName()));
     }
-    public static void copyAll(Path source, Path target) throws IOException {
 
+    public static void copyAll(Path source, Path target) throws IOException {
         Files.walkFileTree(source, new SimpleFileVisitor<>() {
             @Override
             public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
@@ -288,22 +286,21 @@ public class FileUtils {
                 return FileVisitResult.CONTINUE;
             }
         });
-
     }
 
     public static boolean doOnFilesRecursive(Path path, Function<Path, Boolean> toDo, boolean parallel) {
         var did = Optional.ofNullable(path.toFile().listFiles())
-                .stream();
+                .stream()
+                .flatMap(Arrays::stream);
 
         if (parallel)
             did = did.parallel();
 
-        var value = did.flatMap(Arrays::stream)
-                .map(p -> {
+        var value = did.map(p -> {
                     if (p.isFile()) {
                         return toDo.apply(p.toPath());
                     } else if (p.isDirectory()) {
-                        boolean didDelete = doOnFilesRecursive(p.toPath(), toDo);
+                        boolean didDelete = doOnFilesRecursive(p.toPath(), toDo, parallel);
                         boolean deleteDir = toDo.apply(p.toPath());
                         return didDelete && deleteDir;
                     }
@@ -326,7 +323,7 @@ public class FileUtils {
         return doOnFilesRecursive(path, toDo, true);
     }
 
-    public static Stream<Path> GetFilesRecursive(Path path) {
+    public static Stream<Path> getFilesRecursive(Path path) {
         Stream.Builder<Path> builder = Stream.builder();
         doOnFilesRecursive(path, (p) -> {
             builder.add(p);
