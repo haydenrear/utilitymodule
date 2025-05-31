@@ -14,8 +14,8 @@ import org.springframework.util.Assert;
 import java.io.*;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CoderResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -270,6 +270,25 @@ public class FileUtils {
 
     public static Optional<Path> searchForFileRecursive(Path path, String fileName) {
         return searchForRecursive(path, p -> p.isFile() && fileName.equals(p.getName()));
+    }
+    public static void copyAll(Path source, Path target) throws IOException {
+
+        Files.walkFileTree(source, new SimpleFileVisitor<>() {
+            @Override
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+                Path targetPath = target.resolve(source.relativize(dir));
+                Files.createDirectories(targetPath);
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                Path targetPath = target.resolve(source.relativize(file));
+                Files.copy(file, targetPath, StandardCopyOption.REPLACE_EXISTING);
+                return FileVisitResult.CONTINUE;
+            }
+        });
+
     }
 
     public static boolean doOnFilesRecursive(Path path, Function<Path, Boolean> toDo, boolean parallel) {
