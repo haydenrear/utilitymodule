@@ -1,5 +1,6 @@
 package com.hayden.utilitymodule.db;
 
+import org.springframework.transaction.TransactionManager;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import com.hayden.utilitymodule.assert_util.AssertUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Component;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -86,15 +88,29 @@ public class DbDataSourceTrigger {
     }
 
 
+    private static void doBind(String key) {
+        doUnbind();
+        TransactionSynchronizationManager.bindResource("data-source-key", key);
+    }
+
+    private static void doUnbind() {
+        if (TransactionSynchronizationManager.hasResource("data-source-key")) {
+            TransactionSynchronizationManager.unbindResource("data-source-key");
+        }
+    }
+
     public <T> T doOnKey(Function<SetKey, T> setKeyConsumer) {
-        String prev = currentKey;
+        String prev = currentKey();
+        var setPrev = !Objects.equals(prev, this.currentKey) ? this.currentKey : null;
+
+
         try {
 
             if (TransactionSynchronizationManager.isActualTransactionActive()) {
                 log.error("❗ Spring transaction is active! Using thread local key with spring @Transactional is a failure.");
             }
 
-            this.threadKey.set(currentKey); // thread local makes no problem with deadlock!
+            this.threadKey.set(prev);
             var toRet = setKeyConsumer.apply(new SetKey() {
                 @Override
                 public String curr() {
@@ -113,22 +129,31 @@ public class DbDataSourceTrigger {
 
                 @Override
                 public String starting() {
-                    return prev;
+                    return setPrev;
                 }
 
                 @Override
                 public void setKey(String key) {
+                    doBind(key);
                     doSetKey(key);
                 }
 
                 @Override
                 public void resetKey() {
-                    doSetKey(prev);
+                    doBind(setPrev);
+                    doSetKey(setPrev);
                 }
             });
+
             return toRet;
         } finally {
-            this.threadKey.remove();
+            if (setPrev != null) {
+                this.threadKey.set(setPrev);
+                doBind(setPrev);
+            } else {
+                doUnbind();
+                this.threadKey.remove();
+            }
         }
     }
 
