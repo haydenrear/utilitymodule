@@ -91,7 +91,7 @@ public class DbDataSourceTrigger {
         try {
 
             if (TransactionSynchronizationManager.isActualTransactionActive()) {
-                log.error("❗ Spring transaction is active! Using manual connection with advisory lock may lead to inconsistent behavior.");
+                log.error("❗ Spring transaction is active! Using thread local key with spring @Transactional is a failure.");
             }
 
             this.threadKey.set(currentKey); // thread local makes no problem with deadlock!
