@@ -111,15 +111,12 @@ public class DbDataSourceTrigger {
                 log.error("❗ Spring transaction is active! Using thread local key with spring @Transactional is a failure.");
             }
 
-            if (setPrev != null) {
-                this.threadKey.set(setPrev);
-                doBind(setPrev);
-            }
+            doBind(starting);
+
             var toRet = setKeyConsumer.apply(new SetKey() {
                 @Override
                 public String curr() {
-                    var t = threadKey.get();
-                    return t == null ? currentKey : t;
+                    return currentKey();
                 }
 
                 @Override
