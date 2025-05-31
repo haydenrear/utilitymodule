@@ -1,5 +1,6 @@
 package com.hayden.utilitymodule.db;
 
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import com.hayden.utilitymodule.assert_util.AssertUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -88,6 +89,11 @@ public class DbDataSourceTrigger {
     public <T> T doOnKey(Function<SetKey, T> setKeyConsumer) {
         String prev = currentKey;
         try {
+
+            if (TransactionSynchronizationManager.isActualTransactionActive()) {
+                log.error("❗ Spring transaction is active! Using manual connection with advisory lock may lead to inconsistent behavior.");
+            }
+
             this.threadKey.set(currentKey); // thread local makes no problem with deadlock!
             var toRet = setKeyConsumer.apply(new SetKey() {
                 @Override
