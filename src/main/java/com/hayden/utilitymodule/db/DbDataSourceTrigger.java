@@ -103,6 +103,7 @@ public class DbDataSourceTrigger {
         String prev = currentKey();
 
         var setPrev = this.threadKey.get() == null ? null : prev;
+        var starting = Optional.ofNullable(setPrev).orElse(this.currentKey);
 
         try {
 
@@ -110,11 +111,15 @@ public class DbDataSourceTrigger {
                 log.error("❗ Spring transaction is active! Using thread local key with spring @Transactional is a failure.");
             }
 
-            this.threadKey.set(prev);
+            if (setPrev != null) {
+                this.threadKey.set(setPrev);
+                doBind(setPrev);
+            }
             var toRet = setKeyConsumer.apply(new SetKey() {
                 @Override
                 public String curr() {
-                    return threadKey.get();
+                    var t = threadKey.get();
+                    return t == null ? currentKey : t;
                 }
 
                 @Override
@@ -129,7 +134,7 @@ public class DbDataSourceTrigger {
 
                 @Override
                 public String starting() {
-                    return setPrev;
+                    return starting;
                 }
 
                 @Override
@@ -140,20 +145,23 @@ public class DbDataSourceTrigger {
 
                 @Override
                 public void resetKey() {
-                    doBind(setPrev);
-                    doSetKey(setPrev);
+                    doPerformReset(setPrev);
                 }
             });
 
             return toRet;
         } finally {
-            if (setPrev != null) {
-                this.threadKey.set(setPrev);
-                doBind(setPrev);
-            } else {
-                doUnbind();
-                this.threadKey.remove();
-            }
+            doPerformReset(setPrev);
+        }
+    }
+
+    private void doPerformReset(String setPrev) {
+        if (setPrev != null) {
+            this.threadKey.set(setPrev);
+            doBind(setPrev);
+        } else {
+            doUnbind();
+            this.threadKey.remove();
         }
     }
 
