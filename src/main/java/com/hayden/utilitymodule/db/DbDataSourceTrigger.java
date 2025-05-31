@@ -101,8 +101,8 @@ public class DbDataSourceTrigger {
 
     public <T> T doOnKey(Function<SetKey, T> setKeyConsumer) {
         String prev = currentKey();
-        var setPrev = !Objects.equals(prev, this.currentKey) ? this.currentKey : null;
 
+        var setPrev = this.threadKey.get() == null ? null : prev;
 
         try {
 
