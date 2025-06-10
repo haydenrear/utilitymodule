@@ -234,6 +234,32 @@ public class FileUtils {
 
     }
 
+    /**
+     * Searches upwards from the given starting directory to find the closest
+     * parent directory that contains a file with the specified name.
+     *
+     * @param startPath The starting directory path.
+     * @param targetFileName The name of the file to search for.
+     * @return The File object of the directory that contains the file, or null if not found.
+     */
+    public static File findClosestParentWithFile(Path startPath, Predicate<String> targetFileName) {
+        var p = searchForRecursive(startPath, f -> targetFileName.test(f.getName()));
+
+        if (p.isPresent())
+            return p.get().toFile();
+
+        Path current = startPath.toAbsolutePath();
+        while (current != null) {
+            File[] matchingFiles = current.toFile().listFiles((dir, name) -> targetFileName.test(name));
+            if (matchingFiles != null && matchingFiles.length > 0) {
+                return current.toFile();
+            }
+            current = current.getParent();
+        }
+
+        return null;
+    }
+
     public static Optional<Path> getTestWorkDir() {
         return getTestWorkDir(new File("./").toPath()) ;
     }
