@@ -179,8 +179,7 @@ public abstract class StreamWrapper<C extends CachableStream<ST, C>, ST> impleme
                             cachedResults.computeIfAbsent((Class<? extends CachingOperations.CachedOperation<ST, ?>>) n.getClass(), k -> new CachingOperations.StreamCacheResult<>(n, false));
                     case CachingOperations.StreamCachePredicate.All p ->
                             cachedResults.computeIfAbsent((Class<? extends CachingOperations.CachedOperation<ST, ?>>) p.getClass(), k -> new CachingOperations.StreamCacheResult<>(p, true));
-                    default ->
-                            log.debug("Skipped stream result: {}", sp);
+                    default -> {}
                 }
             });
         }
