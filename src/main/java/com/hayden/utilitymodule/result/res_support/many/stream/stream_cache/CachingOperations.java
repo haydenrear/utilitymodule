@@ -163,7 +163,7 @@ public interface CachingOperations {
         public boolean test(Result<R, E> o) {
             if (o.isOkStream()) {
                 if (log.isDebugEnabled())
-                    log.error("Could not check if had ok because ok was of stream type, cachable cannot be cached inside of cache.");
+                    log.debug("Could not check if had ok because ok was of stream type, cachable cannot be cached inside of cache.");
                 return false;
             }
 
@@ -177,7 +177,7 @@ public interface CachingOperations {
         public boolean test(Result<R, E> o) {
             if (o.isErrStream()) {
                 if (log.isDebugEnabled())
-                    log.error("Could not check if had error because error was of stream type, cachable cannot be cached inside of cache.");
+                    log.debug("Could not check if had error because error was of stream type, cachable cannot be cached inside of cache.");
                 return false;
             }
             return o.isError();
