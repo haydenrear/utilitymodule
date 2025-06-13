@@ -61,6 +61,10 @@ public class StreamUtil {
         return Optional.ofNullable(t).stream();
     }
 
+    public static <T> Stream<T> toStream(Optional<T> t) {
+        return t.isPresent() ? toStream(t.get()) : Stream.empty();
+    }
+
     public static <T> Stream<T> toStream(Iterator<T> t) {
         return Lists.newArrayList(t).stream();
     }

@@ -296,6 +296,40 @@ public class FileUtils {
         return searchForRecursive(path, p -> p.isFile() && fileName.equals(p.getName()));
     }
 
+    public static Path findVisit(Path source, Predicate<Path> found, Predicate<Path> continueWalking) {
+        AtomicReference<Path> result = new AtomicReference<>();
+        try {
+            Files.walkFileTree(source, new SimpleFileVisitor<>() {
+                @Override
+                public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+                    if (found.test(dir)) {
+                        result.set(dir);
+                        return FileVisitResult.TERMINATE;
+                    }
+                    if (continueWalking.test(dir))
+                        return FileVisitResult.CONTINUE;
+
+                    return FileVisitResult.SKIP_SUBTREE;
+                }
+
+                @Override
+                public FileVisitResult visitFile(Path dir, BasicFileAttributes attrs) {
+                    if (found.test(dir)) {
+                        result.set(dir);
+                        return FileVisitResult.TERMINATE;
+                    }
+                    if (continueWalking.test(dir))
+                        return FileVisitResult.CONTINUE;
+
+                    return FileVisitResult.SKIP_SUBTREE;
+                }
+            });
+        } catch (IOException e) {
+            log.error("Failed to visit file: {}.", e.getMessage());
+        }
+        return result.get();
+    }
+
     public static void copyAll(Path source, Path target) throws IOException {
         Files.walkFileTree(source, new SimpleFileVisitor<>() {
             @Override
