@@ -72,6 +72,22 @@ public interface Result<T, E> {
         return this.r().get();
     }
 
+    default E getError() {
+        return this.e().get();
+    }
+
+    default E unwrapErr() {
+        return this.e().get();
+    }
+
+    default E unwrapError() {
+        return this.e().get();
+    }
+
+    default T getValue() {
+        return unwrap();
+    }
+
     default boolean isClosable() {
         return false;
     }
