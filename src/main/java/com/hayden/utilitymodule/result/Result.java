@@ -68,6 +68,10 @@ public interface Result<T, E> {
         boolean isEmpty();
     }
 
+    default T unwrap() {
+        return this.r().get();
+    }
+
     default boolean isClosable() {
         return false;
     }
