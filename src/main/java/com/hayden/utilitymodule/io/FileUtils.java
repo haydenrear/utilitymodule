@@ -15,6 +15,7 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
+import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
@@ -123,40 +124,36 @@ public class FileUtils {
         }
     }
 
-    public static Result<Path, FileError> getPathFor(Path old, Path newPath, Map<String, String> replace) {
-        return Result.fromOptOrErr(FileUtils.searchForFileRecursive(newPath, old.toFile().getName())
+    public static Result<Path, FileError> getPathFor(Path filePathDir, Path rootDir, Map<String, String> replace) {
+        var result = rootDir.resolve(filePathDir);
+
+        if (result.toFile().exists())
+            return Result.ok(result);
+
+        if (rootDir.isAbsolute()) {
+            var root = rootDir.toAbsolutePath().toFile().getAbsolutePath();
+            for (var entry : replace.entrySet()) {
+                root = root.replaceAll(entry.getKey(), entry.getValue());
+            }
+            rootDir = Paths.get(root);
+        }
+
+        if (filePathDir.isAbsolute()) {
+            var root = filePathDir.toAbsolutePath().toFile().getAbsolutePath();
+            for (var entry : replace.entrySet()) {
+                root = root.replaceAll(entry.getKey(), entry.getValue());
+            }
+            filePathDir = Paths.get(root);
+        }
+
+        Path finalFilePathDir = filePathDir;
+        Path finalRootDir = rootDir;
+        return Result.fromOptOrErr(FileUtils.searchForFileRecursive(rootDir, filePathDir.toFile().getName())
                 .filter(p -> p.toFile().exists())
                 .or(() -> {
-                    var res = old.resolve(newPath);
-
-                    if (res.toFile().exists())
-                        return Optional.of(res);
-
-                    if (old.isAbsolute()) {
-                        Path next = old;
-                        List<String> pathSegments = new ArrayList<>();
-                        while (next.getParent() != null && !newPath.toAbsolutePath().startsWith(next.toAbsolutePath())) {
-                            pathSegments.add(next.toFile().getName());
-                            next = next.getParent();
-                        }
-
-                        Path toResolve = newPath;
-
-                        for (var p : pathSegments.reversed().subList(1, pathSegments.size())) {
-                            var maybeResolve = toResolve.resolve(replace.getOrDefault(p, p));
-                            if (!maybeResolve.toFile().exists()) {
-                                toResolve = toResolve.resolve(p);
-                            } else {
-                                toResolve = maybeResolve;
-                            }
-                        }
-
-                        return Optional.of(toResolve);
-                    }
-
-                    return Optional.empty();
-
-                }), () -> new FileError("Could not find file: %s.".formatted(newPath)));
+                    var res = finalRootDir.resolve(finalFilePathDir);
+                    return Optional.of(res);
+                }), () -> new FileError("Could not find file: %s, %s.".formatted(finalRootDir, finalFilePathDir)));
     }
 
     public record FileError(String message) {}
@@ -537,6 +534,69 @@ public class FileUtils {
                     return true;
                 })
                 .mapError(se -> new FileError(se.getMessage()));
+    }
+
+    public static @Nonnull Result<Map.Entry<Iterator<String>, Callable<Void>>, SingleError> readToLazyIteratorDone(File f) {
+        if (!f.exists())
+            return Result.err(SingleError.fromMessage("File %s did not exist.".formatted(f.getAbsolutePath())));
+
+        return Result.<BufferedReader, SingleError>tryFrom(() -> Files.newBufferedReader(f.toPath()))
+                .except(exc -> {
+                    throw new RuntimeException(exc);
+                })
+                .map(bfr -> {
+                    final boolean[] isClosed = {false};
+                    Callable<Void> c = () -> {
+                        bfr.close();
+                        ClosableResult.registerClosed(bfr);
+                        isClosed[0] = true;
+                        return null;
+                    };
+                    return Map.entry(new Iterator<>() {
+
+                        @SneakyThrows
+                        @Override
+                        public boolean hasNext() {
+                            if (isClosed[0])
+                                return false;
+                            try {
+                                if (!bfr.ready()) {
+                                    bfr.close();
+                                    ClosableResult.registerClosed(bfr);
+                                    isClosed[0] = true;
+                                    return false;
+                                }
+                            } catch (
+                                    IOException e) {
+                                log.error("{}", SingleError.parseStackTraceToString(e));
+                                isClosed[0] = true;
+                                return false;
+                            }
+
+                            return true;
+                        }
+
+                        @SneakyThrows
+                        @Override
+                        public String next() {
+                            try {
+                                if (hasNext())
+                                    return bfr.readLine();
+                            } catch (
+                                    IOException e) {
+                                if (e instanceof CharacterCodingException c) {
+                                    log.debug("Found character coding exception: {}", SingleError.parseStackTraceToString(c));
+                                } else {
+                                    log.error("{}", SingleError.parseStackTraceToString(e));
+                                }
+                            }
+
+                            isClosed[0] = true;
+                            return null;
+                        }
+                    }, c);
+                });
+
     }
 
     public static @Nonnull Result<Iterator<String>, SingleError> readToLazyIterator(File f) {

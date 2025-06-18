@@ -38,6 +38,11 @@ public class FileUtilsTest {
         Files.createFile(subDir.resolve("file3.txt"));
     }
 
+
+    @Test
+    public void testGet() {
+    }
+
     @Test
     public void findTestWorkDir() {
         var tw = FileUtils.getTestWorkDir(new File("./").toPath());
