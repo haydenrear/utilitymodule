@@ -27,6 +27,14 @@ import java.util.stream.Stream;
 @Slf4j
 public class FileUtils {
 
+    public static boolean isStrictSubPath(Path child, Path parent) {
+        return (
+                !child.equals(parent) &&
+                child.normalize().startsWith(parent.normalize()) &&
+                child.getNameCount() > parent.getNameCount()
+        );
+    }
+
     public static File newTemporaryFolder() {
         String tempFileName = UUID.randomUUID().toString();
         return newFolder(temporaryFolderPath() + tempFileName);
