@@ -57,6 +57,10 @@ public class StreamUtil {
 
     }
 
+    public static <T> Stream<T> toStream(Stream<T> t) {
+        return t == null ? Stream.empty() : t;
+    }
+
     public static <T> Stream<T> toStream(T t) {
         return Optional.ofNullable(t).stream();
     }
