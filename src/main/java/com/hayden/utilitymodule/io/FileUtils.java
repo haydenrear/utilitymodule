@@ -27,6 +27,14 @@ import java.util.stream.Stream;
 @Slf4j
 public class FileUtils {
 
+    public static boolean isNotSelfNorStrictSubPath(Path child, Path parent) {
+        return !Objects.equals(child, parent) && !isSelfOrStrictSubPath(child, parent);
+    }
+
+    public static boolean isSelfOrStrictSubPath(Path child, Path parent) {
+        return Objects.equals(child, parent) || isStrictSubPath(child, parent);
+    }
+
     public static boolean isStrictSubPath(Path child, Path parent) {
         return (
                 !child.equals(parent) &&
