@@ -1,6 +1,7 @@
 package com.hayden.utilitymodule.io;
 
 
+import lombok.SneakyThrows;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -12,6 +13,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
@@ -38,6 +40,18 @@ public class FileUtilsTest {
         Files.createFile(subDir.resolve("file3.txt"));
     }
 
+
+    @SneakyThrows
+    @Test
+    public void testDeleteRecursive() {
+        testDir.resolve("another").resolve("another").resolve("another").toFile().mkdirs();
+        testDir.resolve("another").resolve("one.txt").toFile().createNewFile();
+        testDir.resolve("another").resolve("another").resolve("one.txt").toFile().createNewFile();
+        FileUtils.deleteFilesRecursive(testDir, p -> !Objects.equals(testDir, p));
+
+        assertThat(testDir.toFile().exists()).isTrue();
+        assertThat(testDir.toFile().listFiles().length).isEqualTo(0);
+    }
 
     @Test
     public void testGet() {

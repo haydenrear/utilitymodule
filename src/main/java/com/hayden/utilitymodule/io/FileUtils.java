@@ -8,6 +8,8 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.springframework.util.Assert;
 
 import java.io.*;
@@ -16,6 +18,7 @@ import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
 import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
@@ -76,7 +79,7 @@ public class FileUtils {
                 return file;
             }
         } catch (IOException e) {
-            throw cannotCreateNewFile(path, (Exception)e);
+            throw cannotCreateNewFile(path, e);
         }
     }
 
@@ -343,6 +346,7 @@ public class FileUtils {
         return result.get();
     }
 
+
     public static void copyAll(Path source, Path target) throws IOException {
         Files.walkFileTree(source, new SimpleFileVisitor<>() {
             @Override
@@ -361,48 +365,46 @@ public class FileUtils {
         });
     }
 
-    public static boolean doOnFilesRecursive(Path path, Function<Path, Boolean> toDo, boolean parallel) {
-        var did = Optional.ofNullable(path.toFile().listFiles())
-                .stream()
-                .flatMap(Arrays::stream);
-
-        if (parallel)
-            did = did.parallel();
-
-        var value = did.map(p -> {
-                    if (p.isFile()) {
-                        return toDo.apply(p.toPath());
-                    } else if (p.isDirectory()) {
-                        boolean didDelete = doOnFilesRecursive(p.toPath(), toDo, parallel);
-                        boolean deleteDir = toDo.apply(p.toPath());
-                        return didDelete && deleteDir;
-                    }
-                    return false;
-                })
-                .collect(Collectors.toSet());
-
-        Boolean didDeletePath = toDo.apply(path);
-
-        boolean didDeleteAll = value.stream().allMatch(Boolean::booleanValue);
-        return didDeletePath && didDeleteAll;
-
-    }
-
     public static boolean doOnFilesRecursive(Path path, Function<Path, Boolean> toDo) {
-        return doOnFilesRecursive(path, toDo, false);
+        return doOnFilesRecursive(path, toDo, r -> false);
     }
 
+    @SneakyThrows
+    public static boolean doOnFilesRecursive(Path path, Function<Path, Boolean> toDo, Predicate<Path> skipTree) {
+        AtomicBoolean result = new AtomicBoolean(true);
+        Files.walkFileTree(path, new SimpleFileVisitor<>() {
+            @Override
+            public @NotNull FileVisitResult visitFile(@NotNull Path file, @NotNull BasicFileAttributes attrs) {
+                if (file.toFile().isFile()) {
+                    if (!toDo.apply(file)) {
+                        result.set(false);
+                    }
+                }
+
+                if (skipTree.test(file)) {
+                    return FileVisitResult.SKIP_SUBTREE;
+                }
+
+                return FileVisitResult.CONTINUE;
+            }
+        });
+
+        return result.get();
+    }
+
+    @SneakyThrows
     public static boolean doOnFilesRecursiveParallel(Path path, Function<Path, Boolean> toDo) {
-        return doOnFilesRecursive(path, toDo, true);
+        try(var f = Files.walk(path)) {
+            return f.parallel().allMatch(toDo::apply) ;
+        }
     }
 
     public static Stream<Path> getFilesRecursive(Path path) {
-        Stream.Builder<Path> builder = Stream.builder();
-        doOnFilesRecursive(path, (p) -> {
-            builder.add(p);
-            return true;
-        });
-        return builder.build();
+        try {
+            return Files.walk(path);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public static boolean isEmptyDirectory(File[] next, int filePointer) {
@@ -426,59 +428,11 @@ public class FileUtils {
         return update.get();
     }
 
+    @SneakyThrows
     public static Iterator<Path> GetFileIteratorRecursive(Path path) {
-        record FilePointer(File[] file, int pointer) {}
-
-        final File[][] next = {path.toFile().listFiles()};
-        Stack<FilePointer> parent = new Stack<>();
-        final AtomicInteger[] filePointer = {new AtomicInteger(0)};
-
-        return new Iterator<>() {
-            @Override
-            public boolean hasNext() {
-                boolean isValidFilePointer = filePointer[0].get() < next[0].length;
-                if (isValidFilePointer && isEmptyDirectory(next[0], filePointer[0].get()))
-                    return false;
-                if (isValidFilePointer)
-                    return true;
-                else {
-                    while (!parent.isEmpty()) {
-                        FilePointer top = parent.peek();
-                        if (top.pointer < top.file.length) {
-                            top = parent.pop();
-                            filePointer[0] = new AtomicInteger(top.pointer);
-                            next[0] = top.file;
-                            if (next[0].length > filePointer[0].get()
-                                    && isEmptyDirectory(next[0], filePointer[0].get())) {
-                                continue;
-                            }
-                            return true;
-                        } else {
-                            parent.pop();
-                        }
-                    }
-                }
-
-                return false;
-            }
-
-            @Override
-            public Path next() {
-                var fp = filePointer[0].get();
-                if (next[0][fp].isFile()) {
-                    return next[0][filePointer[0].getAndIncrement()].toPath();
-                } else {
-                    parent.add(new FilePointer(next[0], filePointer[0].incrementAndGet()));
-                    next[0] = next[0][fp].listFiles();
-                    filePointer[0] = new AtomicInteger(0);
-                    if (hasNext()) {
-                        return next();
-                    } else {
-                        return null;
-                    }
-                }
-            }
-        };
+        return Files.walk(path)
+                    .filter(Files::isRegularFile)
+                    .iterator();
     }
 
     public static Stream<File> getFileStream(Path path) {
@@ -492,21 +446,46 @@ public class FileUtils {
     }
 
     public static boolean deleteFilesRecursive(Path path) {
-        return doOnFilesRecursive(path, p -> {
-            if (p.toFile().isDirectory()) {
-                Assert.isTrue(isEmpty(p), "Was not empty directory when deleting recursively.");
-                if (!p.toFile().delete()) {
-                    logNotDeleted(p);
-                    return false;
+        return deleteFilesRecursive(path, s -> true) ;
+    }
+
+    public static boolean deleteFilesRecursive(Path target, Predicate<Path> doDelete) {
+        return deleteFilesRecursive(target, doDelete, r -> false);
+    }
+
+    public static boolean deleteFilesRecursive(Path target, Predicate<Path> doDelete, Predicate<Path> skipTree) {
+        try {
+            Files.walkFileTree(target, new SimpleFileVisitor<>() {
+                @Override
+                public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+                    if (Files.isDirectory(dir) && skipTree.test(dir))  {
+                        return FileVisitResult.SKIP_SUBTREE;
+                    }
+
+                    return FileVisitResult.CONTINUE;
                 }
-                return true;
-            } else if (p.toFile().isFile() && !p.toFile().delete()) {
-                logNotDeleted(p);
-            } else {
-                return false;
-            }
+
+                @Override
+                public @NotNull FileVisitResult postVisitDirectory(@NotNull Path dir, @Nullable IOException exc) throws IOException {
+                    if (doDelete.test(dir))
+                        Files.deleteIfExists(dir);
+
+                    return FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                    if (file.toFile().isFile() && doDelete.test(file)) {
+                        Files.deleteIfExists(file);
+                    }
+
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+            return true;
+        } catch (IOException e) {
             return false;
-        });
+        }
     }
 
     private static void logNotDeleted(Path p) {
