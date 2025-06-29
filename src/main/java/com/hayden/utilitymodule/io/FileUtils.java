@@ -455,10 +455,13 @@ public class FileUtils {
 
     public static boolean deleteFilesRecursive(Path target, Predicate<Path> doDelete, Predicate<Path> skipTree) {
         try {
-            Files.walkFileTree(target, new SimpleFileVisitor<>() {
+            Files.walkFileTree(target,  new SimpleFileVisitor<>() {
                 @Override
-                public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
-                    if (Files.isDirectory(dir) && skipTree.test(dir))  {
+                public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+                    if (Files.isSymbolicLink(dir)) {
+                        return FileVisitResult.SKIP_SUBTREE;
+                    }
+                    if (dir.toFile().isDirectory() && skipTree.test(dir))  {
                         return FileVisitResult.SKIP_SUBTREE;
                     }
 
@@ -475,7 +478,7 @@ public class FileUtils {
 
                 @Override
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                    if (file.toFile().isFile() && doDelete.test(file)) {
+                    if ((file.toFile().isFile() || Files.isSymbolicLink(file)) && doDelete.test(file)) {
                         Files.deleteIfExists(file);
                     }
 
