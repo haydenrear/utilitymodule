@@ -6,6 +6,7 @@ import com.hayden.utilitymodule.result.Result;
 import jakarta.annotation.Nonnull;
 import jakarta.validation.constraints.Null;
 import lombok.SneakyThrows;
+import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -562,121 +563,72 @@ public class FileUtils {
                 .mapError(se -> new FileError(se.getMessage()));
     }
 
-    public static @Nonnull Result<Map.Entry<Iterator<String>, Callable<Void>>, SingleError> readToLazyIteratorDone(File f) {
-        if (!f.exists())
-            return Result.err(SingleError.fromMessage("File %s did not exist.".formatted(f.getAbsolutePath())));
+    public record LazyIterator(@Delegate Iterator<String> iter, BufferedReader reader, boolean[] isClosed) {
 
-        return Result.<BufferedReader, SingleError>tryFrom(() -> Files.newBufferedReader(f.toPath()))
-                .except(exc -> {
-                    throw new RuntimeException(exc);
-                })
-                .map(bfr -> {
-                    final boolean[] isClosed = {false};
-                    Callable<Void> c = () -> {
-                        bfr.close();
-                        ClosableResult.registerClosed(bfr);
-                        isClosed[0] = true;
-                        return null;
-                    };
-                    return Map.entry(new Iterator<>() {
-
-                        @SneakyThrows
-                        @Override
-                        public boolean hasNext() {
-                            if (isClosed[0])
-                                return false;
-                            try {
-                                if (!bfr.ready()) {
-                                    bfr.close();
-                                    ClosableResult.registerClosed(bfr);
-                                    isClosed[0] = true;
-                                    return false;
-                                }
-                            } catch (
-                                    IOException e) {
-                                log.error("{}", SingleError.parseStackTraceToString(e));
-                                isClosed[0] = true;
-                                return false;
-                            }
-
-                            return true;
-                        }
-
-                        @SneakyThrows
-                        @Override
-                        public String next() {
-                            try {
-                                if (hasNext())
-                                    return bfr.readLine();
-                            } catch (
-                                    IOException e) {
-                                if (e instanceof CharacterCodingException c) {
-                                    log.debug("Found character coding exception: {}", SingleError.parseStackTraceToString(c));
-                                } else {
-                                    log.error("{}", SingleError.parseStackTraceToString(e));
-                                }
-                            }
-
-                            isClosed[0] = true;
-                            return null;
-                        }
-                    }, c);
-                });
+        public void doClose() throws IOException {
+            reader.close();
+            ClosableResult.registerClosed(reader);
+            isClosed[0] = true;
+        }
 
     }
 
-    public static @Nonnull Result<Iterator<String>, SingleError> readToLazyIterator(File f) {
+    public static @Nonnull Result<LazyIterator, SingleError> readToLazyIterator(File f) {
         if (!f.exists())
             return Result.err(SingleError.fromMessage("File %s did not exist.".formatted(f.getAbsolutePath())));
 
         return Result.<BufferedReader, SingleError>tryFrom(() -> Files.newBufferedReader(f.toPath()))
-                .except(exc -> {
-                    throw new RuntimeException(exc);
-                })
-                .map(bfr -> {
-                    final boolean[] isClosed = {false};
-                    return new Iterator<>() {
+                     .except(exc -> {
+                         throw new RuntimeException(exc);
+                     })
+                     .map(bfr -> {
+                         final boolean[] isClosed = {false};
+                         return new LazyIterator(new Iterator<>() {
 
-                        @SneakyThrows
-                        @Override
-                        public boolean hasNext() {
-                            if (isClosed[0])
-                                return false;
-                            try {
-                                if (!bfr.ready()) {
-                                    bfr.close();
-                                    ClosableResult.registerClosed(bfr);
-                                    isClosed[0] = true;
-                                    return false;
-                                }
-                            } catch (IOException e) {
-                                log.error("{}", SingleError.parseStackTraceToString(e));
-                                isClosed[0] = true;
-                                return false;
-                            }
+                             @SneakyThrows
+                             @Override
+                             public boolean hasNext() {
+                                 if (isClosed[0])
+                                     return false;
+                                 try {
+                                     if (!bfr.ready()) {
+                                         bfr.close();
+                                         ClosableResult.registerClosed(bfr);
+                                         isClosed[0] = true;
+                                         return false;
+                                     }
+                                 } catch (
+                                         IOException e) {
+                                     log.error("{}", SingleError.parseStackTraceToString(e));
+                                     isClosed[0] = true;
+                                     return false;
+                                 }
 
-                            return true;
-                        }
+                                 return true;
+                             }
 
-                        @SneakyThrows
-                        @Override
-                        public String next() {
-                            try {
-                                if (hasNext())
-                                    return bfr.readLine();
-                            } catch (IOException e) {
-                                if (e instanceof CharacterCodingException c) {
-                                    log.debug("Found character coding exception: {}", SingleError.parseStackTraceToString(c));
-                                } else {
-                                    log.error("{}", SingleError.parseStackTraceToString(e));
-                                }
-                            }
+                             @SneakyThrows
+                             @Override
+                             public String next() {
+                                 try {
+                                     if (hasNext())
+                                         return bfr.readLine();
+                                 } catch (
+                                         IOException e) {
+                                     if (e instanceof CharacterCodingException c) {
+                                         log.debug("Found character coding exception: {}", SingleError.parseStackTraceToString(c));
+                                     } else {
+                                         log.error("{}", SingleError.parseStackTraceToString(e));
+                                     }
+                                 }
 
-                            isClosed[0] = true;
-                            return null;
-                        }
-                    };
-                });
+                                 isClosed[0] = true;
+                                 return null;
+                             }
+                         },
+                                 bfr,
+                                 isClosed);
+                     });
 
     }
 
