@@ -4,13 +4,13 @@ import com.hayden.utilitymodule.result.ClosableResult;
 import com.hayden.utilitymodule.result.error.SingleError;
 import com.hayden.utilitymodule.result.Result;
 import jakarta.annotation.Nonnull;
+import jakarta.validation.constraints.Null;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.springframework.util.Assert;
 
 import java.io.*;
 import java.nio.charset.CharacterCodingException;
@@ -19,7 +19,6 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -399,18 +398,17 @@ public class FileUtils {
         }
     }
 
+    /**
+     * returns AutoClosable - must use in try with resources or close explicitly.
+     * @param path
+     * @return
+     */
     public static Stream<Path> getFilesRecursive(Path path) {
         try {
             return Files.walk(path);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    public static boolean isEmptyDirectory(File[] next, int filePointer) {
-        return !next[filePointer].isFile()
-                && Optional.ofNullable(next[filePointer].listFiles())
-                .map(f -> f.length).map(l -> l == 0).orElse(true);
     }
 
     public static <T> T doOverFilePathLines(Path file, BiConsumer<String, AtomicReference<T>> toDo, AtomicReference<T> update) {
@@ -429,10 +427,40 @@ public class FileUtils {
     }
 
     @SneakyThrows
-    public static Iterator<Path> GetFileIteratorRecursive(Path path) {
-        return Files.walk(path)
-                    .filter(Files::isRegularFile)
-                    .iterator();
+    public static Iterator<Path> fileIteratorRecursive(Path path) {
+        Stream<Path> walk = Files.walk(path);
+        var f = walk.iterator();
+        AtomicBoolean isClosed = new AtomicBoolean(false);
+        return new Iterator<>() {
+
+            @Override
+            public boolean hasNext() {
+                if (isClosed.get())
+                    return false;
+
+                var n = f.hasNext();
+
+                if (n)
+                    return true;
+
+                isClosed.set(true);
+                walk.close();
+                return false;
+            }
+
+            @Override
+            public @Nullable Path next() {
+                try {
+                    var p = f.next();
+                    return p;
+                } catch (NoSuchElementException e) {
+                    isClosed.set(true);
+                    walk.close();
+                    throw e;
+                }
+
+            }
+        };
     }
 
     public static Stream<File> getFileStream(Path path) {

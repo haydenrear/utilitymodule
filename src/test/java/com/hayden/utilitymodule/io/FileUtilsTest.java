@@ -10,9 +10,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.Map;
 import java.util.Objects;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -69,13 +67,15 @@ public class FileUtilsTest {
 
     @Test
     public void testGetFileIteratorRecursive() {
-        Iterator<Path> fileIterator = FileUtils.GetFileIteratorRecursive(testDir);
+        Iterator<Path> fileIterator = FileUtils.fileIteratorRecursive(testDir);
 
         int count = 0;
         while (fileIterator.hasNext()) {
             Path file = fileIterator.next();
-            assertTrue(Files.isRegularFile(file), "Path should be a regular file: " + file);
-            count++;
+            assertTrue(Files.isRegularFile(file) || Files.isDirectory(file), "Path should be a regular file: " + file);
+            if (Files.isRegularFile(file)) {
+                count++;
+            }
         }
 
         assertEquals(3, count, "Total files should be 3");
@@ -85,11 +85,17 @@ public class FileUtilsTest {
     public void testSingleFile() throws IOException {
         Files.createFile(testDir1.resolve("file10.txt"));
 
-        Iterator<Path> fileIterator = FileUtils.GetFileIteratorRecursive(testDir1);
+        Iterator<Path> fileIterator = FileUtils.fileIteratorRecursive(testDir1);
 
         assertTrue(fileIterator.hasNext(), "Iterator should have one element");
-        Path file = fileIterator.next();
-        assertEquals(testDir1.resolve("file10.txt"), file, "File path should match");
+        boolean didHave = false;
+        while(fileIterator.hasNext()) {
+            Path file = fileIterator.next();
+            if (testDir1.resolve("file10.txt").equals(file)) {
+                didHave = true;
+            }
+        }
+        assertTrue(didHave, "File path should match");
         assertFalse(fileIterator.hasNext(), "Iterator should have no more elements");
     }
 
@@ -101,13 +107,13 @@ public class FileUtilsTest {
         Path subDir2 = Files.createDirectory(subDir1.resolve("subDir2"));
         Files.createFile(subDir2.resolve("file2.txt"));
 
-        Iterator<Path> fileIterator = FileUtils.GetFileIteratorRecursive(testDir3);
+        Iterator<Path> fileIterator = FileUtils.fileIteratorRecursive(testDir3);
 
         int count = 0;
         while (fileIterator.hasNext()) {
             Path file = fileIterator.next();
-            assertTrue(Files.isRegularFile(file), "Path should be a regular file: " + file);
-            count++;
+            if (Files.isRegularFile(file))
+                count++;
         }
 
         assertEquals(2, count, "Total files should be 2");
@@ -115,7 +121,11 @@ public class FileUtilsTest {
 
     @Test
     public void testEmptyDirectory() {
-        Iterator<Path> fileIterator = FileUtils.GetFileIteratorRecursive(testDir4);
+        Iterator<Path> fileIterator = FileUtils.fileIteratorRecursive(testDir4);
+
+        var n = fileIterator.next();
+
+        assertThat(Objects.equals(n, testDir4)).isTrue();
 
         assertFalse(fileIterator.hasNext(), "Iterator should have no elements");
     }
@@ -127,20 +137,21 @@ public class FileUtilsTest {
         Path symlinkFile = Files.createSymbolicLink(testDir5.resolve("symlinkFile.txt"), targetFile);
         Path symlinkDir = Files.createSymbolicLink(testDir5.resolve("symlinkDir"), targetDir);
 
-        Iterator<Path> fileIterator = FileUtils.GetFileIteratorRecursive(testDir5);
+        Iterator<Path> fileIterator = FileUtils.fileIteratorRecursive(testDir5);
 
         int count = 0;
         while (fileIterator.hasNext()) {
             Path file = fileIterator.next();
             if (Files.isRegularFile(file)) {
                 assertTrue(Files.isRegularFile(file), "Path should be a regular file: " + file);
+                count++;
             } else if (Files.isSymbolicLink(file)) {
                 assertTrue(Files.isSymbolicLink(file), "Path should be a symbolic link: " + file);
+                count++;
             }
-            count++;
         }
 
-        assertEquals(2, count, "Total files (including symbolic links) should be 4");
+        assertEquals(3, count, "Total files (including symbolic links) should be 4");
     }
 
     @Test
