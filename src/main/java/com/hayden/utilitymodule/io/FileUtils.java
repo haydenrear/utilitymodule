@@ -558,6 +558,7 @@ public class FileUtils {
 
                         var second = array[i];
                         if (!Objects.equals(first, second)) {
+                            iter.doClose();
                             return false;
                         }
                         i += 1;
@@ -572,7 +573,8 @@ public class FileUtils {
     public record LazyIterator(@Delegate Iterator<String> iter, BufferedReader reader, boolean[] isClosed)
             implements Iterator<String> {
 
-        public void doClose() throws IOException {
+        @SneakyThrows
+        public void doClose() {
             reader.close();
             ClosableResult.registerClosed(reader);
             isClosed[0] = true;
