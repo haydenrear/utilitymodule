@@ -26,6 +26,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 @Slf4j
 public class FileUtils {
@@ -548,8 +549,13 @@ public class FileUtils {
                         array = new String[] {null};
                     else
                         array = content.split(System.lineSeparator());
+
                     while (iter.hasNext()) {
                         var first = iter.next();
+                        if (first == null)  {
+                            log.error("Error reading from lazy iterator.");
+                        }
+
                         var second = array[i];
                         if (!Objects.equals(first, second)) {
                             return false;
@@ -563,7 +569,8 @@ public class FileUtils {
                 .mapError(se -> new FileError(se.getMessage()));
     }
 
-    public record LazyIterator(@Delegate Iterator<String> iter, BufferedReader reader, boolean[] isClosed) {
+    public record LazyIterator(@Delegate Iterator<String> iter, BufferedReader reader, boolean[] isClosed)
+            implements Iterator<String> {
 
         public void doClose() throws IOException {
             reader.close();
@@ -583,51 +590,59 @@ public class FileUtils {
                      })
                      .map(bfr -> {
                          final boolean[] isClosed = {false};
-                         return new LazyIterator(new Iterator<>() {
+                         Iterator<String> iter = new Iterator<>() {
+
+                             @SneakyThrows
+                             private void doPerformClose() {
+                                 if (!isClosed[0]) {
+                                     bfr.close();
+                                     ClosableResult.registerClosed(bfr);
+                                     isClosed[0] = true;
+                                 }
+                             }
+
+                             String nextLine = null;
 
                              @SneakyThrows
                              @Override
                              public boolean hasNext() {
                                  if (isClosed[0])
                                      return false;
-                                 try {
-                                     if (!bfr.ready()) {
-                                         bfr.close();
-                                         ClosableResult.registerClosed(bfr);
-                                         isClosed[0] = true;
-                                         return false;
-                                     }
-                                 } catch (
-                                         IOException e) {
-                                     log.error("{}", SingleError.parseStackTraceToString(e));
-                                     isClosed[0] = true;
-                                     return false;
-                                 }
 
-                                 return true;
+                                 if (nextLine != null) {
+                                     return true;
+                                 } else {
+                                     nextLine = bfr.readLine();
+                                     var hasNext = (nextLine != null);
+
+                                     if (!hasNext) {
+                                         doPerformClose();
+                                     }
+
+                                     return hasNext;
+                                 }
                              }
 
                              @SneakyThrows
                              @Override
                              public String next() {
-                                 try {
-                                     if (hasNext())
-                                         return bfr.readLine();
-                                 } catch (
-                                         IOException e) {
-                                     if (e instanceof CharacterCodingException c) {
-                                         log.debug("Found character coding exception: {}", SingleError.parseStackTraceToString(c));
-                                     } else {
-                                         log.error("{}", SingleError.parseStackTraceToString(e));
-                                     }
+                                 if (isClosed[0]) {
+                                     log.error("Called next when no more elements.");
+                                     return null;
                                  }
 
-                                 isClosed[0] = true;
-                                 return null;
+                                 if (nextLine != null || hasNext()) {
+                                     String line = nextLine;
+                                     nextLine = null;
+                                     return line;
+                                 } else {
+                                     doPerformClose();
+                                     return null;
+                                 }
                              }
-                         },
-                                 bfr,
-                                 isClosed);
+                         };
+
+                         return new LazyIterator(iter, bfr, isClosed);
                      });
 
     }
