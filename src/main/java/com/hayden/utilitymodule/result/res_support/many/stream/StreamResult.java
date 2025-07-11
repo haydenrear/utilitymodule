@@ -262,10 +262,12 @@ public class StreamResult<R, E> implements ManyResult<R, E>, CachableStream<Resu
     }
 
     public StreamResult<R, E> filterErr(Predicate<E> b) {
+        log.error("Error filter err fails in stream inner.");
         return new StreamResult<>(this.r.map(res -> res.filterErr(b)));
     }
 
     public StreamResult<R, E> filterResult(Predicate<R> b) {
+        log.error("Error filter result fails in stream inner.");
         return new StreamResult<>(this.r.map(res -> res.filterResult(b)));
     }
 
