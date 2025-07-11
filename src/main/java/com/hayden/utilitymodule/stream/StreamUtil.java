@@ -41,7 +41,9 @@ public class StreamUtil {
         }
 
         public StreamBuilderDelegate<T> add(T ... streams) {
-            Arrays.stream(streams).forEach(builder::add);
+            Arrays.stream(streams)
+                   .filter(Objects::nonNull)
+                  .forEach(builder::add);
             return this;
         }
 
