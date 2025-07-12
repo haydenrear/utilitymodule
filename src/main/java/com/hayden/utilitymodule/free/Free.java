@@ -12,8 +12,8 @@ public sealed interface Free<F extends Effect, A> {
         return new Suspend(free);
     }
 
-    static <A> A parse(Free<Effect, A> p,
-                       Interpreter<Effect, A> interpreter)  {
+    static <F extends Effect, A> A parse(Free<F, A> p,
+                                         Interpreter<F, A> interpreter) {
         A out = null;
         while(out == null) {
             switch(p) {
@@ -21,7 +21,7 @@ public sealed interface Free<F extends Effect, A> {
                     var sub = v.f();
                     switch(sub) {
                         case Free.Suspend suspend -> {
-                            var result = interpreter.apply(suspend.f());
+                            var result = interpreter.apply((F) suspend.f());
                             p = result.flatMap(v.mapper());
                         }
                         case Free.FlatMapped ignored ->
@@ -30,8 +30,8 @@ public sealed interface Free<F extends Effect, A> {
                                 throw new RuntimeException("pure found and not expected");
                     }
                 }
-                case Free.Pure<Effect, A> v -> out = v.a();
-                case Free.Suspend v -> p = interpreter.apply(v.f());
+                case Free.Pure<? extends Effect, A> v -> out = v.a();
+                case Free.Suspend v -> p = interpreter.apply((F) v.f());
             }
 
         }
