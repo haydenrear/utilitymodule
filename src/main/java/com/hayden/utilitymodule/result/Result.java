@@ -421,10 +421,8 @@ public interface Result<T, E> {
                     .getClass()
                     .getMethod("getMessage")
                     .invoke(r);
-                if (getMessage instanceof String s && !s.isBlank()) log.error(
-                    "Found error {}",
-                    s
-                );
+                if (getMessage instanceof String s && !s.isBlank())
+                    log.error("Found error {}", s);
             } catch (
                 NoSuchMethodException
                 | IllegalAccessException
