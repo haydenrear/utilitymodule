@@ -38,6 +38,10 @@ public class FileUtilsTest {
         Files.createFile(subDir.resolve("file3.txt"));
     }
 
+    @Test
+    public void testHasPathNamed() {
+        assertThat(FileUtils.hasPathNamed(testDir, s -> s.startsWith("testDir"))).isTrue();
+    }
 
     @SneakyThrows
     @Test

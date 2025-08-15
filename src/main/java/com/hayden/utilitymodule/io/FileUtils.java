@@ -25,11 +25,25 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 @Slf4j
 public class FileUtils {
+    public static boolean hasPathNamed(Path repoRoot, String name) {
+        return hasPathNamed(repoRoot, n -> Objects.equals(name, n)) ;
+    }
+
+    public static boolean hasPathNamed(Path repoRoot, Predicate<String> name) {
+        return IntStream.range(0, repoRoot.getNameCount())
+                 .anyMatch(i -> {
+                     String name1 = repoRoot.getName(i)
+                                            .toFile()
+                                            .getName();
+                     return name.test(name1);
+                 });
+    }
 
     public static boolean isNotSelfNorStrictSubPath(Path child, Path parent) {
         return !Objects.equals(child, parent) && !isSelfOrStrictSubPath(child, parent);
