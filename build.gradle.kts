@@ -22,10 +22,10 @@ dependencies {
         .map { implementation(it) }
 
     implementation("com.squareup:javapoet:1.13.0")
-    annotationProcessor(project(":tracing_apt")) {
-        exclude("org.junit")
-    }
-    api(project(":tracing_apt"))
+//    annotationProcessor(project(":tracing_apt")) {
+//        exclude("org.junit")
+//    }
+//    api(project(":tracing_apt"))
     api(project(":tracing_aspect"))
 //    annotationProcessor(project(":inject_fields"))
 //    testAnnotationProcessor(project(":inject_fields"))
