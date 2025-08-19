@@ -3,12 +3,14 @@ import com.hayden.haydenbomplugin.BuildSrcVersionCatalogCollector
 plugins {
     id("com.hayden.no-main-class")
     id("com.hayden.log")
+
     id("com.hayden.kotlin")
     id("com.hayden.messaging")
     id("com.hayden.ai-nd")
     id("com.hayden.security")
     id("com.hayden.bom-plugin")
     id("com.hayden.git")
+    id("com.hayden.mcp")
 }
 
 description = "utilitymodule"
