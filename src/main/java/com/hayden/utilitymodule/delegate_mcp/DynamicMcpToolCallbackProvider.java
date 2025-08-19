@@ -92,7 +92,11 @@ public class DynamicMcpToolCallbackProvider {
 
     @StripedLock
     public Result<McpSyncClient, McpError> buildClient(String clientName) {
-        return buildClient(clientName, Map::entry);
+        try {
+            return buildClient(clientName, Map::entry);
+        } catch (Exception e) {
+            return Result.err(new McpError(e.getMessage()));
+        }
     }
 
     @StripedLock
