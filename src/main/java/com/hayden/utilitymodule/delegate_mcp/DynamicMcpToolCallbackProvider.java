@@ -61,7 +61,11 @@ public class DynamicMcpToolCallbackProvider {
         stdioTransports.addAll(namedTransports.stream().filter(Predicate.not(stdioTransports::contains)).toList());
     }
 
-    private final ConcurrentHashMap<String, McpSyncClient> clientConcurrentHashMap = new ConcurrentHashMap<>();
+    ConcurrentHashMap<String, McpSyncClient> getClientConcurrentHashMap() {
+        return clientConcurrentHashMap;
+    }
+
+    final ConcurrentHashMap<String, McpSyncClient> clientConcurrentHashMap = new ConcurrentHashMap<>();
 
     private String connectedClientName(String clientName, String serverConnectionName) {
         return clientName + " - " + serverConnectionName;

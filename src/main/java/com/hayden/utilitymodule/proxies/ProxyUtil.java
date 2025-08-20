@@ -2,8 +2,6 @@ package com.hayden.utilitymodule.proxies;
 
 import lombok.experimental.UtilityClass;
 
-import java.lang.reflect.Proxy;
-
 @UtilityClass
 public class ProxyUtil {
 
