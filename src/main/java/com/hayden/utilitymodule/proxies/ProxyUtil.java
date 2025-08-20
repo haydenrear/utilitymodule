@@ -13,6 +13,9 @@ import java.util.Objects;
 public class ProxyUtil {
 
     public boolean isProxy(Object obj) {
+        if (obj == null)
+            return false;
+
         if (obj instanceof Class c)
             throw new RuntimeException("Attempted to check if class class was proxy class!");
 
