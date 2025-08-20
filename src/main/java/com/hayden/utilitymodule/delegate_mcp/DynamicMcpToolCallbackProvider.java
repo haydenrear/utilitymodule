@@ -21,6 +21,7 @@ import org.springframework.util.ReflectionUtils;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -136,7 +137,8 @@ public class DynamicMcpToolCallbackProvider {
 
                         McpClient.SyncSpec spec = McpClient.sync(t)
                                 .clientInfo(clientInfo)
-                                .requestTimeout(commonProperties.getRequestTimeout());
+                                .initializationTimeout(Duration.ofSeconds(60))
+                                .requestTimeout(Duration.ofSeconds(60));
 
                         spec = mcpSyncClientConfigurer.configure(namedTransport.name(), spec);
 
