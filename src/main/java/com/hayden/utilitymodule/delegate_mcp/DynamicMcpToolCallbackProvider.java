@@ -67,6 +67,22 @@ public class DynamicMcpToolCallbackProvider {
         return clientName + " - " + serverConnectionName;
     }
 
+    public boolean containsClient(String clientName) {
+        return clientConcurrentHashMap.containsKey(clientName);
+    }
+
+    public boolean containsActiveClient(String clientName) {
+        if (!containsClient(clientName)) {
+            return false;
+        }
+        try {
+            var ping = clientConcurrentHashMap.get(clientName).isInitialized();
+            return ping;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     //  must hold lock on (assuming) stdio otherwise send multiple concurrent requests on stdio but this fails.
     @StripedLock
     public Result<McpSchema.CallToolResult, McpError> doOnClient(String clientName,
@@ -147,6 +163,8 @@ public class DynamicMcpToolCallbackProvider {
                         if (commonProperties.isInitialized()) {
                             client.initialize();
                         }
+
+                        clientConcurrentHashMap.put(clientName, client);
 
                         return Result.ok(client);
                     }
