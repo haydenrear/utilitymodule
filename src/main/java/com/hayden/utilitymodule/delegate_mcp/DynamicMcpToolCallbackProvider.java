@@ -144,7 +144,8 @@ public class DynamicMcpToolCallbackProvider {
 
                         var paramsAfter = replace.apply(this.connectedClientName(commonProperties.getName(), namedTransport.name()), params);
 
-                        if (this.clientConcurrentHashMap.containsKey(paramsAfter.getKey())) {
+                        if (this.clientConcurrentHashMap.containsKey(paramsAfter.getKey())
+                                && this.clientConcurrentHashMap.get(paramsAfter.getKey()).isInitialized()) {
                             return Result.ok(this.clientConcurrentHashMap.get(paramsAfter.getKey()));
                         } else {
                             doStopExistingNotInMap(paramsAfter.getValue());
