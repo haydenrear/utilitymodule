@@ -164,8 +164,8 @@ public class DynamicMcpToolCallbackProvider {
 
                         McpClient.SyncSpec spec = McpClient.sync(t)
                                 .clientInfo(clientInfo)
-                                .initializationTimeout(Duration.ofSeconds(60))
-                                .requestTimeout(Duration.ofSeconds(60));
+                                .initializationTimeout(Duration.ofSeconds(120))
+                                .requestTimeout(Duration.ofSeconds(120));
 
                         spec = mcpSyncClientConfigurer.configure(namedTransport.name(), spec);
 
