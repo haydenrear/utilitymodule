@@ -106,8 +106,14 @@ public class DynamicMcpToolCallbackProvider {
     @SneakyThrows
     @StripedLock
     public <T> T killClientAndThen(String clientName, Supplier<T> toDo) {
-        clientConcurrentHashMap.get(clientName).closeGracefully();
-        clientConcurrentHashMap.remove(clientName);
+        if (clientConcurrentHashMap.containsKey(clientName)) {
+            try {
+                var r = clientConcurrentHashMap.remove(clientName);
+                r.closeGracefully();
+            } catch (Exception e) {
+                log.error("Killing client " + clientName, e);
+            }
+        }
         return toDo.get();
     }
 
