@@ -3,6 +3,7 @@ package com.hayden.utilitymodule.delegate_mcp;
 import com.hayden.utilitymodule.concurrent.striped.StripedLock;
 import com.hayden.utilitymodule.result.Result;
 import com.hayden.utilitymodule.result.error.SingleError;
+import io.modelcontextprotocol.client.McpAsyncClient;
 import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
 import io.modelcontextprotocol.client.transport.ServerParameters;
@@ -66,6 +67,37 @@ public class DynamicMcpToolCallbackProvider {
     }
 
     final ConcurrentHashMap<String, McpSyncClient> clientConcurrentHashMap = new ConcurrentHashMap<>();
+
+    public void shutdown() {
+        try {
+            for (var c : clientConcurrentHashMap.values()) {
+                tryStop(c);
+            }
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
+        }
+    }
+
+    private static void tryStop(McpSyncClient s) {
+        try {
+            log.info("Stopping client {}", s.getClientInfo().name());
+            s.closeGracefully();
+        } catch (Exception e) {
+            log.error("Error stopping client {}", s.getClientInfo().name(), e);
+        }
+    }
+
+    private static void tryStop(McpClient c) {
+        if (c instanceof McpSyncClient s) {
+            tryStop(s);
+        } else if (c instanceof McpAsyncClient a) {
+            try {
+                a.closeGracefully().block();
+            } catch (Exception e) {
+                log.error("Error stopping client {}", a.getClientInfo().name(), e);
+            }
+        }
+    }
 
     private String connectedClientName(String clientName, String serverConnectionName) {
         return clientName + " - " + serverConnectionName;
