@@ -125,6 +125,6 @@ class FileUtilsPathResolverTest {
                 Map.of()
         );
         assertTrue(res.isOk());
-        assertTrue(res.unwrap().endsWith(tmp.resolve("some/root/does/not/exist.txt")));
+        assertTrue(res.unwrap().equals(tmp.resolve("some/root/does/not/exist.txt")));
     }
 }
