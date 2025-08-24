@@ -162,14 +162,15 @@ public class FileUtils {
                                                      Path rootDir,
                                                      Map<String, String> replace) {
 
-        if (exists(rootDir.resolve(filePathDir))) {
-            return Result.ok(rootDir.resolve(filePathDir));
+        Path trivialResolve = rootDir.resolve(filePathDir);
+        if (exists(trivialResolve)) {
+            return Result.ok(trivialResolve);
         }
 
-        var r = applyReplacements(rootDir.resolve(filePathDir), replace);
+        trivialResolve = applyReplacements(trivialResolve, replace);
 
-        if (exists(r)) {
-            return Result.ok(r);
+        if (exists(trivialResolve)) {
+            return Result.ok(trivialResolve);
         }
 
         // 0) Normalize inputs
