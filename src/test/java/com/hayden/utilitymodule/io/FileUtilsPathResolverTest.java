@@ -33,15 +33,15 @@ class FileUtilsPathResolverTest {
         Path query = Paths.get("okay/one/two/file.txt");
 
         var res = FileUtils.getPathFor(query, tmp, Map.of());
-        assertTrue(res.isOk(), () -> "Expected resolution OK, got error: " + (res.unwrapError() == null ? "" : res.unwrapError().message()));
+        assertTrue(res.isOk(), () -> "Expected resolution OK, got error: " + (res.unwrapError() == null ? "" : res.unwrapError().getMessage()));
         assertEquals(target.toRealPath(), res.unwrap().toRealPath());
         Path queryTwo = Paths.get("first/okay/one/two/file.txt");
         var resAgain = FileUtils.getPathFor(queryTwo, tmp, Map.of());
-        assertTrue(res.isOk(), () -> "Expected resolution OK, got error: " + (resAgain.unwrapError() == null ? "" : resAgain.unwrapError().message()));
+        assertTrue(res.isOk(), () -> "Expected resolution OK, got error: " + (resAgain.unwrapError() == null ? "" : resAgain.unwrapError().getMessage()));
         assertEquals(target.toRealPath(), res.unwrap().toRealPath());
         Path queryThree = Paths.get("/first/okay/one/two/file.txt");
         var resAgainTwo = FileUtils.getPathFor(queryThree, tmp, Map.of());
-        assertTrue(res.isOk(), () -> "Expected resolution OK, got error: " + (resAgainTwo.unwrapError() == null ? "" : resAgainTwo.unwrapError().message()));
+        assertTrue(res.isOk(), () -> "Expected resolution OK, got error: " + (resAgainTwo.unwrapError() == null ? "" : resAgainTwo.unwrapError().getMessage()));
         assertEquals(target.toRealPath(), res.unwrap().toRealPath());
     }
 
@@ -125,6 +125,6 @@ class FileUtilsPathResolverTest {
                 Map.of()
         );
         assertFalse(res.isOk());
-        assertTrue(res.unwrapError().message().contains("Could not find file"));
+        assertTrue(res.unwrapError().getMessage().contains("Could not find file"));
     }
 }

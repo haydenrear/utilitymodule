@@ -4,7 +4,6 @@ import com.hayden.utilitymodule.result.ClosableResult;
 import com.hayden.utilitymodule.result.error.SingleError;
 import com.hayden.utilitymodule.result.Result;
 import jakarta.annotation.Nonnull;
-import jakarta.validation.constraints.Null;
 import lombok.SneakyThrows;
 import lombok.experimental.Delegate;
 import lombok.extern.slf4j.Slf4j;
@@ -14,11 +13,9 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.*;
-import java.nio.charset.CharacterCodingException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
-import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
@@ -27,7 +24,6 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 @Slf4j
 public class FileUtils {
@@ -160,10 +156,16 @@ public class FileUtils {
 
     /**
      * Main: resolve filePathDir under/relative to rootDir, using replacements & smart suffix matching.
+     *  If not existing, using rebase.
      */
     public static Result<Path, FileError> getPathFor(Path filePathDir,
                                                      Path rootDir,
                                                      Map<String, String> replace) {
+
+        if (exists(rootDir.resolve(filePathDir))) {
+            return Result.ok(rootDir.resolve(filePathDir));
+        }
+
         // 0) Normalize inputs
         Path rootN = normalizeSoft(rootDir);
         Path fileN = normalizeSoft(filePathDir);
@@ -222,7 +224,7 @@ public class FileUtils {
                 return Result.ok(nameOnlyHit2);
         }
 
-        return Result.err(new FileError("Could not find file: root=" + rootN + ", target=" + fileN));
+        return Result.ok(maybeRebasedRepl);
     }
 
     /**
@@ -406,7 +408,7 @@ public class FileUtils {
         return true;
     }
 
-    public record FileError(String message) {
+    public record FileError(String getMessage) implements SingleError {
     }
 
     public static Result<Boolean, FileError> appendToFileRes(String data, Path file) {
