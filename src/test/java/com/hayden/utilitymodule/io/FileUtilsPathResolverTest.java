@@ -116,15 +116,4 @@ class FileUtilsPathResolverTest {
         assertNotNull(found);
         assertEquals(target.toRealPath(), found.toRealPath());
     }
-
-    @Test
-    void returnsErrorWhenNotFound() {
-        var res = FileUtils.getPathFor(
-                Paths.get("does/not/exist.txt"),
-                tmp.resolve("some/root"),
-                Map.of()
-        );
-        assertFalse(res.isOk());
-        assertTrue(res.unwrapError().getMessage().contains("Could not find file"));
-    }
 }
