@@ -166,6 +166,12 @@ public class FileUtils {
             return Result.ok(rootDir.resolve(filePathDir));
         }
 
+        var r = applyReplacements(rootDir.resolve(filePathDir), replace);
+
+        if (exists(r)) {
+            return Result.ok(r);
+        }
+
         // 0) Normalize inputs
         Path rootN = normalizeSoft(rootDir);
         Path fileN = normalizeSoft(filePathDir);
