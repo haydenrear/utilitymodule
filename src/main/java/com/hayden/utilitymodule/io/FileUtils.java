@@ -15,6 +15,8 @@ import org.jetbrains.annotations.Nullable;
 import java.io.*;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -29,6 +31,16 @@ import java.util.stream.Stream;
 public class FileUtils {
     public static boolean hasPathNamed(Path repoRoot, String name) {
         return hasPathNamed(repoRoot, n -> Objects.equals(name, n));
+    }
+
+    public static LocalDateTime lastUpdated(Path file) throws IOException {
+        BasicFileAttributes attrs = Files.readAttributes(file, BasicFileAttributes.class);
+        LocalDateTime fileModifiedTime = LocalDateTime.ofInstant(
+                attrs.lastModifiedTime().toInstant(),
+                ZoneId.systemDefault()
+        );
+
+        return fileModifiedTime;
     }
 
     public static boolean hasPathNamed(Path repoRoot, Predicate<String> name) {
