@@ -19,7 +19,7 @@ class FreeTest {
 
         var instructionSet = Free.<RetrievePromptEffect, RetrievePromptEffect.RetrievePromptArgs>liftF(build)
                                           .flatMap(a -> Free.<RetrievePromptEffect, RetrievePromptEffect.RetrievePromptArgs>liftF(get)
-                                                                     .flatMap(ae -> Free.<RetrievePromptEffect, RetrievePromptEffect.RetrievePromptArgs>liftF(get)))
+                                                  .flatMap(ae -> Free.<RetrievePromptEffect, RetrievePromptEffect.RetrievePromptArgs>liftF(get)))
                                           .flatMap(a -> Free.<RetrievePromptEffect, RetrievePromptEffect.RetrievePromptArgs>liftF(err))
                                           .flatMap(r -> Free.pure(RetrievePromptEffect.RetrievePromptArgs.builder().retryCount(10).build()))
                                           .flatMap(r -> Free.liftF(err))
