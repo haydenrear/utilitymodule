@@ -92,10 +92,7 @@ public interface OneResult<R, E> extends ManyResult<R, E> {
 
     @Override
     default ManyResult<R, E> many() {
-        return new StreamResult<>(Stream.concat(
-                this.r().stream()
-                        .map(Result::ok),
-                this.e().stream().map(Result::err)));
+        return new One<>(this.r(), this.e());
     }
 
     @Override
