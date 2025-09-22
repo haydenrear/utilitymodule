@@ -43,6 +43,23 @@ class FileUtilsPathResolverTest {
         var resAgainTwo = FileUtils.getPathFor(queryThree, tmp, Map.of());
         assertTrue(res.isOk(), () -> "Expected resolution OK, got error: " + (resAgainTwo.unwrapError() == null ? "" : resAgainTwo.unwrapError().getMessage()));
         assertEquals(target.toRealPath(), res.unwrap().toRealPath());
+
+        var parentRoot = tmp.getParent();
+        var parentName = parentRoot.getFileName().toString();
+        var parent = Paths.get(parentName).resolve(tmp.subpath(tmp.getNameCount() - 1, tmp.getNameCount()));
+        Path queryFour = parent.resolve("Okay.java");
+        var resAgainThree = FileUtils.getPathFor(queryFour, tmp, Map.of()).unwrap();
+        assertEquals(resAgainThree, tmp.resolve("Okay.java"));
+        Path queryFive = tmp.resolve("Okay.java");
+        var resAgainFour = FileUtils.getPathFor(queryFive, tmp, Map.of()).unwrap();
+        assertEquals(resAgainFour, tmp.resolve("Okay.java"));
+
+        parentRoot = tmp.getParent().getParent();
+        parentName = parentRoot.getFileName().toString();
+        parent = Paths.get(parentName).resolve(tmp.getParent()).resolve(tmp.subpath(tmp.getNameCount() - 1, tmp.getNameCount()));
+        queryFour = parent.resolve("Okay.java");
+        resAgainThree = FileUtils.getPathFor(queryFour, tmp, Map.of()).unwrap();
+        assertEquals(resAgainThree, tmp.resolve("Okay.java"));
     }
 
     @Test

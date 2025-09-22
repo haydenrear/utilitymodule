@@ -243,6 +243,33 @@ public class FileUtils {
                 return Result.ok(nameOnlyHit2);
         }
 
+        if (filePathDir.startsWith(rootDir)) {
+            return Result.ok(filePathDir);
+        }
+
+        int i =0;
+        int last = -1;
+        for (var v : rootDir) {
+            Path subpath = rootDir.subpath(last == -1 ? i : last, rootDir.getNameCount());
+            if (filePathDir.startsWith(subpath)) {
+                if (last == -1)
+                    last = i;
+            } else if (last != -1) {
+                last = -1;
+            }
+
+            i += 1;
+        }
+
+        if (last != -1) {
+            String rootDirSubPath = rootDir.subpath(last, rootDir.getNameCount()).toString();
+            String filePathRootRemoved = filePathDir.toString().replace(rootDirSubPath, "");
+            if (filePathRootRemoved.startsWith("/"))
+                filePathRootRemoved = filePathRootRemoved.substring(1);
+            filePathDir = Paths.get(filePathRootRemoved);
+            maybeRebasedRepl = rootDir.resolve(filePathDir);
+        }
+
         return Result.ok(maybeRebasedRepl);
     }
 
