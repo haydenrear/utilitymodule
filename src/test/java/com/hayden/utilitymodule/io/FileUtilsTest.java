@@ -160,7 +160,9 @@ public class FileUtilsTest {
 
     @Test
     public void testHasParent() {
-        var hasParent = FileUtils.hasParentDirectoryMatching(p -> p.toAbsolutePath().toFile().getName().equals("drools"), Paths.get(""));
+        Path path = new File("./").toPath();
+        String name = path.toAbsolutePath().getParent().toFile().getName();
+        var hasParent = FileUtils.hasParentDirectoryMatching(p -> p.toAbsolutePath().toFile().getName().equals(name), Paths.get(""));
         assertThat(hasParent).isTrue();
         var noParent = FileUtils.hasParentDirectoryMatching(p -> p.toAbsolutePath().toFile().getName().equals("asdfjkdsllkj"), Paths.get(""));
         assertThat(noParent).isFalse();
