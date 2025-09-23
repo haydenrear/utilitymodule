@@ -1,6 +1,5 @@
 package com.hayden.utilitymodule.io;
 
-import com.hayden.utilitymodule.MapFunctions;
 import com.hayden.utilitymodule.result.ClosableResult;
 import com.hayden.utilitymodule.result.error.SingleError;
 import com.hayden.utilitymodule.result.Result;
@@ -179,8 +178,16 @@ public class FileUtils {
             return false;
         }
     }
+    
+    public static Optional<Integer> srcTestJavaEnd(Path p) {
+        return findSubPathEndIdx(p, "src/test/java");
+    }
 
     public static Optional<Integer> srcMainJavaEnd(Path p) {
+        return findSubPathEndIdx(p, "src/main/java");
+    }
+
+    private static @NotNull Optional<Integer> findSubPathEndIdx(Path p, String path) {
         var idx = findIndexOf(p, l -> {
             if (l.size() < 3)
                 return false;
@@ -188,7 +195,7 @@ public class FileUtils {
             if (l.subList(l.size() - 3, l.size()).stream().map(Path::getFileName)
                     .map(Path::toString)
                     .collect(Collectors.joining("/"))
-                    .equals("src/main/java"))  {
+                    .equals(path))  {
                 return true;
             }
 
@@ -398,6 +405,7 @@ public class FileUtils {
      */
     public static Path doReplacementForJavaPackage(Path p) {
         return FileUtils.srcMainJavaEnd(p)
+                .or(() -> FileUtils.srcTestJavaEnd(p))
                 .map(end -> {
                     var f =  IntStream.range(0, p.getNameCount())
                             .boxed()
