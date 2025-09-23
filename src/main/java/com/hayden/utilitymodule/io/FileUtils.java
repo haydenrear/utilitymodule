@@ -167,8 +167,13 @@ public class FileUtils {
     }
 
     /**
-     * Main: resolve filePathDir under/relative to rootDir, using replacements & smart suffix matching.
-     *  If not existing, using rebase.
+     * <p>Main: resolve filePathDir under/relative to rootDir, using replacements & smart suffix matching.</p>
+     * <p>
+     *     If not existing, check to see if the filePathDir contains any of rootDir, then do a special rebase if
+     *     does. Then if any of it did, then return that if parent exists, else return it if the parent directory
+     *     of rebase exists. Similar to mkdir without -p, can only make one directory helping with semantics
+     *     to not fail.
+     * </p>
      */
     public static Result<Path, FileError> getPathFor(Path filePathDir,
                                                      Path rootDir,
@@ -267,10 +272,20 @@ public class FileUtils {
             if (filePathRootRemoved.startsWith("/"))
                 filePathRootRemoved = filePathRootRemoved.substring(1);
             filePathDir = Paths.get(filePathRootRemoved);
-            maybeRebasedRepl = rootDir.resolve(filePathDir);
-        }
+            Path newResolved = rootDir.resolve(filePathDir);
 
-        return Result.ok(maybeRebasedRepl);
+            if (!Files.exists(newResolved.getParent()))
+                return Result.err(new FileError("Parent directory %s did not exist."
+                        .formatted(maybeRebasedRepl.getParent().toString())));
+
+            return Result.ok(newResolved);
+        } else {
+            if (!Files.exists(maybeRebasedRepl.getParent()))
+                return Result.err(new FileError("Parent directory %s did not exist."
+                        .formatted(maybeRebasedRepl.getParent().toString())));
+
+            return Result.ok(maybeRebasedRepl);
+        }
     }
 
     /**
