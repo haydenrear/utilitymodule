@@ -1,5 +1,6 @@
 package com.hayden.utilitymodule.io;
 
+import com.hayden.utilitymodule.MapFunctions;
 import com.hayden.utilitymodule.result.ClosableResult;
 import com.hayden.utilitymodule.result.error.SingleError;
 import com.hayden.utilitymodule.result.Result;
@@ -29,6 +30,7 @@ import java.util.stream.Stream;
 
 @Slf4j
 public class FileUtils {
+
     public static boolean hasPathNamed(Path repoRoot, String name) {
         return hasPathNamed(repoRoot, n -> Objects.equals(name, n));
     }
@@ -41,6 +43,18 @@ public class FileUtils {
         );
 
         return fileModifiedTime;
+    }
+
+    public static int findIndexOf(Path repoRoot, Predicate<List<Path>> name) {
+        List<Path> prev = new ArrayList<>();
+        for (int i=0; i<repoRoot.getNameCount(); i++) {
+            var r=repoRoot.getName(i);
+            prev.add(r);
+            if (name.test(prev))
+                return i;
+        }
+
+        return -1;
     }
 
     public static boolean hasPathNamed(Path repoRoot, Predicate<String> name) {
@@ -166,6 +180,29 @@ public class FileUtils {
         }
     }
 
+    public static Optional<Integer> srcMainJavaEnd(Path p) {
+        var idx = findIndexOf(p, l -> {
+            if (l.size() < 3)
+                return false;
+
+            if (l.subList(l.size() - 3, l.size()).stream().map(Path::getFileName)
+                    .map(Path::toString)
+                    .collect(Collectors.joining("/"))
+                    .equals("src/main/java"))  {
+                return true;
+            }
+
+            return false;
+
+        });
+
+        return idx == -1 ? Optional.empty() : Optional.of(idx);
+    }
+
+    public sealed interface FileReplacement {
+        record JavaPackageSlashReplacement() implements FileReplacement {}
+    }
+
     /**
      * <p>Main: resolve filePathDir under/relative to rootDir, using replacements & smart suffix matching.</p>
      * <p>
@@ -178,8 +215,8 @@ public class FileUtils {
     public static Result<Path, FileError> getPathFor(Path filePathDir,
                                                      Path rootDir,
                                                      Map<String, String> replace) {
-
         Path trivialResolve = rootDir.resolve(filePathDir);
+
         if (exists(trivialResolve)) {
             return Result.ok(trivialResolve);
         }
@@ -205,7 +242,6 @@ public class FileUtils {
                 return Result.ok(realOrSelf(underRoot));
         }
 
-        // 2) Apply replacements (literal, not regex) to both paths and retry obvious candidates
         Path rootRepl = applyReplacements(rootN, replace);
         Path fileRepl = applyReplacements(fileN, replace);
         if (exists(fileRepl))
@@ -355,7 +391,37 @@ public class FileUtils {
         }
     }
 
+    /**
+     * Sometimes the AI puts dashes where package does not allow dashes.
+     * @param p
+     * @return
+     */
+    public static Path doReplacementForJavaPackage(Path p) {
+        return FileUtils.srcMainJavaEnd(p)
+                .map(end -> {
+                    var f =  IntStream.range(0, p.getNameCount())
+                            .boxed()
+                            .map(i -> Map.entry(i, p.getName(i)))
+                            .map(pi -> {
+                                if (pi.getValue().getFileName().toString().contains("-") && pi.getKey() > end) {
+                                    return Paths.get(pi.getValue().getFileName().toString().replaceAll("-", ""));
+                                }
+
+                                return pi.getValue();
+                            })
+                            .map(Path::toString)
+                            .toList();
+
+                    if (f.size() <= 1)
+                        return p;
+
+                    return Paths.get(f.getFirst(), f.subList(1, f.size()).toArray(String[]::new));
+                })
+                .orElse(p);
+    }
+
     private static Path applyReplacements(Path p, Map<String, String> replace) {
+        p = doReplacementForJavaPackage(p);
         String s = p.toString();
         if (replace != null) {
             for (var e : replace.entrySet()) {
