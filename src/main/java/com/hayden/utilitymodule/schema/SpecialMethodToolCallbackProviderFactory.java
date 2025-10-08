@@ -1,5 +1,6 @@
 package com.hayden.utilitymodule.schema;
 
+import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -16,8 +17,10 @@ public class SpecialMethodToolCallbackProviderFactory {
      */
     public SpecialMethodToolCallbackProvider createToolCallbackProvider(List<Object> codeSearchMcpTools,
                                                                         SpecialJsonSchemaGenerator specialJsonSchemaGenerator,
-                                                                        DelegatingSchemaReplacer schemaReplacer) {
-        SpecialMethodToolCallbackProvider specialMethodToolCallbackProvider = new SpecialMethodToolCallbackProvider(codeSearchMcpTools, specialJsonSchemaGenerator, schemaReplacer);
+                                                                        DelegatingSchemaReplacer schemaReplacer,
+                                                                        ApplicationContext ctx) {
+        SpecialMethodToolCallbackProvider specialMethodToolCallbackProvider = new SpecialMethodToolCallbackProvider(codeSearchMcpTools, specialJsonSchemaGenerator, schemaReplacer, ctx);
+        specialMethodToolCallbackProvider.setApplicationContext(ctx);
         return specialMethodToolCallbackProvider;
     }
 
