@@ -1,17 +1,20 @@
 package com.hayden.utilitymodule.delegate_mcp;
 
 import com.hayden.utilitymodule.concurrent.striped.StripedLock;
+import com.hayden.utilitymodule.result.OneResult;
 import com.hayden.utilitymodule.result.Result;
 import com.hayden.utilitymodule.result.error.SingleError;
 import io.modelcontextprotocol.client.McpAsyncClient;
 import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
+import io.modelcontextprotocol.client.transport.HttpClientSseClientTransport;
 import io.modelcontextprotocol.client.transport.ServerParameters;
 import io.modelcontextprotocol.client.transport.StdioClientTransport;
 import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.annotation.PostConstruct;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.Nullable;
 import org.springframework.ai.mcp.client.autoconfigure.NamedClientMcpTransport;
 import org.springframework.ai.mcp.client.autoconfigure.configurer.McpSyncClientConfigurer;
 import org.springframework.ai.mcp.client.autoconfigure.properties.McpClientCommonProperties;
@@ -22,12 +25,12 @@ import org.springframework.util.ReflectionUtils;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -38,11 +41,32 @@ import java.util.function.Supplier;
 @Component
 public class DynamicMcpToolCallbackProvider {
 
-    public record McpError(String getMessage) implements SingleError {}
+    public record McpError(
+            String getMessage) implements SingleError {
+    }
 
-    public interface ServerCustomizer extends BiFunction<String, ServerParameters, Map.Entry<String, ServerParameters>> { }
+    public sealed interface McpServerMetadata {
 
-    public interface McpClientRequest extends Function<McpSyncClient, McpSchema.CallToolResult> { }
+        record StdioServerMetadata(String name,
+                                   ServerParameters serverParameters) implements McpServerMetadata {
+        }
+
+        record HttpServerMetadata(String baseUri,
+                                  String sseEndpoint) implements McpServerMetadata {
+        }
+
+    }
+
+    public interface ServerCustomizer<T extends McpServerMetadata> extends Function<T, T> {
+
+        interface StdioServerCustomizer extends ServerCustomizer<McpServerMetadata.StdioServerMetadata> {}
+
+        interface HttpServerCustomizer extends ServerCustomizer<McpServerMetadata.HttpServerMetadata> {}
+
+    }
+
+    public interface McpClientRequest extends Function<McpSyncClient, McpSchema.CallToolResult> {
+    }
 
     @Autowired
     private McpClientCommonProperties commonProperties;
@@ -121,19 +145,20 @@ public class DynamicMcpToolCallbackProvider {
 
     //  must hold lock on (assuming) stdio otherwise send multiple concurrent requests on stdio but this fails.
     @StripedLock
-    public Result<McpSchema.CallToolResult, McpError> doOnClient(String clientName,
-                                                                 ServerCustomizer replace,
-                                                                 McpClientRequest request) {
+    public <T extends McpServerMetadata> Result<McpSchema.CallToolResult, McpError> doOnClient(String clientName,
+                                                                                               ServerCustomizer<T> replace,
+                                                                                               McpClientRequest request) {
         return buildClient(clientName, replace)
                 .map(request);
     }
 
     /**
      * Kill the client and then perform some synchronized action on that service.
+     *
      * @param clientName
      * @param toDo
-     * @return
      * @param <T>
+     * @return
      */
     @SneakyThrows
     @StripedLock
@@ -152,15 +177,15 @@ public class DynamicMcpToolCallbackProvider {
     @StripedLock
     public Result<McpSyncClient, McpError> buildClient(String clientName) {
         try {
-            return buildClient(clientName, Map::entry);
+            return buildClient(clientName, e -> e);
         } catch (Exception e) {
             return Result.err(new McpError(e.getMessage()));
         }
     }
 
     @StripedLock
-    public Result<McpSyncClient, McpError> buildClient(String clientName,
-                                                       ServerCustomizer replace) {
+    private <T extends McpServerMetadata> Result<McpSyncClient, McpError> buildClient(String clientName,
+                                                                                     ServerCustomizer<T> replace) {
         List<NamedClientMcpTransport> namedTransports = stdioTransports;
 
         if (!CollectionUtils.isEmpty(namedTransports)) {
@@ -168,51 +193,23 @@ public class DynamicMcpToolCallbackProvider {
 
                 try {
                     if (Objects.equals(namedTransport.name(), clientName)) {
-                        if (!(namedTransport.transport() instanceof StdioClientTransport)) {
-                            log.error("Haven't implemented build client with Dynamic with anything besides stdio: {}", namedTransport.name());
-                            continue;
+                        if (namedTransport.transport() instanceof HttpClientSseClientTransport) {
+                            return initializeHttpMcpSyncClient(
+                                    clientName,
+                                    replace instanceof ServerCustomizer.HttpServerCustomizer h ? h : s -> s,
+                                    namedTransport);
+                        }
+                        if (namedTransport.transport() instanceof StdioClientTransport) {
+                            return initializeStdioMcpSyncClient(
+                                    clientName,
+                                    replace instanceof ServerCustomizer.StdioServerCustomizer h ? h : s -> s,
+                                    namedTransport);
                         }
 
-                        Field paramsField = namedTransport.transport().getClass().getDeclaredField("params");
-                        paramsField.trySetAccessible();
-                        ServerParameters params = (ServerParameters) ReflectionUtils.getField(paramsField, namedTransport.transport());
-
-                        if (params == null)
-                            continue;
-
-                        var paramsAfter = replace.apply(this.connectedClientName(commonProperties.getName(), namedTransport.name()), params);
-
-                        if (this.clientConcurrentHashMap.containsKey(paramsAfter.getKey())
-                                && this.clientConcurrentHashMap.get(paramsAfter.getKey()).isInitialized()) {
-                            return Result.ok(this.clientConcurrentHashMap.get(paramsAfter.getKey()));
-                        } else {
-                            doStopExistingNotInMap(paramsAfter.getValue());
-                        }
-
-                        var t = new StdioClientTransport(paramsAfter.getValue());
-                        McpSchema.Implementation clientInfo = new McpSchema.Implementation(
-                                paramsAfter.getKey(),
-                                commonProperties.getVersion());
-
-                        McpClient.SyncSpec spec = McpClient.sync(t)
-                                .clientInfo(clientInfo)
-                                .initializationTimeout(Duration.ofSeconds(120))
-                                .requestTimeout(Duration.ofSeconds(120));
-
-                        spec = mcpSyncClientConfigurer.configure(namedTransport.name(), spec);
-
-                        var client = spec.build();
-
-                        if (commonProperties.isInitialized()) {
-                            client.initialize();
-                        }
-
-                        clientConcurrentHashMap.put(clientName, client);
-
-                        return Result.ok(client);
+                        log.error("Haven't implemented build client with Dynamic with anything besides stdio: {}", namedTransport.name());
+                        return Result.err(new McpError("Could not find valid client to augment for name %s.".formatted(clientName)));
                     }
 
-                    return Result.empty();
 
                 } catch (NoSuchFieldException e) {
                     log.error(e.getMessage(), e);
@@ -224,6 +221,94 @@ public class DynamicMcpToolCallbackProvider {
 
         return Result.err(new McpError("Could not find valid client to augment for name %s.".formatted(clientName)));
 
+    }
+
+    private Result<McpSyncClient, McpError> initializeHttpMcpSyncClient(String clientName,
+                                                                        ServerCustomizer.HttpServerCustomizer replace,
+                                                                        NamedClientMcpTransport namedTransport) throws NoSuchFieldException {
+        Field uriField = namedTransport.transport().getClass().getDeclaredField("baseUri");
+        uriField.trySetAccessible();
+        URI uri = (URI) ReflectionUtils.getField(uriField, namedTransport.transport());
+
+        Field endpointField = namedTransport.transport().getClass().getDeclaredField("sseEndpoint");
+        endpointField.trySetAccessible();
+        String endpoint = (String) ReflectionUtils.getField(endpointField, namedTransport.transport());
+
+        var paramsAfter = replace.apply(new McpServerMetadata.HttpServerMetadata(this.connectedClientName(commonProperties.getName(), namedTransport.name()), endpoint));
+        System.out.printf("HAVENT LOOKED AT HOW NAME IS SET FOR HTTP YET: %s%n", paramsAfter.toString());
+
+//        var nameAfter = paramsAfter.name;
+//        var serverParamsAfter = paramsAfter.serverParameters;
+
+        if (uri == null) {
+            log.error("Could not find valid endpoint for name {}.", clientName);
+            return Result.err(new McpError("Could not find valid endpoint for name " + clientName));
+        }
+
+        if (this.clientConcurrentHashMap.containsKey(uri.toString())
+                && this.clientConcurrentHashMap.get(uri.toString()).isInitialized()) {
+            return Result.ok(this.clientConcurrentHashMap.get(uri.toString()));
+        }
+
+        var t = HttpClientSseClientTransport.builder(uri.toString())
+                .sseEndpoint(endpoint)
+                .build();
+
+        var client = buildInitializeClient(uri.toString(), McpClient.sync(t), namedTransport);
+
+        clientConcurrentHashMap.put(clientName, client);
+
+        return Result.ok(client);
+    }
+
+    private McpSyncClient buildInitializeClient(String uri, McpClient.SyncSpec t, NamedClientMcpTransport namedTransport) {
+        McpSchema.Implementation clientInfo = new McpSchema.Implementation(
+                uri,
+                commonProperties.getVersion());
+
+        McpClient.SyncSpec spec = t
+                .clientInfo(clientInfo)
+                .initializationTimeout(Duration.ofSeconds(120))
+                .requestTimeout(Duration.ofSeconds(120));
+
+        spec = mcpSyncClientConfigurer.configure(namedTransport.name(), spec);
+
+        var client = spec.build();
+
+        if (commonProperties.isInitialized()) {
+            client.initialize();
+        }
+        return client;
+    }
+
+    private Result<McpSyncClient, McpError> initializeStdioMcpSyncClient(String clientName,
+                                                                                      ServerCustomizer.StdioServerCustomizer replace,
+                                                                                      NamedClientMcpTransport namedTransport) throws NoSuchFieldException {
+        Field paramsField = namedTransport.transport().getClass().getDeclaredField("params");
+        paramsField.trySetAccessible();
+        ServerParameters params = (ServerParameters) ReflectionUtils.getField(paramsField, namedTransport.transport());
+
+        if (params == null)
+            return Result.err(new McpError("Could not find valid params for name %s.".formatted(clientName)));
+
+        var paramsAfter = replace.apply(new McpServerMetadata.StdioServerMetadata(this.connectedClientName(commonProperties.getName(), namedTransport.name()), params));
+
+        var nameAfter = paramsAfter.name;
+        var serverParamsAfter = paramsAfter.serverParameters;
+
+        if (this.clientConcurrentHashMap.containsKey(nameAfter)
+                && this.clientConcurrentHashMap.get(nameAfter).isInitialized()) {
+            return Result.ok(this.clientConcurrentHashMap.get(nameAfter));
+        } else {
+            doStopExistingNotInMap(serverParamsAfter);
+        }
+
+        var t = new StdioClientTransport(serverParamsAfter);
+        var client = buildInitializeClient(nameAfter, McpClient.sync(t), namedTransport);
+
+        clientConcurrentHashMap.put(clientName, client);
+
+        return Result.ok(client);
     }
 
     private static void doStopExistingNotInMap(ServerParameters params) {
@@ -253,7 +338,8 @@ public class DynamicMcpToolCallbackProvider {
                 log.info("Attempting docker container {}.", name);
                 new ProcessBuilder("docker", "stop", name).start().waitFor();
                 log.info("Successfully shutdown docker container {}.", name);
-            } catch (InterruptedException | IOException e) {
+            } catch (InterruptedException |
+                     IOException e) {
                 log.error("Error when stopping container {}", e.getMessage());
             }
         }
