@@ -46,7 +46,7 @@ public interface Result<T, E> {
             .map(err ->
                 err instanceof SingleError s ? s.getMessage() : err.toString()
             )
-            .orElse("No error message to be printed.");
+            .orElse("No error getMessage to be printed.");
     }
 
     interface Monadic<R> {

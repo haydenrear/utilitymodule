@@ -36,6 +36,8 @@ import org.springframework.util.ClassUtils;
 import org.springframework.util.StringUtils;
 
 /**
+ * COPIED DIRECTLY FROM SPRING REPO AND MODIFIED TO ALLOW FOR SCHEMA TEMPLATING FOR @TOOL OR @TOOLPARAM
+ *
  * Utilities to generate JSON Schemas from Java types and method signatures. It's designed
  * to work well in the context of tool calling and structured outputs, aiming at ensuring
  * consistency and robustness across different model providers.

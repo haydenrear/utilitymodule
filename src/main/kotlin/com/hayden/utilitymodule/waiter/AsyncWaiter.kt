@@ -5,8 +5,6 @@ import org.bouncycastle.asn1.cmp.PKIStatus.waiting
 import org.slf4j.LoggerFactory
 import java.time.Duration
 import java.time.Instant
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
 
 @Slf4j
 class AsyncWaiter<T>(val waitFor: () -> T?,

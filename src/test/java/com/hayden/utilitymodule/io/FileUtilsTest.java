@@ -4,12 +4,14 @@ package com.hayden.utilitymodule.io;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Objects;
 
@@ -160,9 +162,44 @@ public class FileUtilsTest {
 
     @Test
     public void testHasParent() {
-        var hasParent = FileUtils.hasParentDirectoryMatching(p -> p.toAbsolutePath().toFile().getName().equals("drools"), Paths.get(""));
+        Path path = new File("./").toPath();
+        String name = path.toAbsolutePath().getParent().toFile().getName();
+        var hasParent = FileUtils.hasParentDirectoryMatching(p -> p.toAbsolutePath().toFile().getName().equals(name), Paths.get(""));
         assertThat(hasParent).isTrue();
         var noParent = FileUtils.hasParentDirectoryMatching(p -> p.toAbsolutePath().toFile().getName().equals("asdfjkdsllkj"), Paths.get(""));
         assertThat(noParent).isFalse();
+    }
+
+    @TempDir
+    Path tempDir;
+
+    @Test
+    public void testJavaPackageReplacement() {
+        Path resolve = tempDir.resolve("commit-diff-context/src/main/java/com/hayden/commitdiffcontext/ok/Ok.java");
+        resolve.getParent().toFile().mkdirs();
+        var p = FileUtils.getPathFor(
+                Paths.get("src/main/java/com/hayden/commit-diff-context/ok/Ok.java"),
+                tempDir.resolve("commit-diff-context"),
+                new HashMap<>());
+        assertThat(p.isOk()).isTrue();
+        assertThat(p.unwrap().toString()).isEqualTo(tempDir.resolve("commit-diff-context/src/main/java/com/hayden/commitdiffcontext/ok/Ok.java").toString());
+
+        resolve = tempDir.resolve("commit-diff-context/src/test/java/com/hayden/commitdiffcontext/ok/Ok.java");
+        resolve.getParent().toFile().mkdirs();
+        p = FileUtils.getPathFor(
+                Paths.get("src/test/java/com/hayden/commit-diff-context/ok/Ok.java"),
+                tempDir.resolve("commit-diff-context"),
+                new HashMap<>());
+        assertThat(p.isOk()).isTrue();
+        assertThat(p.unwrap().toString()).isEqualTo(tempDir.resolve("commit-diff-context/src/test/java/com/hayden/commitdiffcontext/ok/Ok.java").toString());
+
+        resolve = tempDir.resolve("commit-diff-context/src/another-thing/java/com/hayden/commit-diff-context/ok/Ok.java");
+        resolve.getParent().toFile().mkdirs();
+        p = FileUtils.getPathFor(
+                Paths.get("src/another-thing/java/com/hayden/commit-diff-context/ok/Ok.java"),
+                tempDir.resolve("commit-diff-context"),
+                new HashMap<>());
+        assertThat(p.isOk()).isTrue();
+        assertThat(p.unwrap().toString()).isEqualTo(tempDir.resolve("commit-diff-context/src/another-thing/java/com/hayden/commit-diff-context/ok/Ok.java").toString());
     }
 }
