@@ -6,6 +6,7 @@ import java.lang.reflect.Parameter;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -22,6 +23,7 @@ import com.github.victools.jsonschema.generator.SchemaVersion;
 import com.github.victools.jsonschema.module.jackson.JacksonModule;
 import com.github.victools.jsonschema.module.jackson.JacksonOption;
 import com.github.victools.jsonschema.module.swagger2.Swagger2Module;
+import com.hayden.utilitymodule.stream.StreamUtil;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import org.springframework.ai.chat.model.ToolContext;
@@ -108,6 +110,16 @@ public class SpecialJsonSchemaGenerator {
     private SpecialJsonSchemaGenerator() {
     }
 
+    public interface SchemaFilter extends Predicate<Class<?>> {
+        default boolean skip(Class<?> toSkip)  {
+            return this.test(toSkip);
+        }
+    }
+
+    @Autowired(required = false)
+    List<SchemaFilter> schemaFilters = new ArrayList<>();
+
+
     /**
      * Generate a JSON Schema for a method's input parameters.
      */
@@ -130,6 +142,12 @@ public class SpecialJsonSchemaGenerator {
                 // outside the model interaction flow.
                 continue;
             }
+
+            if (parameterType instanceof Class<?> parameterClass && StreamUtil.toStream(this.schemaFilters)
+                    .anyMatch(t -> t.skip(parameterClass))) {
+                continue;
+            }
+
             if (isMethodParameterRequired(method, i)) {
                 required.add(parameterName);
             }
