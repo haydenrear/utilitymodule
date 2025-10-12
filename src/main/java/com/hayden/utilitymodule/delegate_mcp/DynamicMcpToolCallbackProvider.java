@@ -1,7 +1,6 @@
 package com.hayden.utilitymodule.delegate_mcp;
 
 import com.hayden.utilitymodule.concurrent.striped.StripedLock;
-import com.hayden.utilitymodule.result.OneResult;
 import com.hayden.utilitymodule.result.Result;
 import com.hayden.utilitymodule.result.error.SingleError;
 import io.modelcontextprotocol.client.McpAsyncClient;
@@ -14,7 +13,6 @@ import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.annotation.PostConstruct;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.Nullable;
 import org.springframework.ai.mcp.client.autoconfigure.NamedClientMcpTransport;
 import org.springframework.ai.mcp.client.autoconfigure.configurer.McpSyncClientConfigurer;
 import org.springframework.ai.mcp.client.autoconfigure.properties.McpClientCommonProperties;
@@ -29,10 +27,8 @@ import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -185,7 +181,7 @@ public class DynamicMcpToolCallbackProvider {
 
     @StripedLock
     private <T extends McpServerMetadata> Result<McpSyncClient, McpError> buildClient(String clientName,
-                                                                                     ServerCustomizer<T> replace) {
+                                                                                      ServerCustomizer<T> replace) {
         List<NamedClientMcpTransport> namedTransports = stdioTransports;
 
         if (!CollectionUtils.isEmpty(namedTransports)) {
