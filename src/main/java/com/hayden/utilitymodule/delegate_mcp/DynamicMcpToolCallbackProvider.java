@@ -180,6 +180,15 @@ public class DynamicMcpToolCallbackProvider {
     }
 
     @StripedLock
+    public Result<McpSyncClient, McpError> buildClient(String clientName, NamedClientMcpTransport transport) {
+        try {
+            return getClientForTransport(clientName, s -> s, transport);
+        } catch (Exception e) {
+            return Result.err(new McpError(e.getMessage()));
+        }
+    }
+
+    @StripedLock
     private <T extends McpServerMetadata> Result<McpSyncClient, McpError> buildClient(String clientName,
                                                                                       ServerCustomizer<T> replace) {
         List<NamedClientMcpTransport> namedTransports = stdioTransports;
@@ -189,21 +198,7 @@ public class DynamicMcpToolCallbackProvider {
 
                 try {
                     if (Objects.equals(namedTransport.name(), clientName)) {
-                        if (namedTransport.transport() instanceof HttpClientSseClientTransport) {
-                            return initializeHttpMcpSyncClient(
-                                    clientName,
-                                    replace instanceof ServerCustomizer.HttpServerCustomizer h ? h : s -> s,
-                                    namedTransport);
-                        }
-                        if (namedTransport.transport() instanceof StdioClientTransport) {
-                            return initializeStdioMcpSyncClient(
-                                    clientName,
-                                    replace instanceof ServerCustomizer.StdioServerCustomizer h ? h : s -> s,
-                                    namedTransport);
-                        }
-
-                        log.error("Haven't implemented build client with Dynamic with anything besides stdio: {}", namedTransport.name());
-                        return Result.err(new McpError("Could not find valid client to augment for name %s.".formatted(clientName)));
+                        return getClientForTransport(clientName, replace, namedTransport);
                     }
 
 
@@ -217,6 +212,24 @@ public class DynamicMcpToolCallbackProvider {
 
         return Result.err(new McpError("Could not find valid client to augment for name %s.".formatted(clientName)));
 
+    }
+
+    private <T extends McpServerMetadata> Result<McpSyncClient, McpError> getClientForTransport(String clientName, ServerCustomizer<T> replace, NamedClientMcpTransport namedTransport) throws NoSuchFieldException {
+        if (namedTransport.transport() instanceof HttpClientSseClientTransport) {
+            return initializeHttpMcpSyncClient(
+                    clientName,
+                    replace instanceof ServerCustomizer.HttpServerCustomizer h ? h : s -> s,
+                    namedTransport);
+        }
+        if (namedTransport.transport() instanceof StdioClientTransport) {
+            return initializeStdioMcpSyncClient(
+                    clientName,
+                    replace instanceof ServerCustomizer.StdioServerCustomizer h ? h : s -> s,
+                    namedTransport);
+        }
+
+        log.error("Haven't implemented build client with Dynamic with anything besides stdio: {}", namedTransport.name());
+        return Result.err(new McpError("Could not find valid client to augment for name %s.".formatted(clientName)));
     }
 
     private Result<McpSyncClient, McpError> initializeHttpMcpSyncClient(String clientName,
