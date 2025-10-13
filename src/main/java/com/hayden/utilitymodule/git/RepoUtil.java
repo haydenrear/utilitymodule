@@ -160,15 +160,18 @@ public interface RepoUtil {
         }
     }
 
-    static Result<Path, RepoUtilError> cloneIfRemote(String url, String branchName) {
+    static Result<Path, RepoUtilError> cloneIfRemote(String url, String branchName, File gitDir) {
         if (url.startsWith("http") || url.startsWith("git") || url.startsWith("ssh")) {
-            var gitDir = FileUtils.newTemporaryFolder();
             return RepoUtil.cloneRepo(gitDir, url, branchName)
                     .mapError(gitInitError -> new RepoUtilError("Failed to clone git repo: %s.".formatted(gitInitError.getMessage())))
                     .map(git -> gitDir.toPath());
         }
 
         return returnEmptyOrErrIfNotExists(url);
+    }
+
+    static Result<Path, RepoUtilError> cloneIfRemote(String url, String branchName) {
+        return cloneIfRemote(url, branchName, FileUtils.newTemporaryFolder());
     }
 
     static Result<Path, RepoUtilError> decompressIfArchive(String url) {
