@@ -108,7 +108,7 @@ public class DbDataSourceTrigger {
         try {
 
             if (TransactionSynchronizationManager.isActualTransactionActive()) {
-                log.error("❗ Spring transaction is active! Using thread local key with spring @Transactional is a failure.");
+                log.error("❗ Spring transaction is active! Using thread local key with spring @Transactional is not tested.");
             }
 
             doBind(starting);
