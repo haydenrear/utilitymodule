@@ -29,6 +29,10 @@ public class WithDbAspect  {
 
     @Around("withDbAnnotation()")
     public Object switchDb(ProceedingJoinPoint pjp) {
+        if (org.springframework.transaction.support.TransactionSynchronizationManager
+                .isActualTransactionActive() && log.isDebugEnabled()) {
+            log.debug("Inside of Spring transaction - make sure to provide a transaction manager bean with the abstract routing data source.");
+        }
         return dbDataSourceTrigger.doOnKey(sk -> {
 
             Optional.ofNullable(resolveUseDbValue(pjp))
