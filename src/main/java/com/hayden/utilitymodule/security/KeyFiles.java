@@ -1,5 +1,6 @@
 package com.hayden.utilitymodule.security;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -14,14 +15,18 @@ import java.util.EnumSet;
 import java.util.Set;
 
 @Component
+@Slf4j
 public class KeyFiles {
 
     @Autowired
     private KeyConfigProperties keyConfigProperties;
 
     public KeyPair getKeyPair() {
+        log.info("Initializing key pair.");
+
         if (!keyConfigProperties.getKeyPath().toFile().exists())
-            throw new IllegalStateException("Key file path does not exist");
+            throw new IllegalStateException("Key file path %s does not exist".formatted(keyConfigProperties.getKeyPath()));
+
         return ensureRsaKeyPair(keyConfigProperties.getKeyPath(), keyConfigProperties.getKeyName(), 2048);
     }
 
@@ -33,6 +38,7 @@ public class KeyFiles {
             Path pubPem  = dir.resolve(baseName + ".pub.pem"); // X.509 public (PEM)
 
             if (Files.exists(privPem) && Files.exists(pubPem)) {
+                log.info("RSA key pair already exists and will be read.");
                 return loadKeyPairFromPem(privPem, pubPem);
             }
 
@@ -48,17 +54,25 @@ public class KeyFiles {
 
             return kp;
         } catch (Exception e) {
+            log.error(e.getMessage(), e);
             throw new IllegalStateException("Failed to ensure RSA key pair", e);
         }
     }
 
     public static KeyPair loadKeyPairFromPem(Path privatePem, Path publicPem) throws Exception {
+        log.info("Reading private key.");
         byte[] pkcs8 = readPem(privatePem, "PRIVATE KEY");
+        log.info("Reading public key.");
         byte[] spki  = readPem(publicPem,  "PUBLIC KEY");
 
+        log.info("Loading RSA key pair from pem.");
+
         KeyFactory kf = KeyFactory.getInstance("RSA");
+        log.info("Generating private key.");
         PrivateKey priv = kf.generatePrivate(new PKCS8EncodedKeySpec(pkcs8));
+        log.info("Generating public key.");
         PublicKey  pub  = kf.generatePublic(new X509EncodedKeySpec(spki));
+        log.info("Returning key pair.");
         return new KeyPair(pub, priv);
     }
 
@@ -87,13 +101,19 @@ public class KeyFiles {
 
     private static byte[] readPem(Path path, String type) throws IOException {
         String all = Files.readString(path, StandardCharsets.US_ASCII);
+
         String begin = "-----BEGIN " + type + "-----";
         String end   = "-----END " + type + "-----";
         int i = all.indexOf(begin);
         int j = all.indexOf(end);
-        if (i < 0 || j < 0) throw new IOException("PEM block not found: " + type);
+
+        if (i < 0 || j < 0)
+            throw new IOException("PEM block not found: " + type);
+
         String base64 = all.substring(i + begin.length(), j).replaceAll("\\s", "");
-        return Base64.getDecoder().decode(base64);
+
+        var decoded = Base64.getDecoder().decode(base64);
+        return decoded;
     }
 
     private static void lockDownPermissionsIfPosix(Path p, boolean isPrivate) {
