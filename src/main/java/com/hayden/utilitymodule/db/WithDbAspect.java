@@ -14,6 +14,8 @@ import org.springframework.stereotype.Component;
 import java.util.Objects;
 import java.util.Optional;
 
+import static com.hayden.utilitymodule.reflection.ParameterAnnotationUtils.resolveAnnotationForMethod;
+
 @Slf4j
 @Aspect
 @Component
@@ -35,7 +37,8 @@ public class WithDbAspect  {
         }
         return dbDataSourceTrigger.doOnKey(sk -> {
 
-            Optional.ofNullable(resolveUseDbValue(pjp))
+            resolveAnnotationForMethod(pjp, WithDb.class)
+                    .map(WithDb::value)
                     .ifPresentOrElse(
                             k -> {
                                 if (org.springframework.transaction.support.TransactionSynchronizationManager
@@ -58,16 +61,5 @@ public class WithDbAspect  {
         });
     }
 
-    private String resolveUseDbValue(ProceedingJoinPoint pjp) {
-        var sig = (MethodSignature) pjp.getSignature();
-        var method = sig.getMethod();
-        var ann = org.springframework.core.annotation.AnnotatedElementUtils
-                .findMergedAnnotation(method, WithDb.class);
-        if (ann != null) return ann.value();
-        Class<?> target = pjp.getTarget() != null ? pjp.getTarget().getClass() : sig.getDeclaringType();
-        ann = org.springframework.core.annotation.AnnotatedElementUtils
-                .findMergedAnnotation(target, WithDb.class);
-        return ann != null ? ann.value() : null;
-    }
 
 }

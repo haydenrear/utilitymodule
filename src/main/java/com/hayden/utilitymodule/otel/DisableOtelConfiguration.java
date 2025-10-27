@@ -12,7 +12,7 @@ import java.util.Map;
 
 @Slf4j
 @Component
-@ConditionalOnProperty(value = "management.tracing.enabled", havingValue = "false")
+@ConditionalOnProperty(value = "management.tracing.enabled", havingValue = "false", matchIfMissing = true)
 public class DisableOtelConfiguration implements EnvironmentPostProcessor {
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment env, SpringApplication application) {
@@ -27,7 +27,10 @@ public class DisableOtelConfiguration implements EnvironmentPostProcessor {
             log.info("OTEL SDK is being disabled.");
             env.getPropertySources().addFirst(
                     new MapPropertySource("otel-disable",
-                            Map.of("otel.sdk.disabled", "true"))
+                            Map.of("otel.sdk.disabled", "true",
+                                    "management.tracing.enabled", "false",
+                                    "management.logging.export.enabled", "false",
+                                    "management.otlp.metrics.export.enabled", "false"))
             );
         }
     }
