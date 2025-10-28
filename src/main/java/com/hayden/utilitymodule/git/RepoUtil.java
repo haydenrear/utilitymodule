@@ -8,16 +8,14 @@ import com.hayden.utilitymodule.result.OneResult;
 import com.hayden.utilitymodule.result.Result;
 import com.hayden.utilitymodule.result.error.SingleError;
 import lombok.SneakyThrows;
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ResetCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.errors.IncorrectObjectTypeException;
 import org.eclipse.jgit.errors.MissingObjectException;
-import org.eclipse.jgit.lib.AnyObjectId;
-import org.eclipse.jgit.lib.ObjectId;
-import org.eclipse.jgit.lib.Ref;
-import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.lib.*;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
@@ -38,6 +36,8 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 
 public interface RepoUtil {
@@ -52,6 +52,35 @@ public interface RepoUtil {
             treeParser.reset(repository.newObjectReader(), headCommit.getTree());
             return treeParser;
         }
+    }
+
+    static Set<Path> changedPaths(Git g, String oldBranch, String newBranch) throws IOException, GitAPIException {
+        var repo = g.getRepository();
+        ObjectId oldHead = repo.resolve("refs/heads/%s^{tree}".formatted(oldBranch));
+        ObjectId newHead = repo.resolve("refs/heads/%s^{tree}".formatted(newBranch));
+
+        CanonicalTreeParser oldTreeIter = new CanonicalTreeParser();
+        try (ObjectReader reader = repo.newObjectReader()) {
+            oldTreeIter.reset(reader, oldHead);
+        }
+
+        CanonicalTreeParser newTreeIter = new CanonicalTreeParser();
+        try (ObjectReader reader = repo.newObjectReader()) {
+            newTreeIter.reset(reader, newHead);
+        }
+
+        List<DiffEntry> diffEntries = g.diff()
+                .setOldTree(oldTreeIter)
+                .setNewTree(newTreeIter)
+                .setShowNameAndStatusOnly(true)
+                .call();
+
+        return diffEntries
+                .stream()
+                .flatMap(de -> Stream.of(de.getOldPath(), de.getNewPath()))
+                .filter(StringUtils::isNotBlank)
+                .map(Paths::get)
+                .collect(Collectors.toSet());
     }
 
     static Optional<RepoUtilError> doReset(Git git) throws GitAPIException {
