@@ -110,10 +110,8 @@ public class SpecialJsonSchemaGenerator {
     private SpecialJsonSchemaGenerator() {
     }
 
-    public interface SchemaFilter extends Predicate<Class<?>> {
-        default boolean skip(Class<?> toSkip)  {
-            return this.test(toSkip);
-        }
+    public interface SchemaFilter {
+        boolean doSkip(Class<?> toSkip, Parameter parameter);
     }
 
     @Autowired(required = false)
@@ -132,7 +130,8 @@ public class SpecialJsonSchemaGenerator {
         List<String> required = new ArrayList<>();
 
         for (int i = 0; i < method.getParameterCount(); i++) {
-            String parameterName = method.getParameters()[i].getName();
+            Parameter param = method.getParameters()[i];
+            String parameterName = param.getName();
             Type parameterType = method.getGenericParameterTypes()[i];
             if (parameterType instanceof Class<?> parameterClass
                 && ClassUtils.isAssignable(parameterClass, ToolContext.class)) {
@@ -144,7 +143,7 @@ public class SpecialJsonSchemaGenerator {
             }
 
             if (parameterType instanceof Class<?> parameterClass && StreamUtil.toStream(this.schemaFilters)
-                    .anyMatch(t -> t.skip(parameterClass))) {
+                    .anyMatch(t -> t.doSkip(parameterClass, param))) {
                 continue;
             }
 
