@@ -30,6 +30,17 @@ import java.util.stream.Stream;
 @Slf4j
 public class FileUtils {
 
+    public static long count(Path repoRoot, Predicate<File> include) {
+        try(var f = Files.walk(repoRoot)) {
+            var counted = f.filter(p -> include.test(p.toFile()))
+                    .count();
+
+            return counted;
+        } catch (IOException e) {
+            return -1;
+        }
+    }
+
     public static boolean hasPathNamed(Path repoRoot, String name) {
         return hasPathNamed(repoRoot, n -> Objects.equals(name, n));
     }
