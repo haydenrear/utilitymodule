@@ -9,6 +9,7 @@ import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -251,22 +252,37 @@ public class MapFunctions {
     }
 
     public static <T,U, MAP extends Map<T,U>> MAP Collect(
-            Stream<Map.Entry<T,U>> entryStream, MAP map
+            Stream<Map.Entry<T,U>> entries, MAP map
     )
     {
-        return entryStream.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (v1,v2) -> v1, () -> map));
+        return entries
+                .filter(e -> e.getKey() != null)
+                .collect(Collector.of(
+                        () -> map,
+                        (m, e) -> {
+                            T k = e.getKey();
+                            if (!m.containsKey(k) || m.get(k) == null) {
+                                m.put(k, e.getValue());
+                            }
+                        },
+                        (m1, m2) -> {
+                            m2.forEach((k, v) -> {
+                                if (!m1.containsKey(k) || m1.get(k) == null)
+                                    m1.put(k, v);
+                            });
+                            return m1;
+                        }
+                ));
     }
 
-    public static <T,U> Map<T,U> CollectMap(
-            Stream<Map.Entry<T,U>> entryStream
-    ) {
-        return entryStream.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    public static <T, U> Map<T, U> CollectMap(Stream<Map.Entry<T, U>> entries) {
+        return Collect(entries, new HashMap<>());
     }
 
     public static <T,U> Map<T,U> CollectMapRidDuplicates(
             Stream<Map.Entry<T,U>> entryStream
     ) {
-        return entryStream.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (k1, k2) -> k1));
+        return Collect(entryStream, new HashMap<>());
     }
 
     public static <T,U, MAP extends Map<T, U>> MAP CollectMapDoOnDuplicates(
