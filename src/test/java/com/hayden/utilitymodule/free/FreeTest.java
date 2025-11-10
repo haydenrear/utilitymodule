@@ -3,6 +3,7 @@ package com.hayden.utilitymodule.free;
 import com.hayden.utilitymodule.result.Result;
 import com.hayden.utilitymodule.result.error.SingleError;
 import lombok.Builder;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.atomic.AtomicInteger;
@@ -10,6 +11,7 @@ import java.util.function.Function;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
+@Slf4j
 class FreeTest {
     @Test
     public void doTest() {
@@ -68,24 +70,85 @@ class FreeTest {
         };
 
 
-        var e = Free.parse(instructionSet, interpreter::apply);
+        var e = doParse(instructionSet, interpreter);
 
         assertThat(e).isNotNull();
         assertThat(e).isInstanceOf(RetrievePromptEffect.RetrievePromptArgs.class);
         assertThat(counter.get()).isNotZero();
 
+        AtomicInteger i = new AtomicInteger(0);
+
+        var failSet = Free.<RetrievePromptEffect, RetrievePromptEffect.RetrievePromptArgs>liftF(build)
+                .flatMap(a -> Free.<RetrievePromptEffect, RetrievePromptEffect.RetrievePromptArgs>liftF(get)
+                        .flatMap(ae -> Free.<RetrievePromptEffect, RetrievePromptEffect.RetrievePromptArgs>liftF(get)))
+                .flatMap(a -> Free.<RetrievePromptEffect, RetrievePromptEffect.RetrievePromptArgs>liftF(err))
+                .flatMap(r -> Free.pure(RetrievePromptEffect.RetrievePromptArgs.builder().retryCount(10).build()))
+                .flatMap(r -> Free.liftF(err))
+                .flatMap(s -> {
+                    throw new RuntimeException("Failed!");
+                })
+                .flatMap(r -> {
+                    i.getAndIncrement();
+                    return Free.pure("hello");
+                })
+                .flatMap(r -> Free.<RetrievePromptEffect, String>pure("hello").flatMap(Free::pure))
+                .flatMap(r -> Free.<RetrievePromptEffect, String>pure("hello")
+                        .flatMap(a -> Free.liftF(err)))
+                .flatMap(r -> Free.pure(RetrievePromptEffect.RetrievePromptArgs.builder().retryCount(8).build()))
+                .flatMap(r -> Free.<RetrievePromptEffect, RetrievePromptEffect.RetrievePromptArgs>liftF(err))
+                .flatMap(r -> Free.<RetrievePromptEffect, RetrievePromptEffect.RetrievePromptArgs>liftF(err));
+
+        var another = doParse(failSet, interpreter);
+        log.info("Found another: {}", another);
+        assertThat(another.err).isEqualTo("Failed!");
+        assertThat(i.get()).isEqualTo(0);
+
+        var returnErrSet = Free.<RetrievePromptEffect, RetrievePromptEffect.RetrievePromptArgs>liftF(build)
+                .flatMap(a -> Free.<RetrievePromptEffect, RetrievePromptEffect.RetrievePromptArgs>liftF(get)
+                        .flatMap(ae -> Free.<RetrievePromptEffect, RetrievePromptEffect.RetrievePromptArgs>liftF(get)))
+                .flatMap(a -> Free.<RetrievePromptEffect, RetrievePromptEffect.RetrievePromptArgs>liftF(err))
+                .flatMap(r -> Free.pure(RetrievePromptEffect.RetrievePromptArgs.builder().retryCount(10).build()))
+                .flatMap(r -> Free.liftF(err))
+                .flatMap(s -> Free.err("whatever!"))
+                .flatMap(r -> Free.pure("hello"))
+                .flatMap(r -> Free.<RetrievePromptEffect, String>pure("hello").flatMap(Free::pure))
+                .flatMap(r -> Free.<RetrievePromptEffect, String>pure("hello")
+                        .flatMap(a -> Free.liftF(err)))
+                .flatMap(r -> Free.pure(RetrievePromptEffect.RetrievePromptArgs.builder().retryCount(8).build()))
+                .flatMap(r -> Free.<RetrievePromptEffect, RetrievePromptEffect.RetrievePromptArgs>liftF(err))
+                .flatMap(r -> Free.<RetrievePromptEffect, RetrievePromptEffect.RetrievePromptArgs>liftF(err));
+
+        var ret = doParse(returnErrSet, interpreter);
+
+        log.info("Found ret: {}", ret);
+
+    }
+
+    private static RetrievePromptEffect.RetrievePromptArgs doParse(Free<RetrievePromptEffect, RetrievePromptEffect.RetrievePromptArgs> instructionSet, Function<RetrievePromptEffect, Free<RetrievePromptEffect, RetrievePromptEffect.RetrievePromptArgs>> interpreter) {
+        var e = Free.parse(instructionSet, new Interpreter<>() {
+            @Override
+            public Free<RetrievePromptEffect, RetrievePromptEffect.RetrievePromptArgs> apply(RetrievePromptEffect retrievePromptEffect) {
+                return interpreter.apply(retrievePromptEffect);
+            }
+
+            @Override
+            public FreeErrorMapper<RetrievePromptEffect, RetrievePromptEffect.RetrievePromptArgs> mapErr() {
+                return e -> RetrievePromptEffect.RetrievePromptArgs.failed(e.error().getMessage());
+            }
+        });
+        return e;
     }
 
     public sealed interface RetrievePromptEffect extends Effect {
 
         @Builder
         record RetrievePromptArgs(int retryCount, boolean allowCtx,
-                                  boolean skipRetry, boolean contextRecursive) {
+                                  boolean skipRetry, boolean contextRecursive,
+                                  String err, boolean failed) {
 
             public RetrievePromptArgs withAllowCtx(boolean allowCtx) {
-                return new RetrievePromptArgs(retryCount, allowCtx, skipRetry, contextRecursive);
+                return new RetrievePromptArgs(retryCount, allowCtx, skipRetry, contextRecursive,  err, failed);
             }
-
 
             public RetrievePromptArgs incrementedRetry() {
                 return RetrievePromptArgs.builder()
@@ -97,7 +160,12 @@ class FreeTest {
             }
 
             public RetrievePromptArgs withoutCtx() {
-                return new RetrievePromptArgs(retryCount, false, skipRetry, contextRecursive);
+                return new RetrievePromptArgs(retryCount, false, skipRetry, contextRecursive, err, false);
+            }
+
+            public static RetrievePromptArgs failed(String err) {
+                return RetrievePromptArgs.builder().failed(true).err(err)
+                        .build();
             }
         }
 
