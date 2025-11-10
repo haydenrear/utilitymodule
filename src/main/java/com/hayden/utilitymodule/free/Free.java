@@ -1,6 +1,7 @@
 package com.hayden.utilitymodule.free;
 
 import com.hayden.utilitymodule.result.error.SingleError;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,16 +19,24 @@ public sealed interface Free<F extends Effect, A> {
     static <F extends Effect, A> Free<F, A> liftF(F f) {
         return new Suspend<>(f);
     }
-
     static <F extends Effect, A> Free<F, A> err(String f) {
-        return new Error<>(SingleError.fromMessage(f));
+        return err(f, null) ;
+    }
+
+    static <F extends Effect, A> Free<F, A> err(String f, Exception t) {
+        return new Error<>(new FreeError(f, t));
     }
 
     static <F extends Effect, A> A parse(Free<F, A> p, Interpreter<F, A> interpreter) {
         while (true) {
+            if (Thread.currentThread().isInterrupted()) {
+                return interpreter.mapErr().apply(detectedInterruption());
+            }
             switch (p) {
                 // Preserve F & A in the pattern:
-                case Free.Pure<F, A> v -> { return v.a(); }
+                case Free.Pure<F, A> v -> {
+                    return v.a();
+                }
 
                 // Keep F so no cast is needed:
                 case Free.Suspend<F, ? extends A> s -> {
@@ -38,7 +47,7 @@ public sealed interface Free<F extends Effect, A> {
                             return interpreter.mapErr().apply(err);
                         }
                     } catch(Exception t) {
-                        Error<F, A> err = new Free.Error(t.getMessage());
+                        Error<F, A> err = new Free.Error(t.getMessage(), t);
                         return interpreter.mapErr().apply(err);
                     }
                 }
@@ -52,7 +61,7 @@ public sealed interface Free<F extends Effect, A> {
                             return interpreter.mapErr().apply(err);
                         }
                     } catch(Exception t) {
-                        Error<F, A> err = new Free.Error(t.getMessage());
+                        Error<F, A> err = new Free.Error(t.getMessage(), t);
                         return interpreter.mapErr().apply(err);
                     }
                 }
@@ -60,7 +69,7 @@ public sealed interface Free<F extends Effect, A> {
                     try {
                         return interpreter.mapErr().apply(v);
                     } catch(Exception t) {
-                        Error<F, A> err = new Free.Error(t.getMessage());
+                        Error<F, A> err = new Free.Error(t.getMessage(), t);
                         return interpreter.mapErr().apply(err);
                     }
                 }
@@ -80,9 +89,12 @@ public sealed interface Free<F extends Effect, A> {
                 Function<X, Free<F, A>> mapper = fm.mapper();
                 yield interpreter.apply(s.f()).flatMap(mapped -> {
                     try {
+                        if (Thread.currentThread().isInterrupted()) {
+                            return detectedInterruption();
+                        }
                         Free<F, A> m =  mapper.apply((X) mapped);
                         if (m instanceof Error<F, A>(
-                                SingleError error
+                                FreeError error
                         )) {
                             return new Error<>(error);
                         }
@@ -92,7 +104,7 @@ public sealed interface Free<F extends Effect, A> {
                         log.error("Could not cast {}.", mapped.getClass(), castException);
                         throw castException;
                     } catch (Exception t) {
-                        return new Free.Error<>(t.getMessage());
+                        return new Free.Error<>(t.getMessage(), t);
                     }
                 });
             }
@@ -100,6 +112,10 @@ public sealed interface Free<F extends Effect, A> {
                     throw new IllegalStateException("Nested FlatMapped is not expected here");
             case Free.Error<F, ?> v -> new Error<F, A>(v.error());
         };
+    }
+
+    private static <F extends Effect, A> @NotNull Error<F, A> detectedInterruption() {
+        return new Error<>("Detected an interruption.", new InterruptedException());
     }
 
     record Pure<F extends Effect, A>(A a) implements Free<F, A> {
@@ -118,16 +134,18 @@ public sealed interface Free<F extends Effect, A> {
                 try {
                     return mapper.apply(x).flatMap(g);
                 } catch (Exception e) {
-                    return Free.err(e.getMessage());
+                    return Free.err(e.getMessage(), e);
                 }
             });
         }
     }
 
-    record Error<F extends Effect, A>(SingleError error) implements Free<F, A> {
+    record FreeError(String getMessage, Exception t) implements SingleError {}
 
-        public Error(String err) {
-            this(SingleError.fromMessage(err));
+    record Error<F extends Effect, A>(FreeError error) implements Free<F, A> {
+
+        public Error(String err, Exception e) {
+            this(new FreeError(err, e));
         }
 
         @Override
