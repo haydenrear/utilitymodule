@@ -857,7 +857,12 @@ public class FileUtils {
     }
 
     public static boolean deleteFilesRecursive(Path path) {
-        return deleteFilesRecursive(path, s -> true);
+        Path dir = path.normalize();
+        if (!dir.startsWith(path)) {
+            log.warn("Skipping delete outside allowed dir: {}", dir);
+            return false;
+        }
+        return deleteFilesRecursive(dir, s -> true);
     }
 
     public static boolean deleteFilesRecursive(Path target, Predicate<Path> doDelete) {
