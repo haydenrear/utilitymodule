@@ -3,7 +3,6 @@ import com.hayden.haydenbomplugin.BuildSrcVersionCatalogCollector
 plugins {
     id("com.hayden.no-main-class")
     id("com.hayden.log")
-
     id("com.hayden.kotlin")
     id("com.hayden.messaging")
     id("com.hayden.ai-nd")
@@ -11,6 +10,7 @@ plugins {
     id("com.hayden.bom-plugin")
     id("com.hayden.git")
     id("com.hayden.mcp")
+    id("com.hayden.java-conventions")
 }
 
 description = "utilitymodule"
@@ -23,6 +23,7 @@ dependencies {
     vC.bundles.opentelemetryBundle.inBundle()
         .map { implementation(it) }
     implementation("org.springframework.ai:spring-ai-starter-mcp-server-webmvc")
+    implementation("org.springframework.graphql:spring-graphql")
 
     implementation("com.squareup:javapoet:1.13.0")
 //    annotationProcessor(project(":tracing_apt")) {
@@ -34,5 +35,3 @@ dependencies {
 //    testAnnotationProcessor(project(":inject_fields"))
 //    api(project(":inject_fields"))
 }
-
-
