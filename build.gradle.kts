@@ -22,6 +22,7 @@ dependencies {
 
     vC.bundles.opentelemetryBundle.inBundle()
         .map { implementation(it) }
+    implementation("org.springframework.ai:spring-ai-starter-mcp-server-webmvc")
 
     implementation("com.squareup:javapoet:1.13.0")
 //    annotationProcessor(project(":tracing_apt")) {

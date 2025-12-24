@@ -1,21 +1,25 @@
 package com.hayden.utilitymodule.delegate_mcp;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hayden.utilitymodule.concurrent.striped.StripedLock;
 import com.hayden.utilitymodule.result.Result;
 import com.hayden.utilitymodule.result.error.SingleError;
 import io.modelcontextprotocol.client.McpAsyncClient;
 import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
-import io.modelcontextprotocol.client.transport.HttpClientSseClientTransport;
+import io.modelcontextprotocol.client.transport.DelegatingHttpClientStreamableHttpTransport;
+import io.modelcontextprotocol.client.transport.HttpClientStreamableHttpTransport;
 import io.modelcontextprotocol.client.transport.ServerParameters;
 import io.modelcontextprotocol.client.transport.StdioClientTransport;
+import io.modelcontextprotocol.json.McpJsonMapper;
+import io.modelcontextprotocol.json.jackson.JacksonMcpJsonMapper;
 import io.modelcontextprotocol.spec.McpSchema;
 import jakarta.annotation.PostConstruct;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.mcp.client.autoconfigure.NamedClientMcpTransport;
-import org.springframework.ai.mcp.client.autoconfigure.configurer.McpSyncClientConfigurer;
-import org.springframework.ai.mcp.client.autoconfigure.properties.McpClientCommonProperties;
+import org.springframework.ai.mcp.client.common.autoconfigure.NamedClientMcpTransport;
+import org.springframework.ai.mcp.client.common.autoconfigure.configurer.McpSyncClientConfigurer;
+import org.springframework.ai.mcp.client.common.autoconfigure.properties.McpClientCommonProperties;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -48,7 +52,7 @@ public class DynamicMcpToolCallbackProvider {
         }
 
         record HttpServerMetadata(String baseUri,
-                                  String sseEndpoint) implements McpServerMetadata {
+                                  String endpoint) implements McpServerMetadata {
         }
 
     }
@@ -76,8 +80,16 @@ public class DynamicMcpToolCallbackProvider {
     @Autowired(required = false)
     private List<NamedClientMcpTransport> namedTransports = new ArrayList<>();
 
+    @Autowired(required = false)
+    private McpJsonMapper jsonMapper;
+
+    @Autowired
+    private ObjectMapper mapper;
+
     @PostConstruct
     public void initialize() {
+        if (jsonMapper == null)
+            jsonMapper = new JacksonMcpJsonMapper(mapper);
         stdioTransports = new ArrayList<>(stdioTransports);
         stdioTransports.addAll(namedTransports.stream().filter(Predicate.not(stdioTransports::contains)).toList());
     }
@@ -215,7 +227,8 @@ public class DynamicMcpToolCallbackProvider {
     }
 
     private <T extends McpServerMetadata> Result<McpSyncClient, McpError> getClientForTransport(String clientName, ServerCustomizer<T> replace, NamedClientMcpTransport namedTransport) throws NoSuchFieldException {
-        if (namedTransport.transport() instanceof HttpClientSseClientTransport) {
+        if (namedTransport.transport() instanceof DelegatingHttpClientStreamableHttpTransport
+                || isAuthAwareStreamableTransport(namedTransport.transport())) {
             return initializeHttpMcpSyncClient(
                     clientName,
                     replace instanceof ServerCustomizer.HttpServerCustomizer h ? h : s -> s,
@@ -235,19 +248,13 @@ public class DynamicMcpToolCallbackProvider {
     private Result<McpSyncClient, McpError> initializeHttpMcpSyncClient(String clientName,
                                                                         ServerCustomizer.HttpServerCustomizer replace,
                                                                         NamedClientMcpTransport namedTransport) throws NoSuchFieldException {
-        Field uriField = namedTransport.transport().getClass().getDeclaredField("baseUri");
-        uriField.trySetAccessible();
-        URI uri = (URI) ReflectionUtils.getField(uriField, namedTransport.transport());
+        TransportEndpoint transportEndpoint = resolveTransportEndpoint(namedTransport.transport());
+        URI uri = transportEndpoint.baseUri();
+        String endpoint = transportEndpoint.endpoint();
 
-        Field endpointField = namedTransport.transport().getClass().getDeclaredField("sseEndpoint");
-        endpointField.trySetAccessible();
-        String endpoint = (String) ReflectionUtils.getField(endpointField, namedTransport.transport());
-
-        var paramsAfter = replace.apply(new McpServerMetadata.HttpServerMetadata(this.connectedClientName(commonProperties.getName(), namedTransport.name()), endpoint));
-        System.out.printf("HAVENT LOOKED AT HOW NAME IS SET FOR HTTP YET: %s%n", paramsAfter.toString());
-
-//        var nameAfter = paramsAfter.name;
-//        var serverParamsAfter = paramsAfter.serverParameters;
+        var paramsAfter = replace.apply(new McpServerMetadata.HttpServerMetadata(
+                this.connectedClientName(commonProperties.getName(), namedTransport.name()),
+                endpoint));
 
         if (uri == null) {
             log.error("Could not find valid endpoint for name {}.", clientName);
@@ -259,15 +266,17 @@ public class DynamicMcpToolCallbackProvider {
             return Result.ok(this.clientConcurrentHashMap.get(uri.toString()));
         }
 
-        var t = HttpClientSseClientTransport.builder(uri.toString())
-                .sseEndpoint(endpoint)
-                .build();
+        if (namedTransport.transport() instanceof DelegatingHttpClientStreamableHttpTransport d) {
+             var t = d.toBuilder().build();
 
-        var client = buildInitializeClient(uri.toString(), McpClient.sync(t), namedTransport);
+            var client = buildInitializeClient(uri.toString(), McpClient.sync(t), namedTransport);
 
-        clientConcurrentHashMap.put(clientName, client);
+            clientConcurrentHashMap.put(clientName, client);
 
-        return Result.ok(client);
+            return Result.ok(client);
+        }
+
+        return Result.err(new McpError("Failed to build http sync client - was not of delegating http client transport."));
     }
 
     private McpSyncClient buildInitializeClient(String uri, McpClient.SyncSpec t, NamedClientMcpTransport namedTransport) {
@@ -312,7 +321,7 @@ public class DynamicMcpToolCallbackProvider {
             doStopExistingNotInMap(serverParamsAfter);
         }
 
-        var t = new StdioClientTransport(serverParamsAfter);
+        var t = new StdioClientTransport(serverParamsAfter, jsonMapper);
         var client = buildInitializeClient(nameAfter, McpClient.sync(t), namedTransport);
 
         clientConcurrentHashMap.put(clientName, client);
@@ -339,6 +348,41 @@ public class DynamicMcpToolCallbackProvider {
             log.info("Running docker shutdown hook for {}", finalName);
             doRunStopDocker(finalName);
         }));
+    }
+
+    private static boolean isAuthAwareStreamableTransport(Object transport) {
+        return transport != null && transport.getClass().getName()
+                .equals("io.modelcontextprotocol.client.transport.AuthAwareHttpStreamableClientTransport");
+    }
+
+    private record TransportEndpoint(URI baseUri, String endpoint) { }
+
+    private TransportEndpoint resolveTransportEndpoint(Object transport) throws NoSuchFieldException {
+        if (transport instanceof HttpClientStreamableHttpTransport streamable) {
+            Field uriField = streamable.getClass().getDeclaredField("baseUri");
+            uriField.trySetAccessible();
+            URI uri = (URI) ReflectionUtils.getField(uriField, streamable);
+
+            Field endpointField = streamable.getClass().getDeclaredField("endpoint");
+            endpointField.trySetAccessible();
+            String endpoint = (String) ReflectionUtils.getField(endpointField, streamable);
+            return new TransportEndpoint(uri, endpoint);
+        }
+
+        if (isAuthAwareStreamableTransport(transport)) {
+            try {
+                var uriMethod = transport.getClass().getMethod("getBaseUri");
+                var endpointMethod = transport.getClass().getMethod("getEndpoint");
+                URI uri = URI.create((String) uriMethod.invoke(transport));
+                String endpoint = (String) endpointMethod.invoke(transport);
+                return new TransportEndpoint(uri, endpoint);
+            }
+            catch (ReflectiveOperationException e) {
+                throw new NoSuchFieldException("Failed to resolve endpoint from auth-aware transport: " + e.getMessage());
+            }
+        }
+
+        throw new NoSuchFieldException("Unsupported transport type: " + transport.getClass().getName());
     }
 
     public static void doRunStopDocker(String name) {
