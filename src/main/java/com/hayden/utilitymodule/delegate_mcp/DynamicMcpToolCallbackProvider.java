@@ -83,8 +83,8 @@ public class DynamicMcpToolCallbackProvider {
     @Autowired(required = false)
     private McpJsonMapper jsonMapper;
 
-    @Autowired
-    private ObjectMapper mapper;
+    @Autowired(required = false)
+    private ObjectMapper mapper = new ObjectMapper();
 
     @PostConstruct
     public void initialize() {
