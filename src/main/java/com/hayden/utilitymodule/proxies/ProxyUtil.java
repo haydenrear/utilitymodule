@@ -28,7 +28,7 @@ public class ProxyUtil {
         if (i)
             return true;
 
-        log.error("Didn't check JDK proxy!");
+        log.debug("Didn't check JDK proxy!");
         return false;
     }
 

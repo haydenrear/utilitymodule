@@ -123,7 +123,7 @@ public class GraphSort {
                 }
             }
 
-            return sortedGraphs.stream().map(mappings::get).toList();
+            return sortedGraphs.stream().map(mappings::get).filter(Objects::nonNull).toList();
         }
 
 
@@ -144,7 +144,8 @@ public class GraphSort {
             recursionStack.add(graph);
 
             // Visit each dependency of the current graph
-            for (Class<? extends T> dependency : dependencies.get(graph)) {
+            List<Class<? extends T>> graphDependencies = dependencies.getOrDefault(graph, List.of());
+            for (Class<? extends T> dependency : graphDependencies) {
                 // If the dependency is not visited, visit it
                 if (!visited.contains(dependency)) {
                     if (dfs(dependency, dependencies, visited, recursionStack, sortedGraphs)) {
