@@ -8,6 +8,7 @@ plugins {
     id("com.hayden.ai-nd")
     id("com.hayden.security")
     id("com.hayden.bom-plugin")
+    id("com.hayden.ai")
     id("com.hayden.git")
     id("com.hayden.mcp")
     id("com.hayden.java-conventions")
@@ -22,7 +23,6 @@ dependencies {
 
     vC.bundles.opentelemetryBundle.inBundle()
         .map { implementation(it) }
-    implementation("org.springframework.ai:spring-ai-starter-mcp-server-webmvc")
     implementation("org.springframework.graphql:spring-graphql")
 
     implementation("com.squareup:javapoet:1.13.0")
