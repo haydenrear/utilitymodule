@@ -44,7 +44,6 @@ import java.nio.file.Paths
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.collections.List
-import kotlin.collections.MutableList
 import kotlin.collections.emptyList
 import kotlin.collections.forEach
 import kotlin.collections.isNotEmpty
@@ -63,7 +62,6 @@ import kotlin.io.path.readText
 import kotlin.io.path.writeText
 import kotlin.text.StringBuilder
 import kotlin.text.equals
-import kotlin.text.get
 import kotlin.text.ifBlank
 import kotlin.text.isBlank
 import kotlin.text.isNotEmpty
@@ -84,16 +82,14 @@ class AcpChatModel(
     private val permissionGate: IPermissionGate
 ) : ChatModel, StreamingChatModel {
 
-    private val sessionLock = Any()
-
     private val log: Logger = LoggerFactory.getLogger(AcpChatModel::class.java)
 
     companion object AcpChatModel {
 
-        const val UI_SESSION_HEADER: String = "X-AG-UI-SESSION"
+        const val MCP_SESSION_HEADER: String = "X-AG-UI-SESSION"
 
-        fun UI_SESSION_HEADER(): String {
-            return UI_SESSION_HEADER
+        fun MCP_SESSION_HEADER(): String {
+            return MCP_SESSION_HEADER
         }
 
     }
@@ -248,7 +244,6 @@ class AcpChatModel(
                 log.info("Authenticated with ACP {}", authenticationResult)
             }
 
-
             val initialized = client.initialize(
                 ClientInfo(
                     capabilities = ClientCapabilities(
@@ -263,27 +258,31 @@ class AcpChatModel(
 
             log.info("Agent info: ${initialized.implementation.toString()}")
 
-            val toolAllowlist = mutableSetOf(
-                "emitGuiEvent",
-                "retrieveGui",
-                "submitGuiFeedback",
-                "performUiDiff"
-            )
-
-            val toolHeaders = mutableListOf(
-                HttpHeader(TOOL_ALLOWLIST_HEADER, toolAllowlist.joinToString(","))
-            )
-            if (memoryId != null) {
-                toolHeaders.add(HttpHeader(UI_SESSION_HEADER, memoryId.toString()))
-            }
-
-            val mcpSyncServers: MutableList<McpServer> = mutableListOf(
-                McpServer.Http("agent-tools", "http://localhost:8080/mcp", toolHeaders),
-                McpServer.Http("gateway", "http://localhost:8081/mcp", toolHeaders))
+            val toolAllowlist = mutableSetOf<String>()
+            val mcpSyncServers: MutableSet<McpServer> = mutableSetOf()
 
             if (chatRequest?.options is ToolCallingChatOptions) {
                 val options = chatRequest.options as ToolCallingChatOptions
                 toolAllowlist.addAll(options.toolNames)
+
+                options.toolCallbacks.map { it.toolDefinition.name() }
+                    .map {
+                        if (it.contains(".")) {
+                            val splitted = it.split(".")
+                            splitted.subList(1, splitted.size).joinToString(".")
+                        } else
+                            it
+                    }
+                    .forEach { toolAllowlist.add(it) }
+
+                options.toolCallbacks.map { it.toolDefinition }
+                    .mapNotNull {
+                        this.mcpProperties.retrieve(it)
+                            .orElse(null)
+                    }
+                    .distinct()
+                    .forEach { mcpSyncServers.add(it) }
+
                 options.toolCallbacks
                     .mapNotNull {
                         when (it) {
@@ -293,14 +292,27 @@ class AcpChatModel(
                         }
                     }
                     .mapNotNull {
-                        this.mcpProperties.retrieve(it.first, it.second)
+                        this.mcpProperties.retrieve(it.first)
                             .orElse(null)
                     }
+                    .distinct()
                     .forEach { mcpSyncServers.add(it) }
             }
 
+            val toolHeaders = mutableListOf(
+                HttpHeader(TOOL_ALLOWLIST_HEADER, toolAllowlist.joinToString(","))
+            )
+            if (memoryId != null) {
+                toolHeaders.add(HttpHeader(MCP_SESSION_HEADER, memoryId.toString()))
+            }
+
+            mcpSyncServers.addAll(
+                mutableListOf(
+                    McpServer.Http("agent-tools", "http://localhost:8080/mcp", toolHeaders)
+                ))
+
             val cwd = workingDirectory.ifBlank { System.getProperty("user.dir") }
-            val sessionParams = SessionCreationParameters(cwd, mcpSyncServers)
+            val sessionParams = SessionCreationParameters(cwd, mcpSyncServers.toList())
 
             val session=  client.newSession(sessionParams)
                 { _, _ -> AcpSessionOperations(permissionGate)}

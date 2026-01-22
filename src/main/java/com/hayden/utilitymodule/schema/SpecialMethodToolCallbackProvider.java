@@ -1,7 +1,9 @@
 package com.hayden.utilitymodule.schema;
 
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -9,6 +11,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.hayden.utilitymodule.MapFunctions;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,6 +26,7 @@ import org.springframework.ai.tool.metadata.ToolMetadata;
 import org.springframework.ai.tool.method.MethodToolCallback;
 import org.springframework.ai.tool.support.ToolDefinitions;
 import org.springframework.ai.tool.support.ToolUtils;
+import org.springframework.aop.framework.AopProxyUtils;
 import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
@@ -50,6 +54,16 @@ public class SpecialMethodToolCallbackProvider implements ToolCallbackProvider, 
         this.specialJsonSchemaGenerator = specialJsonSchemaGenerator;
         this.schemaReplacer = schemaReplacer;
         validateToolCallbacks(getToolCallbacks());
+    }
+
+    public Map<String, Method> toolCallbackMethods() {
+        return MapFunctions.CollectMap(this.toolObjects.stream()
+                .flatMap(obj -> {
+                    var objP = AopProxyUtils.getSingletonTarget(obj);
+                    return Arrays.stream((objP == null ? obj : objP).getClass().getDeclaredMethods())
+                            .filter(m -> m.isAnnotationPresent(Tool.class))
+                            .map(m -> Map.entry(m.getName(), m));
+                }));
     }
 
     private void assertToolAnnotatedMethodsPresent(List<Object> toolObjects) {

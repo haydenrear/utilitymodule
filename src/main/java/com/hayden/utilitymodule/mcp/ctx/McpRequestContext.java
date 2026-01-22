@@ -1,4 +1,4 @@
-package io.modelcontextprotocol.server;
+package com.hayden.utilitymodule.mcp.ctx;
 
 import org.springframework.http.HttpHeaders;
 
@@ -33,4 +33,6 @@ public final class McpRequestContext {
 
     private record Context(HttpHeaders headers) {
     }
+
+    public record McpToolContext(HttpHeaders headers) {}
 }

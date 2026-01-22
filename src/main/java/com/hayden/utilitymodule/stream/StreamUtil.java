@@ -63,6 +63,10 @@ public class StreamUtil {
         return t == null ? Stream.empty() : t;
     }
 
+    public static <K, V> Stream<Map.Entry<K, V>> toStream(Map<K, V> t) {
+        return t == null ? Stream.empty() : t.entrySet().stream();
+    }
+
     public static <T> Stream<T> toStream(T t) {
         return Optional.ofNullable(t).stream();
     }

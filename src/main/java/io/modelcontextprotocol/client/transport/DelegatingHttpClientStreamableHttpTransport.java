@@ -32,10 +32,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandler;
 import java.time.Duration;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -514,6 +511,10 @@ public class DelegatingHttpClientStreamableHttpTransport implements McpClientTra
 									// won't
 									// since the
 									// next version considers removing it.
+
+									if (Objects.equals(sseEvent.data(), "ping")) {
+										return Flux.empty();
+									}
 									McpSchema.JSONRPCMessage message = McpSchema
 										.deserializeJsonRpcMessage(this.jsonMapper, sseEvent.data());
 

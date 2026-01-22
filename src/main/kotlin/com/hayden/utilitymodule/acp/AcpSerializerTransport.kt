@@ -12,6 +12,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.io.*
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -154,6 +155,7 @@ class AcpSerializerTransport(
         runCatching { output.close() }.onFailure { logger.warn(it) { "Exception when closing output stream" } }
     }
 
+    @OptIn(ExperimentalSerializationApi::class)
     val ACPJson: Json by lazy {
         Json {
             serializersModule = SerializersModule {

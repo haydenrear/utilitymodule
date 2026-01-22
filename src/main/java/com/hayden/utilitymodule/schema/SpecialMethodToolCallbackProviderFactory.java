@@ -19,7 +19,8 @@ public class SpecialMethodToolCallbackProviderFactory {
                                                                         SpecialJsonSchemaGenerator specialJsonSchemaGenerator,
                                                                         DelegatingSchemaReplacer schemaReplacer,
                                                                         ApplicationContext ctx) {
-        SpecialMethodToolCallbackProvider specialMethodToolCallbackProvider = new SpecialMethodToolCallbackProvider(codeSearchMcpTools, specialJsonSchemaGenerator, schemaReplacer, ctx);
+        SpecialMethodToolCallbackProvider specialMethodToolCallbackProvider
+                = new SpecialMethodToolCallbackProvider(codeSearchMcpTools, specialJsonSchemaGenerator, schemaReplacer, ctx);
         specialMethodToolCallbackProvider.setApplicationContext(ctx);
         return specialMethodToolCallbackProvider;
     }

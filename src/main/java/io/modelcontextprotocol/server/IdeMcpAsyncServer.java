@@ -1,5 +1,6 @@
 package io.modelcontextprotocol.server;
 
+import com.hayden.utilitymodule.mcp.ctx.McpRequestContext;
 import io.modelcontextprotocol.json.McpJsonMapper;
 import io.modelcontextprotocol.json.TypeRef;
 import io.modelcontextprotocol.json.schema.JsonSchemaValidator;
@@ -326,7 +327,9 @@ public class IdeMcpAsyncServer extends McpAsyncServer {
                         McpRequestContext.setHeaders(captured);
                         return Boolean.TRUE;
                     },
-                    ignored -> toolSpecification.get().callHandler().apply(exchange, callToolRequest),
+                    ignored -> {
+                        return toolSpecification.get().callHandler().apply(exchange, callToolRequest);
+                    },
                     ignored -> McpRequestContext.clear()
             );
         };
@@ -759,14 +762,19 @@ public class IdeMcpAsyncServer extends McpAsyncServer {
         var tool = toolSpecification.tool();
         var outputSchema = tool.outputSchema();
 
-        var callHandler = toolSpecification.callHandler();
+        BiFunction<McpAsyncServerExchange, McpSchema.CallToolRequest, Mono<McpSchema.CallToolResult>> callHandler = (f,s) -> {
+            var c = toolSpecification.callHandler().apply(f, s);
+            return c;
+        };
         return McpServerFeatures.AsyncToolSpecification.builder()
                 .tool(tool)
-                .callHandler((exchange, request) -> callHandler.apply(exchange, request)
-                        .map(result -> {
-                            jsonSchemaValidator.validate(outputSchema, result);
-                            return result;
-                        }))
+                .callHandler((exchange, request) -> {
+                    return callHandler.apply(exchange, request)
+                            .map(result -> {
+                                jsonSchemaValidator.validate(outputSchema, result);
+                                return result;
+                            });
+                })
                 .build();
     }
 
