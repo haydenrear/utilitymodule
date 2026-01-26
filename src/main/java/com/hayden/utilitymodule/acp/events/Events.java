@@ -690,6 +690,30 @@ public interface Events {
             Object renderTree
     ) {
     }
+
+    // ============ ARTIFACT EVENTS ============
+
+    /**
+     * Event emitted when an artifact is created during execution.
+     * Used by ArtifactEventListener to build and persist the artifact tree.
+     */
+    record ArtifactEvent(
+            String eventId,
+            Instant timestamp,
+            String nodeId,
+            String artifactType,
+            String parentArtifactKey,
+            Artifact artifact
+    ) implements GraphEvent {
+        @Override
+        public String eventType() {
+            return "ARTIFACT_EMITTED";
+        }
+
+        public ArtifactKey artifactKey() {
+            return artifact.artifactKey();
+        }
+    }
 }
 
 // ============ NODE EVENTS ============
