@@ -171,7 +171,7 @@ class AcpChatModel(
         .build()
 
     fun createProcessStdioTransport(coroutineScope: CoroutineScope,
-                                    vararg command: String): Transport {
+                                    command: Array<String>): Transport {
         val pb = ProcessBuilder(*command)
             .redirectInput(ProcessBuilder.Redirect.PIPE)
             .redirectOutput(ProcessBuilder.Redirect.PIPE)
@@ -222,13 +222,18 @@ class AcpChatModel(
             throw IllegalStateException("Only stdio transport is supported for ACP integration")
         }
 
-        val command = properties.command?.trim().orEmpty()
-        if (command.isBlank()) {
+        val command = properties.command?.trim()?.split(Regex("\\s+"))?.toTypedArray()
+
+        if (command == null || command.size == 0) {
             throw IllegalStateException("ACP command is not configured")
         }
 
         val args = parseArgs(properties.args)
-        val process = properties.command
+
+        if (args.isNotEmpty()) {
+            throw RuntimeException("ACP args are not parsed for individual acp providers. They are not parsed at all yet. TODO:" + args)
+        }
+        val process = command
         val workingDirectory = properties.workingDirectory
 
         return try {
@@ -333,7 +338,7 @@ class AcpChatModel(
         while (tokenizer.hasMoreTokens()) {
             tokens.add(tokenizer.nextToken())
         }
-        return tokens
+        return tokens.filter { it.isNotEmpty() }
     }
 
     private fun formatPromptMessages(messages: Prompt): String {

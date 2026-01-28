@@ -1,8 +1,10 @@
 package com.hayden.utilitymodule.acp.events;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.hayden.utilitymodule.schema.SpecialJsonSchemaGenerator;
 import com.hayden.utilitymodule.security.SignatureUtil;
 import lombok.Builder;
 import lombok.With;
@@ -11,6 +13,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Base interface for all artifacts in the execution tree.
@@ -22,39 +25,41 @@ import java.util.*;
  * - outcomes
  * - captured events
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "artifactType")
-@JsonSubTypes({
-    @JsonSubTypes.Type(value = Artifact.ExecutionArtifact.class, name = "Execution"),
-    @JsonSubTypes.Type(value = Artifact.ExecutionConfigArtifact.class, name = "ExecutionConfig"),
-    @JsonSubTypes.Type(value = Artifact.RenderedPromptArtifact.class, name = "RenderedPrompt"),
-    @JsonSubTypes.Type(value = Artifact.PromptArgsArtifact.class, name = "PromptArgs"),
-    @JsonSubTypes.Type(value = Artifact.PromptContributionArtifact.class, name = "PromptContribution"),
-    @JsonSubTypes.Type(value = Artifact.ToolCallArtifact.class, name = "ToolCall"),
-    @JsonSubTypes.Type(value = Artifact.OutcomeEvidenceArtifact.class, name = "OutcomeEvidence"),
-    @JsonSubTypes.Type(value = Artifact.EventArtifact.class, name = "EventArtifact"),
-    @JsonSubTypes.Type(value = Artifact.AgentRequestArtifact.class, name = "AgentRequest"),
-    @JsonSubTypes.Type(value = Artifact.AgentResultArtifact.class, name = "AgentResult"),
-    @JsonSubTypes.Type(value = Artifact.GroupArtifact.class, name = "Group"),
-    @JsonSubTypes.Type(value = RefArtifact.class, name = "RefArtifact"),
-    @JsonSubTypes.Type(value = MessageStreamArtifact.class, name = "MessageStream")
-})
+//TODO: maybe a polymorphic? However, the json will always be deserialized with a type in ArtifactEntity, matched over, so maybe not.
+//@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "artifactType")
+//@JsonSubTypes({
+//    @JsonSubTypes.Type(value = Artifact.ExecutionArtifact.class, name = "Execution"),
+//    @JsonSubTypes.Type(value = Artifact.ExecutionConfigArtifact.class, name = "ExecutionConfig"),
+//    @JsonSubTypes.Type(value = Artifact.RenderedPromptArtifact.class, name = "RenderedPrompt"),
+//    @JsonSubTypes.Type(value = Artifact.PromptArgsArtifact.class, name = "PromptArgs"),
+//    @JsonSubTypes.Type(value = Artifact.PromptContributionArtifact.class, name = "PromptContribution"),
+//    @JsonSubTypes.Type(value = Artifact.ToolCallArtifact.class, name = "ToolCall"),
+//    @JsonSubTypes.Type(value = Artifact.OutcomeEvidenceArtifact.class, name = "OutcomeEvidence"),
+//    @JsonSubTypes.Type(value = Artifact.EventArtifact.class, name = "EventArtifact"),
+//    @JsonSubTypes.Type(value = Artifact.AgentRequestArtifact.class, name = "AgentRequest"),
+//    @JsonSubTypes.Type(value = Artifact.AgentResultArtifact.class, name = "AgentResult"),
+//    @JsonSubTypes.Type(value = Artifact.GroupArtifact.class, name = "Group"),
+//    @JsonSubTypes.Type(value = RefArtifact.class, name = "RefArtifact"),
+//    @JsonSubTypes.Type(value = MessageStreamArtifact.class, name = "MessageStream")
+//})
 @JsonIgnoreProperties(ignoreUnknown = true)
-public sealed interface Artifact permits
-        Artifact.ExecutionArtifact,
-        Artifact.ExecutionConfigArtifact,
-        Artifact.RenderedPromptArtifact,
-        Artifact.PromptArgsArtifact,
-        Artifact.PromptContributionArtifact,
-        Artifact.ToolCallArtifact,
-        Artifact.OutcomeEvidenceArtifact,
-        Artifact.EventArtifact,
-        Artifact.AgentRequestArtifact,
-        Artifact.AgentResultArtifact,
-        Artifact.GroupArtifact,
-        RefArtifact,
-        MessageStreamArtifact,
-        Templated,
-        Artifact.AgentModelArtifact {
+public sealed interface Artifact
+        permits
+            Artifact.AgentModelArtifact,
+            Artifact.EventArtifact,
+            Artifact.ExecutionArtifact,
+            Artifact.ExecutionConfigArtifact,
+            Artifact.OutcomeEvidenceArtifact,
+            Artifact.PromptArgsArtifact,
+            Artifact.PromptContributionArtifact,
+            Artifact.RenderedPromptArtifact,
+            Artifact.SchemaArtifact,
+            Artifact.ToolCallArtifact,
+            MessageStreamArtifact,
+            RefArtifact,
+            Templated {
+
+    String SCHEMA = "schema";
 
     default List<Artifact> collectRecursiveChildren() {
         var l = new ArrayList<>(this.children());
@@ -62,7 +67,7 @@ public sealed interface Artifact permits
                 .forEach(l::add);
         return l;
     }
-    
+
     /**
      * Hierarchical, time-sortable identifier.
      */
@@ -88,6 +93,7 @@ public sealed interface Artifact permits
      */
     List<Artifact> children();
 
+    @Builder
     record AgentModelArtifact(List<Artifact> children,
                               AgentModel agentModel,
                               Map<String, String> metadata,
@@ -128,27 +134,71 @@ public sealed interface Artifact permits
 
         String computeHash(HashContext hashContext);
 
+        @JsonIgnore
         List<AgentModel> children();
 
+        @JsonIgnore
         ArtifactKey key();
 
+        @JsonIgnore
         default String artifactType() {
             return this.getClass().getSimpleName();
         }
 
+        @JsonIgnore
         <T extends AgentModel> T withChildren(List<AgentModel> c);
 
+        @JsonIgnore
         default Map<String, String> metadata() {
             return new HashMap<>();
         }
 
         default Artifact toArtifact(HashContext hashContext) {
-            var childArtifacts = children().stream().map(a -> a.toArtifact(hashContext)).toList();
+            var childArtifacts = children().stream()
+                    .map(a -> a.toArtifact(hashContext))
+                    .collect(Collectors.toCollection(ArrayList::new));
+
+            if (childArtifacts.stream().noneMatch(a -> Objects.equals(a.artifactType(), SCHEMA))) {
+                var schema = SpecialJsonSchemaGenerator.generateForType(this.getClass());
+                childArtifacts.add(
+                        Artifact.SchemaArtifact.builder()
+                                .schema(schema)
+                                .hash(hashContext.hash(schema))
+                                .artifactKey(key().createChild())
+                                .metadata(new HashMap<>())
+                                .build());
+            }
+
             return new Artifact.AgentModelArtifact(childArtifacts, this, metadata(), computeHash(hashContext));
         }
 
     }
-    
+
+    @Builder(toBuilder = true)
+    @With
+    record SchemaArtifact(
+            ArtifactKey artifactKey,
+            String hash,
+            Map<String, String> metadata,
+            String schema
+    ) implements Artifact {
+
+        @Override
+        public String artifactType() {
+            return SCHEMA;
+        }
+
+        @Override
+        public Optional<String> contentHash() {
+            return Optional.ofNullable(hash);
+        }
+
+        @Override
+        public List<Artifact> children() {
+            return List.of();
+        }
+    }
+
     // ========== Execution Root ==========
     
     /**
@@ -178,7 +228,7 @@ public sealed interface Artifact permits
     }
     
     enum ExecutionStatus {
-        RUNNING, COMPLETED, FAILED
+        RUNNING, COMPLETED, FAILED, STOPPED
     }
     
     // ========== Execution Config ==========
@@ -357,7 +407,6 @@ public sealed interface Artifact permits
     record EventArtifact(
             ArtifactKey artifactKey,
             String eventId,
-            String nodeId,
             Instant eventTimestamp,
             String eventType,
             Map<String, Object> payloadJson,
@@ -377,84 +426,5 @@ public sealed interface Artifact permits
         }
     }
     
-    // ========== Agent Artifacts ==========
-    
-    /**
-     * Serialized agent request.
-     */
-    @Builder(toBuilder = true)
-    @With
-    record AgentRequestArtifact(
-            ArtifactKey artifactKey,
-            String agentType,
-            String nodeId,
-            String interactionType,
-            Map<String, Object> payloadJson,
-            String hash,
-            Map<String, String> metadata,
-            List<Artifact> children
-    ) implements Artifact {
-        
-        @Override
-        public String artifactType() {
-            return "AgentRequest";
-        }
-        
-        @Override
-        public Optional<String> contentHash() {
-            return Optional.ofNullable(hash);
-        }
-    }
-    
-    /**
-     * Serialized agent result.
-     */
-    @Builder(toBuilder = true)
-    @With
-    record AgentResultArtifact(
-            ArtifactKey artifactKey,
-            String agentType,
-            String nodeId,
-            String interactionType,
-            Map<String, Object> payloadJson,
-            String hash,
-            Map<String, String> metadata,
-            List<Artifact> children
-    ) implements Artifact {
-        
-        @Override
-        public String artifactType() {
-            return "AgentResult";
-        }
-        
-        @Override
-        public Optional<String> contentHash() {
-            return Optional.ofNullable(hash);
-        }
-    }
-    
-    // ========== Structural ==========
-    
-    /**
-     * Grouping artifact for organizing children (InputArtifacts, AgentExecutionArtifacts, etc.).
-     */
-    @Builder(toBuilder = true)
-    @With
-    record GroupArtifact(
-            ArtifactKey artifactKey,
-            String groupName,
-            Map<String, String> metadata,
-            List<Artifact> children
-    ) implements Artifact {
-        
-        @Override
-        public String artifactType() {
-            return "Group";
-        }
-        
-        @Override
-        public Optional<String> contentHash() {
-            return Optional.empty();
-        }
-    }
+
 }

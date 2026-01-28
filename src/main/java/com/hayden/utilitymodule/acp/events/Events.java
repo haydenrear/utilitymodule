@@ -336,10 +336,8 @@ public interface Events {
             String eventId,
             Instant timestamp,
             String orchestratorNodeId,
-            String finalSummary,
-            int totalNodesCompleted,
-            int totalNodesFailed,
-            long executionTimeMs
+            String workflowId,
+            Artifact.AgentModel model
     ) implements Events.GraphEvent {
         @Override
         public String nodeId() {
