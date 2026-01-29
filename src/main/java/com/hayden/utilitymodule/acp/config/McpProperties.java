@@ -11,10 +11,7 @@ import org.springframework.ai.tool.definition.ToolDefinition;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Stream;
 
 @ConfigurationProperties("acp.mcp")
@@ -27,10 +24,18 @@ public class McpProperties {
 
     List<McpServer.Http> http = new ArrayList<>();
 
-    Map<String, McpServer> collected;
+    Map<String, McpServer> collected = new HashMap<>();
+
+    boolean enabled = true;
 
     @PostConstruct
     public void after() {
+        if (!enabled) {
+            http = new ArrayList<>();
+            stdio = new ArrayList<>();
+            collected = new HashMap<>();
+            return;
+        }
         collected = MapFunctions.CollectMap(
                 Stream.concat(stdio.stream(), http.stream())
                         .map(m -> Map.entry(m.getName(), m)));

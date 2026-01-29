@@ -9,7 +9,10 @@ import com.agentclientprotocol.protocol.Protocol
 import com.agentclientprotocol.transport.Transport
 import com.hayden.utilitymodule.acp.config.AcpModelProperties
 import com.hayden.utilitymodule.acp.config.McpProperties
+import com.hayden.utilitymodule.acp.events.ArtifactKey
 import com.hayden.utilitymodule.acp.events.EventBus
+import com.hayden.utilitymodule.nullable.mapNullable
+import com.hayden.utilitymodule.nullable.or
 import com.hayden.utilitymodule.permission.IPermissionGate
 import io.modelcontextprotocol.server.IdeMcpAsyncServer.TOOL_ALLOWLIST_HEADER
 import kotlinx.coroutines.CoroutineScope
@@ -171,7 +174,7 @@ class AcpChatModel(
         .build()
 
     fun createProcessStdioTransport(coroutineScope: CoroutineScope,
-                                    vararg command: String): Transport {
+                                    command: Array<String>): Transport {
         val pb = ProcessBuilder(*command)
             .redirectInput(ProcessBuilder.Redirect.PIPE)
             .redirectOutput(ProcessBuilder.Redirect.PIPE)
@@ -222,13 +225,18 @@ class AcpChatModel(
             throw IllegalStateException("Only stdio transport is supported for ACP integration")
         }
 
-        val command = properties.command?.trim().orEmpty()
-        if (command.isBlank()) {
+        val command = properties.command?.trim()?.split(Regex("\\s+"))?.toTypedArray()
+
+        if (command == null || command.size == 0) {
             throw IllegalStateException("ACP command is not configured")
         }
 
         val args = parseArgs(properties.args)
-        val process = properties.command
+
+        if (args.isNotEmpty()) {
+            throw RuntimeException("ACP args are not parsed for individual acp providers. They are not parsed at all yet. Add your arg in the command! --codex-args and stuff like that. TODO:" + args)
+        }
+        val process = command
         val workingDirectory = properties.workingDirectory
 
         return try {
@@ -317,7 +325,13 @@ class AcpChatModel(
             val session=  client.newSession(sessionParams)
                 { _, _ -> AcpSessionOperations(permissionGate)}
 
-            sessionManager.AcpSessionContext(scope, transport, protocol, client, session)
+            val messageParent =
+                memoryId.mapNullable { ArtifactKey(it.toString()).createChild() }
+                    ?.or { ArtifactKey.createRoot() }
+                    ?: ArtifactKey.createRoot()
+            sessionManager.AcpSessionContext(scope, transport, protocol, client, session,
+                messageParent= messageParent
+            )
 
         } catch (ex: Exception) {
             throw IllegalStateException("Failed to initialize ACP session", ex)
@@ -333,7 +347,7 @@ class AcpChatModel(
         while (tokenizer.hasMoreTokens()) {
             tokens.add(tokenizer.nextToken())
         }
-        return tokens
+        return tokens.filter { it.isNotEmpty() }
     }
 
     private fun formatPromptMessages(messages: Prompt): String {

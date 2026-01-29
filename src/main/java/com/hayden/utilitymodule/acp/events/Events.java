@@ -336,10 +336,8 @@ public interface Events {
             String eventId,
             Instant timestamp,
             String orchestratorNodeId,
-            String finalSummary,
-            int totalNodesCompleted,
-            int totalNodesFailed,
-            long executionTimeMs
+            String workflowId,
+            Artifact.AgentModel model
     ) implements Events.GraphEvent {
         @Override
         public String nodeId() {
@@ -689,6 +687,30 @@ public interface Events {
             Instant timestamp,
             Object renderTree
     ) {
+    }
+
+    // ============ ARTIFACT EVENTS ============
+
+    /**
+     * Event emitted when an artifact is created during execution.
+     * Used by ArtifactEventListener to build and persist the artifact tree.
+     */
+    record ArtifactEvent(
+            String eventId,
+            Instant timestamp,
+            String nodeId,
+            String artifactType,
+            String parentArtifactKey,
+            Artifact artifact
+    ) implements GraphEvent {
+        @Override
+        public String eventType() {
+            return "ARTIFACT_EMITTED";
+        }
+
+        public ArtifactKey artifactKey() {
+            return artifact.artifactKey();
+        }
     }
 }
 

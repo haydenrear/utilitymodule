@@ -8,7 +8,7 @@ import java.util.List;
  */
 public interface EventBus {
 
-    ThreadLocal<AgentProcessData> agentProcess = new ThreadLocal<>();
+    ThreadLocal<AgentNodeKey> agentProcess = new ThreadLocal<>();
 
     /**
      * Subscribe a listener to events.
@@ -45,5 +45,5 @@ public interface EventBus {
      */
     boolean hasSubscribers();
 
-    record AgentProcessData(String id) {}
+    record AgentNodeKey(String id) {}
 }

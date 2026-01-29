@@ -5,6 +5,7 @@ import com.agentclientprotocol.model.ContentBlock
 import com.agentclientprotocol.model.SessionUpdate
 import com.agentclientprotocol.model.ToolCallContent
 import com.agentclientprotocol.model.ToolCallStatus
+import com.hayden.utilitymodule.acp.events.ArtifactKey
 import com.hayden.utilitymodule.acp.events.Events
 import org.springframework.ai.chat.model.Generation
 import java.time.Instant
@@ -40,7 +41,7 @@ fun parseGenerationsFromAcpEvent(event: Event, sessionContext: AcpSessionManager
                 val flushed = sessionContext.flushOtherWindows(memoryId, AcpStreamWindowBuffer.StreamWindowType.AVAILABLE_COMMANDS)
                 sessionContext.appendEventWindow(
                     memoryId, AcpStreamWindowBuffer.StreamWindowType.AVAILABLE_COMMANDS,
-                    buildAvailableCommandsUpdateEvent(memoryId, update)
+                    buildAvailableCommandsUpdateEvent(memoryId, update, sessionContext.messageParent)
                 )
                 flushed
             }
@@ -49,7 +50,7 @@ fun parseGenerationsFromAcpEvent(event: Event, sessionContext: AcpSessionManager
                 sessionContext.appendEventWindow(
                     memoryId,
                     AcpStreamWindowBuffer.StreamWindowType.CURRENT_MODE,
-                    buildCurrentModeUpdateEvent(memoryId, update)
+                    buildCurrentModeUpdateEvent(memoryId, update, sessionContext.messageParent)
                 )
                 flushed
             }
@@ -58,18 +59,18 @@ fun parseGenerationsFromAcpEvent(event: Event, sessionContext: AcpSessionManager
                 sessionContext.appendEventWindow(
                     memoryId,
                     AcpStreamWindowBuffer.StreamWindowType.PLAN,
-                    buildPlanUpdateEvent(memoryId, update)
+                    buildPlanUpdateEvent(memoryId, update, sessionContext.messageParent)
                 )
                 flushed
             }
             is SessionUpdate.ToolCall -> {
                 val flushed = sessionContext.flushOtherWindows(memoryId, AcpStreamWindowBuffer.StreamWindowType.TOOL_CALL)
-                sessionContext.appendEventWindow(memoryId, AcpStreamWindowBuffer.StreamWindowType.TOOL_CALL, buildToolCallEvent(memoryId, update, "START"))
+                sessionContext.appendEventWindow(memoryId, AcpStreamWindowBuffer.StreamWindowType.TOOL_CALL, buildToolCallEvent(memoryId, update, "START", sessionContext.messageParent))
                 flushed
             }
             is SessionUpdate.ToolCallUpdate -> {
                 val flushed = sessionContext.flushOtherWindows(memoryId, AcpStreamWindowBuffer.StreamWindowType.TOOL_CALL)
-                sessionContext.appendEventWindow(memoryId, AcpStreamWindowBuffer.StreamWindowType.TOOL_CALL, buildToolCallUpdateEvent(memoryId, update))
+                sessionContext.appendEventWindow(memoryId, AcpStreamWindowBuffer.StreamWindowType.TOOL_CALL, buildToolCallUpdateEvent(memoryId, update, sessionContext.messageParent))
                 flushed
             }
         }
@@ -77,8 +78,9 @@ fun parseGenerationsFromAcpEvent(event: Event, sessionContext: AcpSessionManager
         emptyList()
     }
 
-private fun buildToolCallEvent(memoryId: Any?, update: SessionUpdate.ToolCall, phase: String): Events.ToolCallEvent {
-    val nodeId = memoryId?.toString() ?: "unknown"
+private fun buildToolCallEvent(memoryId: Any?, update: SessionUpdate.ToolCall, phase: String,
+                               parent: ArtifactKey): Events.ToolCallEvent {
+    val nodeId = parent.createChild().value
     return Events.ToolCallEvent(
         UUID.randomUUID().toString(),
         Instant.now(),
@@ -95,7 +97,8 @@ private fun buildToolCallEvent(memoryId: Any?, update: SessionUpdate.ToolCall, p
     )
 }
 
-private fun buildToolCallUpdateEvent(memoryId: Any?, update: SessionUpdate.ToolCallUpdate): Events.ToolCallEvent {
+private fun buildToolCallUpdateEvent(memoryId: Any?, update: SessionUpdate.ToolCallUpdate,
+                                     parent: ArtifactKey): Events.ToolCallEvent {
     val phase = when (update.status) {
         ToolCallStatus.COMPLETED -> "RESULT"
         ToolCallStatus.FAILED -> "RESULT"
@@ -103,7 +106,7 @@ private fun buildToolCallUpdateEvent(memoryId: Any?, update: SessionUpdate.ToolC
         ToolCallStatus.PENDING -> "ARGS"
         null -> "UPDATE"
     }
-    val nodeId = memoryId?.toString() ?: "unknown"
+    val nodeId = parent.createChild().value
     return Events.ToolCallEvent(
         UUID.randomUUID().toString(),
         Instant.now(),
@@ -120,8 +123,9 @@ private fun buildToolCallUpdateEvent(memoryId: Any?, update: SessionUpdate.ToolC
     )
 }
 
-private fun buildPlanUpdateEvent(memoryId: Any?, update: SessionUpdate.PlanUpdate): Events.PlanUpdateEvent {
-    val nodeId = memoryId?.toString() ?: "unknown"
+private fun buildPlanUpdateEvent(memoryId: Any?, update: SessionUpdate.PlanUpdate,
+                                 parent: ArtifactKey): Events.PlanUpdateEvent {
+    val nodeId = parent.createChild().value
     val entries = update.entries.map { entry ->
         mapOf(
             "content" to entry.content,
@@ -140,9 +144,10 @@ private fun buildPlanUpdateEvent(memoryId: Any?, update: SessionUpdate.PlanUpdat
 
 private fun buildCurrentModeUpdateEvent(
     memoryId: Any?,
-    update: SessionUpdate.CurrentModeUpdate
+    update: SessionUpdate.CurrentModeUpdate,
+    parent: ArtifactKey
 ): Events.CurrentModeUpdateEvent {
-    val nodeId = memoryId?.toString() ?: "unknown"
+    val nodeId = parent.createChild().value
     return Events.CurrentModeUpdateEvent(
         UUID.randomUUID().toString(),
         Instant.now(),
@@ -153,9 +158,10 @@ private fun buildCurrentModeUpdateEvent(
 
 private fun buildAvailableCommandsUpdateEvent(
     memoryId: Any?,
-    update: SessionUpdate.AvailableCommandsUpdate
+    update: SessionUpdate.AvailableCommandsUpdate,
+    parent: ArtifactKey
 ): Events.AvailableCommandsUpdateEvent {
-    val nodeId = memoryId?.toString() ?: "unknown"
+    val nodeId = parent.createChild().value
     val commands = update.availableCommands.map { command ->
         mapOf(
             "name" to command.name,

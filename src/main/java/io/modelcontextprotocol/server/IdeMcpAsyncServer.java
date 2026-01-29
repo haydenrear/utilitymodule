@@ -15,6 +15,7 @@ import io.modelcontextprotocol.spec.McpSchema.SetLevelRequest;
 import io.modelcontextprotocol.util.DefaultMcpUriTemplateManagerFactory;
 import io.modelcontextprotocol.util.McpUriTemplateManagerFactory;
 import io.modelcontextprotocol.util.Utils;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -33,6 +34,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiFunction;
+import java.util.stream.Collectors;
 
 import static io.modelcontextprotocol.spec.McpError.RESOURCE_NOT_FOUND;
 
@@ -788,13 +790,22 @@ public class IdeMcpAsyncServer extends McpAsyncServer {
             return true;
         }
 
-        Set<String> allowList = parseToolList(headers.getFirst(TOOL_ALLOWLIST_HEADER));
-        if (!allowList.isEmpty() && !allowList.contains(toolSpecification.tool().name())) {
+        Set<String> allowList = parseToolList(headers.getFirst(TOOL_ALLOWLIST_HEADER))
+                .stream()
+                .filter(StringUtils::isNotBlank)
+                .map(String::toLowerCase)
+                .collect(Collectors.toSet());
+
+        if (!allowList.isEmpty() && !allowList.contains(toolSpecification.tool().name().toLowerCase())) {
             return false;
         }
 
-        Set<String> blockList = parseToolList(headers.getFirst(TOOL_BLOCKLIST_HEADER));
-        return blockList.isEmpty() || !blockList.contains(toolSpecification.tool().name());
+        Set<String> blockList = parseToolList(headers.getFirst(TOOL_BLOCKLIST_HEADER))
+                .stream()
+                .filter(StringUtils::isNotBlank)
+                .map(String::toLowerCase)
+                .collect(Collectors.toSet());
+        return blockList.isEmpty() || !blockList.contains(toolSpecification.tool().name().toLowerCase());
     }
 
     private static Set<String> parseToolList(String headerValue) {
