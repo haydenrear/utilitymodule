@@ -1,6 +1,7 @@
 package com.hayden.utilitymodule.acp.events;
 
 import com.agui.core.types.BaseEvent;
+import com.fasterxml.jackson.annotation.JsonClassDescription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,6 +68,18 @@ public interface Events {
         PRUNE
     }
 
+    @JsonClassDescription("""
+            Decision type (ADVANCE_PHASE, ROUTE_BACK, STOP).
+            ADVANCE_PHASE: advance to the next orchestrator.
+                Discovery -> Planning
+                Planning -> Ticket
+                Ticket -> OrchestratorCollector (finish)
+            ROUTE_BACK: route back to the orchestrator
+                DiscoveryCollector -> DiscoveryOrchestrator
+                PlanningCollector -> PlanningOrchestrator
+                TicketCollector -> TicketOrchestrator
+            STOP: route to the OrchestratorCollector, no matter what stage of execution
+            """)
     enum CollectorDecisionType {
         ROUTE_BACK,
         ADVANCE_PHASE,

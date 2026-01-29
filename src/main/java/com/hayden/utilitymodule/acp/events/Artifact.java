@@ -3,11 +3,9 @@ package com.hayden.utilitymodule.acp.events;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.hayden.utilitymodule.schema.SpecialJsonSchemaGenerator;
-import com.hayden.utilitymodule.security.SignatureUtil;
 import lombok.Builder;
 import lombok.With;
 
-import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -49,10 +47,10 @@ public sealed interface Artifact
             Artifact.OutcomeEvidenceArtifact,
             Artifact.PromptArgsArtifact,
             Artifact.RenderedPromptArtifact,
-            Artifact.SchemaArtifact,
             Artifact.ToolCallArtifact,
             MessageStreamArtifact,
             RefArtifact,
+            Artifact.ArtifactDbRef,
             Templated {
 
     String SCHEMA = "schema";
@@ -72,11 +70,13 @@ public sealed interface Artifact
     /**
      * Type discriminator for serialization.
      */
+    @JsonIgnore
     String artifactType();
     
     /**
      * SHA-256 hash of content bytes (if applicable).
      */
+    @JsonIgnore
     Optional<String> contentHash();
     
     /**
@@ -157,7 +157,7 @@ public sealed interface Artifact
                         Artifact.SchemaArtifact.builder()
                                 .schema(schema)
                                 .hash(hashContext.hash(schema))
-                                .artifactKey(key().createChild())
+                                .templateArtifactKey(key().createChild())
                                 .metadata(new HashMap<>())
                                 .build());
             }
@@ -169,14 +169,92 @@ public sealed interface Artifact
 
     @Builder(toBuilder = true)
     @With
-    record SchemaArtifact(
-            ArtifactKey artifactKey,
+    record TemplateDbRef(
+            ArtifactKey templateArtifactKey,
+            String templateStaticId,
             String hash,
-            Map<String, String> metadata,
-            String schema
-    ) implements Artifact {
+            @JsonIgnore
+            Templated ref
+    ) implements Templated {
 
         @Override
+        @JsonIgnore
+        public String templateText() {
+            return ref.templateText();
+        }
+
+        @Override
+        public String artifactType() {
+            return ref.artifactType();
+        }
+
+        @Override
+        public Optional<String> contentHash() {
+            return ref.contentHash();
+        }
+
+        @Override
+        public Map<String, String> metadata() {
+            return ref.metadata();
+        }
+
+        @Override
+        public List<Artifact> children() {
+            return ref.children();
+        }
+    }
+
+    @Builder(toBuilder = true)
+    @With
+    record ArtifactDbRef(
+            ArtifactKey artifactKey,
+            String hash,
+            @JsonIgnore
+            Artifact ref
+    ) implements Artifact {
+
+        @JsonIgnore
+        @Override
+        public String artifactType() {
+            return ref.artifactType();
+        }
+
+        @JsonIgnore
+        @Override
+        public Optional<String> contentHash() {
+            return ref.contentHash();
+        }
+
+        @Override
+        public Map<String, String> metadata() {
+            return ref.metadata();
+        }
+
+        @Override
+        public List<Artifact> children() {
+            return ref.children();
+        }
+    }
+
+    @Builder(toBuilder = true)
+    @With
+    record SchemaArtifact(
+            ArtifactKey templateArtifactKey,
+            String templateStaticId,
+            String hash,
+            String templateText,
+            Map<String, String> metadata,
+            String schema
+    ) implements Templated {
+
+        @Override
+        @JsonIgnore
+        public ArtifactKey artifactKey() {
+            return templateArtifactKey;
+        }
+
+        @Override
+        @JsonIgnore
         public String artifactType() {
             return SCHEMA;
         }

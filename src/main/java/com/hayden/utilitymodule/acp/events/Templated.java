@@ -1,5 +1,7 @@
 package com.hayden.utilitymodule.acp.events;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -32,6 +34,7 @@ public non-sealed interface Templated extends Artifact {
      * SHA-256 content hash of the template text.
      * Used to identify the specific version within the template family.
      */
+    @JsonIgnore
     Optional<String> contentHash();
     
     /**
@@ -43,10 +46,17 @@ public non-sealed interface Templated extends Artifact {
     @Override
     List<Artifact> children();
 
+    @Override
+    @JsonIgnore
+    default ArtifactKey artifactKey() {
+        return templateArtifactKey();
+    }
+
     /**
      * Checks if this template has unresolved placeholders.
      * Templates must be static text - no unresolved variables.
      */
+    @JsonIgnore
     default boolean hasUnresolvedPlaceholders() {
         String text = templateText();
         if (text == null) {
@@ -63,6 +73,7 @@ public non-sealed interface Templated extends Artifact {
      * 
      * @throws IllegalStateException if template has unresolved placeholders
      */
+    @JsonIgnore
     default void validateStatic() {
         if (hasUnresolvedPlaceholders()) {
             throw new IllegalStateException(
