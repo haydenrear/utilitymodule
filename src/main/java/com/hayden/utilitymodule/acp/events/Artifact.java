@@ -343,7 +343,44 @@ public sealed interface Artifact
         }
 
     }
-    
+
+    @Builder(toBuilder = true)
+    @With
+    record ToolPrompt(
+            ArtifactKey artifactKey,
+            Map<String, String> metadata,
+            List<Artifact> children,
+            String toolCallName,
+            String toolDescription,
+            String hash
+    ) implements Templated {
+
+        @Override
+        public String templateStaticId() {
+            return toolCallName;
+        }
+
+        @Override
+        public String templateText() {
+            return toolDescription;
+        }
+
+        @Override
+        public String artifactType() {
+            return ToolPrompt.class.getSimpleName();
+        }
+
+        @Override
+        public Optional<String> contentHash() {
+            return Optional.ofNullable(hash);
+        }
+
+        @Override
+        public ArtifactKey templateArtifactKey() {
+            return artifactKey;
+        }
+    }
+
     // ========== Tools ==========
     
     /**
