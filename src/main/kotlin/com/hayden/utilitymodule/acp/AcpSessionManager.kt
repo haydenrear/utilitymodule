@@ -6,6 +6,7 @@ import com.agentclientprotocol.common.Event
 import com.agentclientprotocol.model.ContentBlock
 import com.agentclientprotocol.protocol.Protocol
 import com.agentclientprotocol.transport.Transport
+import com.hayden.utilitymodule.acp.events.ArtifactKey
 import com.hayden.utilitymodule.acp.events.EventBus
 import com.hayden.utilitymodule.acp.events.Events
 import kotlinx.coroutines.CoroutineScope
@@ -25,7 +26,8 @@ class AcpSessionManager(private val eventBus: EventBus) {
         val protocol: Protocol,
         val client: Client,
         val session: ClientSession,
-        val streamWindows: AcpStreamWindowBuffer = AcpStreamWindowBuffer(eventBus)
+        val streamWindows: AcpStreamWindowBuffer = AcpStreamWindowBuffer(eventBus),
+        val messageParent: ArtifactKey
     ) {
 
         suspend fun prompt(content: List<ContentBlock>, _meta: JsonElement? = null): Flow<Event> = session.prompt(content, _meta)
@@ -34,19 +36,19 @@ class AcpSessionManager(private val eventBus: EventBus) {
             memoryId: Any?,
             type: AcpStreamWindowBuffer.StreamWindowType,
             content: ContentBlock
-        ) = streamWindows.appendStreamWindow(memoryId, type, content)
+        ) = streamWindows.appendStreamWindow(memoryId, type, content, messageParent)
 
         fun appendStreamWindow(
             memoryId: Any?,
             type: AcpStreamWindowBuffer.StreamWindowType,
             content: String
-        ) = streamWindows.appendStreamWindow(memoryId, type, content)
+        ) = streamWindows.appendStreamWindow(memoryId, type, content, messageParent)
 
         fun appendEventWindow(
             memoryId: Any?,
             type: AcpStreamWindowBuffer.StreamWindowType,
             event: Events.GraphEvent
-        ) = streamWindows.appendEventWindow(memoryId, type, event)
+        ) = streamWindows.appendEventWindow(memoryId, type, event, messageParent)
 
         fun flushWindows(memoryId: Any?) = streamWindows.flushWindows(memoryId)
 

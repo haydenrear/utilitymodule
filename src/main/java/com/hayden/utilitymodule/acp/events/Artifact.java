@@ -2,14 +2,11 @@ package com.hayden.utilitymodule.acp.events;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.hayden.utilitymodule.schema.SpecialJsonSchemaGenerator;
 import com.hayden.utilitymodule.security.SignatureUtil;
 import lombok.Builder;
 import lombok.With;
 
-import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.*;
@@ -51,7 +48,6 @@ public sealed interface Artifact
             Artifact.ExecutionConfigArtifact,
             Artifact.OutcomeEvidenceArtifact,
             Artifact.PromptArgsArtifact,
-            Artifact.PromptContributionArtifact,
             Artifact.RenderedPromptArtifact,
             Artifact.SchemaArtifact,
             Artifact.ToolCallArtifact,
@@ -118,15 +114,12 @@ public sealed interface Artifact
     interface HashContext {
         String hash(String in);
 
+        default String hashMap(Map<String, Object> doHash) {
+            return ArtifactHashing.hashMap(doHash);
+        }
+
         static HashContext defaultHashContext() {
-            return in -> {
-                try {
-                    return SignatureUtil.hashToString(in, SignatureUtil.retrieveDigest());
-                } catch (
-                        NoSuchAlgorithmException e) {
-                    throw new RuntimeException(e);
-                }
-            };
+            return ArtifactHashing::hashText;
         }
     }
 
@@ -272,7 +265,8 @@ public sealed interface Artifact
             String renderedText,
             String hash,
             Map<String, String> metadata,
-            List<Artifact> children
+            List<Artifact> children,
+            String promptName
     ) implements Artifact {
         
         @Override
@@ -315,27 +309,39 @@ public sealed interface Artifact
      */
     @Builder(toBuilder = true)
     @With
-    record PromptContributionArtifact(
+    record PromptContributionTemplate(
             ArtifactKey artifactKey,
             String contributorName,
             int priority,
             List<String> agentTypes,
-            String contributedText,
+            String templateText,
             int orderIndex,
             String hash,
             Map<String, String> metadata,
             List<Artifact> children
-    ) implements Artifact {
+    ) implements Templated {
         
         @Override
         public String artifactType() {
             return "PromptContribution";
         }
-        
+
+        @Override
+        @JsonIgnore
+        public String templateStaticId() {
+            return contributorName;
+        }
+
         @Override
         public Optional<String> contentHash() {
             return Optional.ofNullable(hash);
         }
+
+        @Override
+        public ArtifactKey templateArtifactKey() {
+            return artifactKey;
+        }
+
     }
     
     // ========== Tools ==========

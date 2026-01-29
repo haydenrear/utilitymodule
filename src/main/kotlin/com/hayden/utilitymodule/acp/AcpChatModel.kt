@@ -9,7 +9,10 @@ import com.agentclientprotocol.protocol.Protocol
 import com.agentclientprotocol.transport.Transport
 import com.hayden.utilitymodule.acp.config.AcpModelProperties
 import com.hayden.utilitymodule.acp.config.McpProperties
+import com.hayden.utilitymodule.acp.events.ArtifactKey
 import com.hayden.utilitymodule.acp.events.EventBus
+import com.hayden.utilitymodule.nullable.mapNullable
+import com.hayden.utilitymodule.nullable.or
 import com.hayden.utilitymodule.permission.IPermissionGate
 import io.modelcontextprotocol.server.IdeMcpAsyncServer.TOOL_ALLOWLIST_HEADER
 import kotlinx.coroutines.CoroutineScope
@@ -231,7 +234,7 @@ class AcpChatModel(
         val args = parseArgs(properties.args)
 
         if (args.isNotEmpty()) {
-            throw RuntimeException("ACP args are not parsed for individual acp providers. They are not parsed at all yet. TODO:" + args)
+            throw RuntimeException("ACP args are not parsed for individual acp providers. They are not parsed at all yet. Add your arg in the command! --codex-args and stuff like that. TODO:" + args)
         }
         val process = command
         val workingDirectory = properties.workingDirectory
@@ -322,7 +325,13 @@ class AcpChatModel(
             val session=  client.newSession(sessionParams)
                 { _, _ -> AcpSessionOperations(permissionGate)}
 
-            sessionManager.AcpSessionContext(scope, transport, protocol, client, session)
+            val messageParent =
+                memoryId.mapNullable { ArtifactKey(it.toString()).createChild() }
+                    ?.or { ArtifactKey.createRoot() }
+                    ?: ArtifactKey.createRoot()
+            sessionManager.AcpSessionContext(scope, transport, protocol, client, session,
+                messageParent= messageParent
+            )
 
         } catch (ex: Exception) {
             throw IllegalStateException("Failed to initialize ACP session", ex)

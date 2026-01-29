@@ -1,5 +1,6 @@
 package com.hayden.utilitymodule.acp.events;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -38,15 +39,10 @@ public non-sealed interface Templated extends Artifact {
      * Stable across executions for the same (staticId, contentHash).
      */
     ArtifactKey templateArtifactKey();
-    
-    /**
-     * Renders the template with the given inputs.
-     * 
-     * @param inputs Map of variable names to values
-     * @return The rendered text
-     */
-    String render(Map<String, Object> inputs);
-    
+
+    @Override
+    List<Artifact> children();
+
     /**
      * Checks if this template has unresolved placeholders.
      * Templates must be static text - no unresolved variables.
