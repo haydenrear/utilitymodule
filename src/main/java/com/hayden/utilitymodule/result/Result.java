@@ -618,7 +618,7 @@ public interface Result<T, E> {
     }
 
     default boolean isError() {
-        return r().isEmpty();
+        return isErr();
     }
 
     default boolean isErr() {
@@ -626,7 +626,18 @@ public interface Result<T, E> {
     }
 
     default boolean hasErr() {
-        return this.e().isPresent();
+        return this.e().filterErr(Result::errFilter).isPresent();
+    }
+
+    private static <E> boolean errFilter(E e) {
+        if (e instanceof AggregateError<?> a) {
+            return a.isError();
+        }
+        if (e instanceof SingleError s) {
+            return s.isError();
+        }
+
+        return true;
     }
 
     default Result<T, E> dropEmptyErr() {
