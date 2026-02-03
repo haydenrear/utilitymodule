@@ -1,23 +1,26 @@
 package com.hayden.utilitymodule.git;
 
 
+import com.google.common.collect.Sets;
 import com.hayden.utilitymodule.io.ArchiveUtils;
 import com.hayden.utilitymodule.io.FileUtils;
 import com.hayden.utilitymodule.result.ClosableResult;
 import com.hayden.utilitymodule.result.OneResult;
 import com.hayden.utilitymodule.result.Result;
+import com.hayden.utilitymodule.result.agg.AggregateError;
 import com.hayden.utilitymodule.result.error.SingleError;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ResetCommand;
-import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.api.errors.*;
 import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.errors.IncorrectObjectTypeException;
 import org.eclipse.jgit.errors.MissingObjectException;
 import org.eclipse.jgit.lib.*;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
+import org.eclipse.jgit.submodule.SubmoduleWalk;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
 import org.eclipse.jgit.treewalk.TreeWalk;
 import org.eclipse.jgit.treewalk.filter.NotTreeFilter;
@@ -34,6 +37,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.concurrent.Callable;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -189,6 +193,9 @@ public interface RepoUtil {
         }
     }
 
+    record RepoUtilAggregateError(Set<RepoUtilError> errors) implements AggregateError<RepoUtilError> {
+    }
+
     static Result<Path, RepoUtilError> cloneIfRemote(String url, String branchName, File gitDir) {
         if (url.startsWith("http") || url.startsWith("git") || url.startsWith("ssh")) {
             return RepoUtil.cloneRepo(gitDir, url, branchName)
@@ -257,6 +264,54 @@ public interface RepoUtil {
                         .setBranch(branch)
                         .call())
                 .flatExcept(exc -> Result.err(new RepoUtilError(exc)));
+    }
+
+    static Result<List<String>, RepoUtilAggregateError> updateSubmodulesRecursively(Path repoPath) {
+        var i = initGit(repoPath)
+                .mapError(err -> new RepoUtilAggregateError(Sets.newHashSet(new RepoUtilError(err.getMessage()))))
+                .flatMapResult(git -> updateSubmodulesRecursively(git.getRepository()))
+                .one();
+        return i;
+    }
+
+    private static Result<List<String>, RepoUtilAggregateError> updateSubmodulesRecursively(Repository repo) {
+        List<String> updated = new ArrayList<>();
+        Set<RepoUtilError> errs = new HashSet<>();
+        try (Git git = new Git(repo)) {
+            git.submoduleInit().call();
+            git.submoduleUpdate().call();
+
+            try (SubmoduleWalk walk = SubmoduleWalk.forIndex(repo)) {
+                try {
+                    while (walk.next()) {
+                        String path = walk.getPath();
+                        if (path != null) {
+                            updated.add(path);
+                        }
+                        try (Repository subRepo = walk.getRepository()) {
+                            if (subRepo != null) {
+                                var u = updateSubmodulesRecursively(subRepo);
+                                if (u.isErr()) {
+                                    u.doOnError(a -> errs.addAll(a.errors));
+                                } else {
+                                    updated.addAll(u.r().get());
+                                }
+                            }
+                        } catch (IOException e) {
+                            errs.add(new RepoUtilError("Failed to get repo %s: %s".formatted(walk.getPath(), e.getMessage())));
+                        }
+                    }
+                } catch (IOException e) {
+                    errs.add(new RepoUtilError("Failed to walk repo %s: %s".formatted(repo.getDirectory(), e.getMessage())));
+                }
+            } catch (IOException e) {
+                errs.add(new RepoUtilError("Failed to get index on repo %s: %s".formatted(repo.getDirectory(), e.getMessage())));
+            }
+        } catch (GitAPIException e) {
+            errs.add(new RepoUtilError("Failed to call git submodule on repo %s: %s".formatted(repo.getDirectory(), e.getMessage())));
+        }
+
+        return Result.from(updated, new RepoUtilAggregateError(errs));
     }
 
     static ClosableResult<Git, GitInitError> initGit(Path path) {
