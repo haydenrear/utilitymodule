@@ -117,7 +117,7 @@ class RepoUtilTest {
         var result = RepoUtil.updateSubmodulesRecursively(mainRepo);
         assertThat(result.isOk()).isTrue();
         List<String> updated = result.r().get();
-        assertThat(updated).contains("libs/sub-a", "libs/sub-b");
+        assertThat(updated).contains("libs/sub-a", "libs/sub-a/libs/sub-b");
         assertThat(mainRepo.resolve("libs/sub-a")).exists();
         assertThat(mainRepo.resolve("libs/sub-a/libs/sub-b")).exists();
 
@@ -127,7 +127,7 @@ class RepoUtilTest {
         var cloneResult = RepoUtil.updateSubmodulesRecursively(cloneRepo);
         assertThat(cloneResult.isOk()).isTrue();
         List<String> cloneUpdated = cloneResult.r().get();
-        assertThat(cloneUpdated).contains("libs/sub-a", "libs/sub-b");
+        assertThat(cloneUpdated).contains("libs/sub-a", "libs/sub-a/libs/sub-b");
         assertThat(cloneRepo.resolve("libs/sub-a")).exists();
         assertThat(cloneRepo.resolve("libs/sub-a/libs/sub-b")).exists();
     }

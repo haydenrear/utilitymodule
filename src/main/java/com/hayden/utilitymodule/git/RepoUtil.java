@@ -37,7 +37,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
-import java.util.concurrent.Callable;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -267,14 +266,17 @@ public interface RepoUtil {
     }
 
     static Result<List<String>, RepoUtilAggregateError> updateSubmodulesRecursively(Path repoPath) {
-        var i = initGit(repoPath)
+        return initGit(repoPath)
                 .mapError(err -> new RepoUtilAggregateError(Sets.newHashSet(new RepoUtilError(err.getMessage()))))
                 .flatMapResult(git -> updateSubmodulesRecursively(git.getRepository()))
                 .one();
-        return i;
     }
 
     private static Result<List<String>, RepoUtilAggregateError> updateSubmodulesRecursively(Repository repo) {
+        return updateSubmodulesRecursively(repo, "");
+    }
+
+    private static Result<List<String>, RepoUtilAggregateError> updateSubmodulesRecursively(Repository repo, String parent) {
         List<String> updated = new ArrayList<>();
         Set<RepoUtilError> errs = new HashSet<>();
         try (Git git = new Git(repo)) {
@@ -285,12 +287,13 @@ public interface RepoUtil {
                 try {
                     while (walk.next()) {
                         String path = walk.getPath();
+                        String relPath = StringUtils.isNotBlank(parent) ? "%s/%s".formatted(parent, path) : path;
                         if (path != null) {
-                            updated.add(path);
+                            updated.add(relPath);
                         }
                         try (Repository subRepo = walk.getRepository()) {
                             if (subRepo != null) {
-                                var u = updateSubmodulesRecursively(subRepo);
+                                var u = updateSubmodulesRecursively(subRepo, relPath);
                                 if (u.isErr()) {
                                     u.doOnError(a -> errs.addAll(a.errors));
                                 } else {
