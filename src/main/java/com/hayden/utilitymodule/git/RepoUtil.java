@@ -394,7 +394,7 @@ public interface RepoUtil {
         return repo;
     }
 
-    private static Result<String, RepoUtilError> runGitCommand(Path repoPath, List<String> args) {
+    static Result<String, RepoUtilError> runGitCommand(Path repoPath, List<String> args) {
         List<String> command = new ArrayList<>();
         command.add("git");
         command.add("-C");
